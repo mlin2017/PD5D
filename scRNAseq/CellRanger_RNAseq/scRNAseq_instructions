@@ -1,0 +1,29 @@
+1) Illumina's data transformed into BCL format and downloded in "sept_20_bcl" folder.
+2) Create Annotation file ==> "cannotation_sc.csv"
+==========================================================================================
+3) # Turn BCL to individual fastq files and place them all in "mybcl"
+module load cellranger/3.0.2
+module load bcl2fastq2/2.19.1
+module load bcl2fastq2/2.20.0
+cellranger mkfastq --qc --id=mybcl \
+                   --run=/data/neurogen/scRNAseq/data/mohsen/sept_20_bcl \
+                   --csv=/data/neurogen/scRNAseq/data/mohsen/cellranger_runs/annotation_sc.csv
+==========================================================================================
+
+4) Then in "analysis" folder (made new folder) we created a folder for each dataset, for example B0085.
+==========================================================================================
+5) Inside each folder the folder :
+# Add your job command here
+module load cellranger/3.0.2
+module load bcl2fastq2/2.19.1
+module load bcl2fastq2/2.20.0
+cellranger count --id=B0085 \
+                   --transcriptome=/PHShome/mn516/software/premrna/GRCh38-1.2.0_premrna_oct12 \
+                   --fastqs=/data/neurogen/scRNAseq/data/mohsen/cellranger_runs/mybcl/outs/fastq_path \
+                   --sample=B0085 \
+                   --localcores=8 \
+                   --localmem=64 
+==========================================================================================
+Then Single Cell analysis output will be saved in a new B0085. 
+Procedure 4 and 5 should be repeated for each dataset. 
+==========================================================================================

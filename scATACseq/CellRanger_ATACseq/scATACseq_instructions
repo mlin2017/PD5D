@@ -1,0 +1,26 @@
+1) Illumina's data transformed into BCL format and downloded in "bcl_1" folder.
+2) Create Annotation file ==> "cellranger-atac-tiny-bcl-simple-1.0.0.csv"
+==========================================================================================
+3) # Turn BCL to individual fastq files and place them all in "mybcl"
+module load cellranger/3.0.2
+module load bcl2fastq2/2.19.1
+module load bcl2fastq2/2.20.0
+cellranger-atac mkfastq --qc --id=mybcl \
+                     --run=/data/neurogen/scATACseq/bcl_1 \
+                     --csv=/data/neurogen/scATACseq/runs/cellranger-atac-tiny-bcl-simple-1.0.0.csv
+==========================================================================================
+
+4) Then we created a folder for each dataset, for example H0196.
+==========================================================================================
+5) Inside each folder the folder :
+# Add your job command here
+module load cellranger/3.0.2
+module load bcl2fastq2/2.19.1
+module load bcl2fastq2/2.20.0
+cellranger-atac count --id=H0196 \
+                   --reference=/PHShome/mn516/software/refdata-cellranger-atac-GRCh38-1.2.0 \
+                   --fastqs=/data/neurogen/scATACseq/runs/tiny-bcl/outs/fastq_path \
+                   --sample=H0196 \
+                   --localcores=8 \
+                   --localmem=64 
+==========================================================================================
