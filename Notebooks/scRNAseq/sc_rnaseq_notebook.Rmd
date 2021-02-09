@@ -1,0 +1,581 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Loading necessary packages:
+
+```{r}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+```
+
+
+Load the BRI-318, BRI-319, BRI-320, BRI-321, B0085, H0321, H1009, H1118  single-cell data.
+```{r}
+BRI318.data <- Read10X(data.dir = "./BRI318")
+BRI319.data <- Read10X(data.dir = "./BRI319")
+BRI320.data <- Read10X(data.dir = "./BRI320")
+BRI321.data <- Read10X(data.dir = "./BRI321")
+B0085.data <- Read10X(data.dir = "./B0085")
+H0321.data <- Read10X(data.dir = "./H0321")
+H1009.data <- Read10X(data.dir = "./H1009")
+H1118.data <- Read10X(data.dir = "./H1118")
+```
+
+Filtering all single cell data to have same set of genes.
+```{r}
+genes1<-rownames(BRI318.data)
+genes2<-rownames(B0085.data)
+genes_common<-intersect(genes1,genes2)
+BRI318.data<-BRI318.data[rownames(BRI318.data)%in%genes_common,]
+BRI319.data<-BRI319.data[rownames(BRI319.data)%in%genes_common,]
+BRI320.data<-BRI320.data[rownames(BRI320.data)%in%genes_common,]
+BRI321.data<-BRI321.data[rownames(BRI321.data)%in%genes_common,]
+B0085.data<-B0085.data[rownames(B0085.data)%in%genes_common,]
+H0321.data<-H0321.data[rownames(H0321.data)%in%genes_common,]
+H1009.data<-H1009.data[rownames(H1009.data)%in%genes_common,]
+H1118.data<-H1118.data[rownames(H1118.data)%in%genes_common,]
+```
+
+Lets see what is the gene expression data dimension is : 
+```{r}
+dim(BRI318.data)
+dim(BRI319.data)
+dim(BRI320.data)
+dim(BRI321.data)
+dim(B0085.data)
+dim(H0321.data)
+dim(H1009.data)
+dim(H1118.data)
+```
+
+Initialize the Seurat object with the raw (non-normalized data)
+Rows are Genes and columns are samples. 
+```{r}
+AllMB <- CreateSeuratObject(counts = cbind(BRI318.data,
+                                           BRI319.data,
+                                           BRI320.data,
+                                           BRI321.data,
+                                           B0085.data,
+                                           H0321.data,
+                                           H1009.data,
+                                           H1118.data),
+                            project = "Midbrain",
+                            min.cells = 3)
+```
+
+Let's now annotate columns (cells) with meta data :
+
+1) sample ID
+```{r}
+AllMB@meta.data$sample_ID <- c(rep("BRI318", ncol(BRI318.data)),
+                               rep("BRI319", ncol(BRI319.data)),
+                               rep("BRI320", ncol(BRI320.data)),
+                               rep("BRI321", ncol(BRI321.data)),
+                               rep("B0085", ncol(B0085.data)),
+                               rep("H0321", ncol(H0321.data)),
+                               rep("H1009", ncol(H1009.data)),
+                               rep("H1118", ncol(H1118.data))
+)
+```
+
+2) case : Healthy Control (HC) or Parkinson Disease (PD)
+```{r}
+AllMB@meta.data$case <- c(rep("PD", ncol(BRI318.data)),
+                          rep("HC", ncol(BRI319.data)),
+                          rep("PD", ncol(BRI320.data)),
+                          rep("HC", ncol(BRI321.data)),
+                          rep("PD", ncol(B0085.data)),
+                          rep("HC", ncol(H0321.data)),
+                          rep("HC", ncol(H1009.data)),
+                          rep("PD", ncol(H1118.data))
+)
+```
+
+3) Expermient (in this case experiment and sample_ID are identical.)
+```{r}
+AllMB@meta.data$experiment <- c(rep("BRI318", ncol(BRI318.data)),
+                                rep("BRI319", ncol(BRI319.data)),
+                                rep("BRI320", ncol(BRI320.data)),
+                                rep("BRI321", ncol(BRI321.data)),
+                                rep("B0085", ncol(B0085.data)),
+                                rep("H0321", ncol(H0321.data)),
+                                rep("H1009", ncol(H1009.data)),
+                                rep("H1118", ncol(H1118.data))
+)
+```
+ 
+4) One VS all annorations :
+BRI318 vs rest
+```{r}
+AllMB@meta.data$BRI318_vs_rest <- c(rep("BRI318", ncol(BRI318.data)),
+                                    rep("rest", ncol(BRI319.data)),
+                                    rep("rest", ncol(BRI320.data)),
+                                    rep("rest", ncol(BRI321.data)),
+                                    rep("rest", ncol(B0085.data)),
+                                    rep("rest", ncol(H0321.data)),
+                                    rep("rest", ncol(H1009.data)),
+                                    rep("rest", ncol(H1118.data)))
+```
+
+BRI319 vs rest
+
+```{r}
+AllMB@meta.data$BRI319_vs_rest <- c(rep("rest", ncol(BRI318.data)),
+                                    rep("BRI319", ncol(BRI319.data)),
+                                    rep("rest", ncol(BRI320.data)),
+                                    rep("rest", ncol(BRI321.data)),
+                                    rep("rest", ncol(B0085.data)),
+                                    rep("rest", ncol(H0321.data)),
+                                    rep("rest", ncol(H1009.data)),
+                                    rep("rest", ncol(H1118.data))
+)
+```
+
+BRI320 vs rest
+```{r}
+AllMB@meta.data$BRI320_vs_rest <- c(rep("rest", ncol(BRI318.data)),
+                                    rep("rest", ncol(BRI319.data)),
+                                    rep("BRI320", ncol(BRI320.data)),
+                                    rep("rest", ncol(BRI321.data)),
+                                    rep("rest", ncol(B0085.data)),
+                                    rep("rest", ncol(H0321.data)),
+                                    rep("rest", ncol(H1009.data)),
+                                    rep("rest", ncol(H1118.data))
+)
+```
+
+BRI321 vs rest
+```{r}
+AllMB@meta.data$BRI321_vs_rest <- c(rep("rest", ncol(BRI318.data)),
+                                    rep("rest", ncol(BRI319.data)),
+                                    rep("rest", ncol(BRI320.data)),
+                                    rep("BRI321", ncol(BRI321.data)),
+                                    rep("rest", ncol(B0085.data)),
+                                    rep("rest", ncol(H0321.data)),
+                                    rep("rest", ncol(H1009.data)),
+                                    rep("rest", ncol(H1118.data))
+)
+```
+
+B0085 vs rest
+```{r}
+AllMB@meta.data$B0085_vs_rest <- c(rep("rest", ncol(BRI318.data)),
+                                   rep("rest", ncol(BRI319.data)),
+                                   rep("rest", ncol(BRI320.data)),
+                                   rep("rest", ncol(BRI321.data)),
+                                   rep("B0085", ncol(B0085.data)),
+                                   rep("rest", ncol(H0321.data)),
+                                   rep("rest", ncol(H1009.data)),
+                                   rep("rest", ncol(H1118.data))
+)
+```
+
+H0321 vs all
+```{r}
+AllMB@meta.data$H0321_vs_rest <- c(rep("rest", ncol(BRI318.data)),
+                                   rep("rest", ncol(BRI319.data)),
+                                   rep("rest", ncol(BRI320.data)),
+                                   rep("rest", ncol(BRI321.data)),
+                                   rep("rest", ncol(B0085.data)),
+                                   rep("H0321", ncol(H0321.data)),
+                                   rep("rest", ncol(H1009.data)),
+                                   rep("rest", ncol(H1118.data))
+)
+```
+
+H1009 vs all
+```{r}
+AllMB@meta.data$H1009_vs_rest <- c(rep("rest", ncol(BRI318.data)),
+                                   rep("rest", ncol(BRI319.data)),
+                                   rep("rest", ncol(BRI320.data)),
+                                   rep("rest", ncol(BRI321.data)),
+                                   rep("rest", ncol(B0085.data)),
+                                   rep("rest", ncol(H0321.data)),
+                                   rep("H1009", ncol(H1009.data)),
+                                   rep("rest", ncol(H1118.data))
+)
+```
+
+H1118 vs all
+```{r}
+AllMB@meta.data$H1118_vs_rest <- c(rep("rest", ncol(BRI318.data)),
+                                   rep("rest", ncol(BRI319.data)),
+                                   rep("rest", ncol(BRI320.data)),
+                                   rep("rest", ncol(BRI321.data)),
+                                   rep("rest", ncol(B0085.data)),
+                                   rep("rest", ncol(H0321.data)),
+                                   rep("rest", ncol(H1009.data)),
+                                   rep("H1118", ncol(H1118.data))
+)
+```
+
+Now let's see the cell the counts for each group:
+```{r}
+table(AllMB$sample_ID)
+table(AllMB$case)
+table(AllMB$experiment)
+```
+
+
+ Quality Checking : 
+
+ Seurat allows you to easily explore QC metrics and filter cells based on any user-defined criteria.
+ A few QC metrics commonly used by the community include : 
+ The number of unique genes detected in each cell.
+ Low-quality cells or empty droplets will often have very few genes
+ Cell doublets or multiplets may exhibit an aberrantly high gene count
+ Similarly, the total number of molecules detected within a cell (correlates strongly with unique genes)
+ The percentage of reads that map to the mitochondrial genome
+ Low-quality / dying cells often exhibit extensive mitochondrial contamination
+ We calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
+ We use the set of all genes starting with MT- as a set of mitochondrial genes
+
+```{r}
+AllMB[["percent.mt"]] <- PercentageFeatureSet(AllMB, pattern = "^MT-")
+VlnPlot(AllMB, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+
+Filtering low quality cells:
+```{r}
+AllMB <- subset(AllMB, subset = nFeature_RNA > 200 & percent.mt < 5)
+```
+
+Log Normalizing data: 
+```{r}
+AllMB <- NormalizeData(AllMB, normalization.method = "LogNormalize", scale.factor = 10000)
+AllMB <- FindVariableFeatures(AllMB, selection.method = "vst", nfeatures = 2000)
+```
+
+Run the standard workflow for visualization and clustering :
+
+save list of all genes
+```{r}
+all.genes <- rownames(AllMB)
+```
+center and scale data
+```{r}
+AllMB <- ScaleData(AllMB, features = all.genes, verbose = FALSE)
+```
+
+fining the top 30 principal componenets for cells
+```{r}
+AllMB <- RunPCA(AllMB, npcs = 30, verbose = FALSE)
+```
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(AllMB, dims = 1:2, reduction = "pca")
+```
+
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = AllMB, reduction = "pca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = AllMB, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+Feature Scatter
+```{r}
+plot1 <- FeatureScatter(AllMB, feature1 = "nCount_RNA", feature2 = "percent.mt")
+```
+
+```{r}
+plot2 <- FeatureScatter(AllMB, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+```
+
+```{r}
+CombinePlots(plots = list(plot1, plot2))
+```
+Run Harmony
+```{r}
+AllMB <- RunHarmony(AllMB, group.by.vars = "case", plot_convergence = TRUE)
+```
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(AllMB, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+```{r}
+DimPlot(object = AllMB, reduction = "harmony", pt.size = .1, group.by = "case")
+```
+cells in harmony 1 axis
+```{r}
+VlnPlot(object = AllMB, features = "harmony_1", group.by = "case",  pt.size = .1)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+ 2 dimensional reductions calculated: pca, harmony
+
+Finding Clusters of cells:
+```{r}
+AllMB <- FindNeighbors(AllMB, reduction = "harmony", dims = 1:20)
+AllMB <- FindClusters(AllMB, resolution = 0.5)
+```
+
+run Umap based on top 20 harmony axis: 
+
+```{r}
+AllMB <- RunUMAP(AllMB, reduction = "harmony", dims = 1:20)
+```
+
+run tsne based on top 20 harmony axis: 
+
+```{r}
+AllMB <- RunTSNE(AllMB, reduction = "harmony", dims = 1:20)
+```
+
+plot umap: 
+```{r}
+DimPlot(AllMB, reduction = "umap", label = TRUE,pt.size = 0.01)
+```
+
+```{r}
+DimPlot(AllMB, reduction = "umap", group.by = "case",pt.size = 0.1)
+```
+
+```{r}
+DimPlot(AllMB, reduction = "umap", group.by = "experiment",pt.size = 0.1)
+```
+
+```{r}
+DimPlot(AllMB, reduction = "tsne", group.by = "BRI318_vs_rest")
+DimPlot(AllMB, reduction = "tsne", group.by = "BRI319_vs_rest")
+DimPlot(AllMB, reduction = "tsne", group.by = "BRI320_vs_rest")
+DimPlot(AllMB, reduction = "tsne", group.by = "BRI321_vs_rest")
+DimPlot(AllMB, reduction = "tsne", group.by = "B0085_vs_rest")
+DimPlot(AllMB, reduction = "tsne", group.by = "H0321_vs_rest")
+DimPlot(AllMB, reduction = "tsne", group.by = "H1009_vs_rest")
+DimPlot(AllMB, reduction = "tsne", group.by = "H1118_vs_rest")
+```
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+DimPlot(AllMB, reduction = "tsne", split.by = "case", label = TRUE, ncol = 1)
+```
+
+Find markers for every cluster compared to all remaining cells, report only the positive ones
+```{r}
+AllMB.markers <- FindAllMarkers(AllMB, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+Save single-cell elements. 
+```{r}
+#saveRDS(AllMB,"AllMB.rds")
+```
+
+```{r}
+#AllMB=readRDS("AllMB.rds")
+```
+
+```{r}
+#saveRDS(AllMB.markers,"AllMB.markers.rds")
+```
+
+```{r}
+#AllMB.markers=readRDS("AllMB.markers.rds")
+#write.csv(AllMB.markers,"AllMB_markers.csv")
+```
+
+```{r}
+unique(AllMB.markers$cluster)
+```
+
+Top marker genes for each clusters: 
+```{r}
+AllMB.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+write.table(AllMB.markers, file = "AllMarkers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+top10Markers <- AllMB.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_logFC)
+write.table(top10Markers, file = "top10Markers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+```
+
+Heatmap for some marker genes: 
+```{r}
+features <- unique(top10Markers$gene)
+DoHeatmap(AllMB, features = features, size = 2, draw.lines = FALSE, angle = 45,
+          hjust = 0.2) + theme(axis.text.y = element_text(size = 5))
+```
+
+```{r}
+VlnPlot(AllMB, features = c("SLC32A1", "GAD1", "GAD2", "SLC17A6", "LPL", "OTX2", "ADCYAP1", "GRP", "VIP"),
+        ncol = 1)
+```
+
+ 
+ Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6, SLC17A7
+ GABAergic neurons = SLC32A1, GAD1, GAD2
+ Dopaminergic neurons = TH, SLC6A3, SCL18A2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+
+
+Plot these genes in the cluster plot:
+```{r}
+FeaturePlot(AllMB, features = c("ENO2", "RBFOX3","SLC17A6", "SLC17A7","AQP4", "GFAP"))
+```
+
+```{r}
+FeaturePlot(AllMB, features = c("SLC17A6", "SLC17A7"))
+```
+```{r}
+FeaturePlot(AllMB, features = c("AQP4", "GFAP"))
+
+FeaturePlot(AllMB, features = c("SLC32A1", "GAD1","GAD2","TH", "SLC6A3","SCL8A2"))
+FeaturePlot(AllMB, features = c("TH", "SLC6A3","SCL18A2"))
+
+FeaturePlot(AllMB, features = c("PLP1", "MBP","VCAN", "BCAN","CX3CR1", "P2RY12"))
+FeaturePlot(AllMB, features = c("VCAN", "BCAN"))
+FeaturePlot(AllMB, features = c("CX3CR1", "P2RY12"))
+FeaturePlot(AllMB, features = c("PLP1", "MBP","VCAN", "BCAN","FLT1", "CLDN5"))
+FeaturePlot(AllMB, features = c("FLT1", "CLDN5"))
+```
+Find cell-types by plotting marker genes.
+```{r}
+VlnPlot(AllMB, features = c("ENO2"),pt.size = 0)
+VlnPlot(AllMB, features = c("RBFOX3"),pt.size = 0)
+VlnPlot(AllMB, features = c("SLC17A6"),pt.size = 0)
+VlnPlot(AllMB, features = c("SLC17A7"),pt.size = 0)
+VlnPlot(AllMB, features = c("SLC32A1"),pt.size = 0)
+VlnPlot(AllMB, features = c("GAD1"),pt.size = 0)
+VlnPlot(AllMB, features = c("GAD2"),pt.size = 0)
+VlnPlot(AllMB, features = c("TH"),pt.size = 0)
+VlnPlot(AllMB, features = c("SLC6A3"),pt.size = 0)
+VlnPlot(AllMB, features = c("SLC18A2"),pt.size = 0)
+VlnPlot(AllMB, features = c("AQP4"),pt.size = 0)
+VlnPlot(AllMB, features = c("GFAP"),pt.size = 0)
+VlnPlot(AllMB, features = c("PLP1"),pt.size = 0)
+VlnPlot(AllMB, features = c("MBP"),pt.size = 0)
+VlnPlot(AllMB, features = c("VCAN"),pt.size = 0)
+VlnPlot(AllMB, features = c("BCAN"),pt.size = 0)
+VlnPlot(AllMB, features = c("CX3CR1"),pt.size = 0)
+VlnPlot(AllMB, features = c("P2RY12"),pt.size = 0)
+VlnPlot(AllMB, features = c("FLT1"),pt.size = 0)
+VlnPlot(AllMB, features = c("CLDN5"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(AllMB, features = c("ENO2",
+                            "TH",
+                            "SLC6A3",
+                            "SLC18A2",
+                            "SLC17A6",
+                            "SLC17A7",
+                            "SLC32A1",
+                            "GAD1",
+                            "GAD2",
+                            "AQP4",
+                            "GFAP",
+                            "PLP1",
+                            "OLIG1",
+                            "VCAN",
+                            "CX3CR1",
+                            "P2RY12",
+                            "FLT1"),
+        pt.size =0,ncol = 1)
+
+```
+
+Find mean values of these genes across clusters.
+```{r}
+AverageExpression(AllMB, features = c("ENO2",
+                                      "TH",
+                                      "SLC6A3",
+                                      "SLC18A2",
+                                      "SLC17A6",
+                                      "SLC17A7",
+                                      "SLC32A1",
+                                      "GAD1",
+                                      "GAD2",
+                                      "AQP4",
+                                      "GFAP",
+                                      "PLP1",
+                                      "OLIG1",
+                                      "VCAN",
+                                      "CX3CR1",
+                                      "P2RY12",
+                                      "FLT1"),use.counts=TRUE)
+
+```
+Other form of ploting genes across clusters:
+```{r}
+RidgePlot(AllMB, features=c("ENO2"))
+RidgePlot(AllMB, features=c("TH"))
+RidgePlot(AllMB, features=c("SLC6A3"))
+RidgePlot(AllMB, features=c("SLC18A2"))
+RidgePlot(AllMB, features=c("SLC17A6"))
+RidgePlot(AllMB, features=c("GAD2"))
+```
+
+Assigning cell type identity to clusters: 
+
+```{r}
+AllMB <- RenameIdents(AllMB, `0` = "Oligodendrocytes", `1` = "Oligodendrocytes", `2` = "Astrocytes",
+                      `3` = "Oligodendrocytes", `4` = "OPCs", `5` = "Glu_GABA neurons",
+                      `6` = "Microglia", `7` = "Oligodendrocytes", `8` = "Endothelial cells",`9` = "Glu_neurons",
+                      `10` = "Endothelial cells", `11` = "dopamine_neuron_potentially_DA2",`12` = "novel_Cluster12",
+                      `13` = "novel_Cluster13",`14` = "novel_Cluster14",
+                      `15` = "GABA_neurons", `16`="dopamine_neuron_potentially_DA1")
+```
+
+Now let's plot cells with the assigned celltypes: 
+```{r}
+DimPlot(AllMB, label = TRUE, repel = TRUE, pt.size = 1)
+```
+
+```{r}
+DimPlot(AllMB, label = TRUE, repel = TRUE, pt.size = 1, split.by = "case", label.size = 2,
+        ncol = 1) + NoLegend()
+```
+
+Saving the singcell objects:
+```{r}
+saveRDS(AllMB,"AllMB.rds")
+AllMB=readRDS("AllMB.rds")
+saveRDS(AllMB.markers,"AllMB.markers.rds")
+AllMB.markers=readRDS("AllMB.markers.rds")
+```
+
+Check the cell counts of each cluster
+```{r}
+table(Idents(AllMB))
+```
+How many cells in each group?
+```{r}
+table(AllMB$case)
+```
+
+How many cells in each cluster of each group? 
+```{r}
+table(Idents(AllMB), AllMB$case)
+```
+
+What proportion of cells are in each cluster of each group?  
+```{r}
+prop.table(table(Idents(AllMB), AllMB$case), margin = 2)
+```
+
+
+
