@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 annotation=$1
 module load bcl2fastq2/2.19.1
 cellranger count  --id=$annotation \
