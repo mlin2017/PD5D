@@ -1,0 +1,162 @@
+---
+title: "Differentiating_between_DA_Neuron_subtypes"
+output: html_document
+---
+
+In this markdown we attempt to differentiate between the two different DA neuron subtypes we identified as clusters 12 and 18. 
+
+First we show that these clusters are highly likely to be DA neurons by showing they express DA specific markers
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+
+```
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("TH"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+THVln <- VlnPlot(AllMB, features = c("TH"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(THVln, filename = "Files/TH_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+SLC6A3, 
+
+```{R}
+VlnPlot(AllMB, features = c("SLC6A3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+SLC6A3Vln <- VlnPlot(AllMB, features = c("SLC6A3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(SLC6A3Vln, filename = "Files/SLC6A3_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+VlnPlot(AllMB, features = c("SLC18A2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+SLC18A2Vln <- VlnPlot(AllMB, features = c("SLC18A2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(SLC18A2Vln, filename = "Files/SLC18A2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+These two neuronal subtypes could represent DA neurons from the substantia nigra and the ventral tegmental area. Therefore we will explore the expression of a set of literature derived markers across the two clusters.
+
+
+CALB1 was historically associated with VTA DA neurons whereas GIRK2/KCNJ6,Sox6 was associated with SN DA neurons. According to a study in mice (see Defining Midbrain Dopaminergic Neuron Diversity by Single-Cell Gene Expression Profiling), SOX6 is indicative of DA1 type neurons (more SN-like). Neither ALDH1A1 or SLC17A6/Vglut2 are indicative in and of themselves of a neuron subtype, but co-expression of Vglut2 and SOX6 is indicative of a more SN-localised/SN-like DA neuron, and neurons expressed ALDH1A1 are reportedly more senstive in a mouse model of PD (see Classification of Midbrain Dopamine Neurons Using Single-Cell Gene Expression Profiling Approaches). 
+
+
+
+```{r}
+DANeuronSubtypesCellMarkerVlnPlot <- VlnPlot(AllMB, features = c("ALDH1A1","SOX6","CALB1","KCNJ6","SLC17A6"),pt.size = 0, ncol = 1) 
+
+ggsave(DANeuronSubtypesCellMarkerVlnPlot,filename = "Files/DANeuronSubtypesCellMarkerVlnPlot.pdf", width = 20, height = 20)       
+```
+
+
+
+If one of these clusters corresponds to DA neurons/DA-like neurons then we might expect that the % of cells relative to the whole represented by this cluster would go down in PD patients relative to healthy controls. 
+
+```{R}
+table(Idents(AllMB), AllMB$case)
+celltable <- table(Idents(AllMB), AllMB$case)
+cell_type_number_df <- as.data.frame(celltable)
+cell_type_number_df
+```
+
+
+
+```{R}
+totalHC <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC"])
+totalPD <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD"])
+HCDAneuronsC1 <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Dopaminergic Neurons group 1"])
+PDDAneuronsC1 <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Dopaminergic Neurons group 1"])
+DAC1_Fishers_allcells <- cbind(totalHC - HCDAneuronsC1, totalPD - PDDAneuronsC1)
+DAC1_Fishers_DAC1_Neurons <- cbind(HCDAneuronsC1, PDDAneuronsC1)
+
+DAC1_Fishers_Table <- rbind(DAC1_Fishers_allcells, DAC1_Fishers_DAC1_Neurons)
+
+colnames(DAC1_Fishers_Table) <- c("HC","PD")
+rownames(DAC1_Fishers_Table) <- c("Total Non-DAC1","DAC1")
+
+fisher.test(DAC1_Fishers_Table)
+
+DAC1_Fishers_Table
+```
+
+```{R}
+totalHC <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC"])
+totalPD <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD"])
+HCDAneuronsC2 <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Dopaminergic Neurons group 2"])
+PDDAneuronsC2 <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Dopaminergic Neurons group 2"])
+DAC2_Fishers_allcells <- cbind(totalHC - HCDAneuronsC2, totalPD - PDDAneuronsC2)
+DAC2_Fishers_DAC2_Neurons <- cbind(HCDAneuronsC2, PDDAneuronsC2)
+
+DAC2_Fishers_Table <- rbind(DAC2_Fishers_allcells, DAC2_Fishers_DAC2_Neurons)
+
+colnames(DAC2_Fishers_Table) <- c("HC","PD")
+rownames(DAC2_Fishers_Table) <- c("Total Non-DAC2","DAC2")
+
+fisher.test(DAC2_Fishers_Table)
+
+DAC2_Fishers_Table
+```
+
+
+```{R}
+prop.table(table(Idents(AllMB), AllMB$case), margin = 2)
+```
+
+
+
+
+
+```
+
+
+
+

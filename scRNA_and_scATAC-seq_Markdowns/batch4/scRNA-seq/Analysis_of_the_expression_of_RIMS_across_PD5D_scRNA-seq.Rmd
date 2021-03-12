@@ -713,6 +713,8 @@ RidgePlot(AllMB, features=c("GAD2"))
  novel = 13, 14, 16
 
 
+
+
 Assigning cell type identity to clusters: 
 
 ```{r}
@@ -725,11 +727,15 @@ AllMB <- RenameIdents(AllMB, `0` = "Oligodendrocytes", `1` = "Oligodendrocytes",
 ```
 
 ```{R}
-saveRDS(AllMB,"AllMB_Assigned.rds")
+#saveRDS(AllMB,"AllMB_Assigned.rds")
 #AllMB=readRDS("AllMB.rds")
 ```
 
+```{R}
 
+AllMB <- readRDS("Files/AllMB_Assigned.rds")
+
+```
 
 what are dopaminergic neurons DA1 and DA2?
 
@@ -752,6 +758,8 @@ ggsave(UMAPclusters, filename = "UMAPclusters_scRNA_seq_Batch4.pdf", device = "p
 DimPlot(AllMB, label = TRUE, repel = TRUE, pt.size = 1, split.by = "case", label.size = 2,
         ncol = 1) + NoLegend()
 ```
+
+
 ```{r}
 DimPlot(AllMB, label = TRUE, repel = TRUE, pt.size = 1,reduction = 'umap')
 ```
