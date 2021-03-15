@@ -152,11 +152,203 @@ prop.table(table(Idents(AllMB), AllMB$case), margin = 2)
 ```
 
 
+```{R}
+HCOligo <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Oligodendrocytes"])
+PDOligo <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Oligodendrocytes"])
+Oligo_Fishers_allcells <- cbind(totalHC - HCOligo, totalPD - PDOligo)
+Oligo_Fishers_Oligo_Neurons <- cbind(HCOligo, PDOligo)
 
+Oligo_Fishers_Table <- rbind(Oligo_Fishers_allcells, Oligo_Fishers_Oligo_Neurons)
 
+colnames(Oligo_Fishers_Table) <- c("HC","PD")
+rownames(Oligo_Fishers_Table) <- c("Total Non-Oligodendrocytes","Oligodenrocytes")
 
+fisher.test(Oligo_Fishers_Table)
+
+Oligo_Fishers_Table
+```
+
+```{R}
+HCAstro <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Astrocytes"])
+PDAstro <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Astrocytes"])
+Astro_Fishers_allcells <- cbind(totalHC - HCAstro, totalPD - PDAstro)
+Astro_Fishers_Astro_Neurons <- cbind(HCAstro, PDAstro)
+
+Astro_Fishers_Table <- rbind(Astro_Fishers_allcells, Astro_Fishers_Astro_Neurons)
+
+colnames(Astro_Fishers_Table) <- c("HC","PD")
+rownames(Astro_Fishers_Table) <- c("Total Non-Astrocytes","Astrocytes")
+
+fisher.test(Astro_Fishers_Table)
+
+Astro_Fishers_Table
+```
+
+```{R}
+HCAstro <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Astrocytes"])
+PDAstro <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Astrocytes"])
+Astro_Fishers_allcells <- cbind(totalHC - HCAstro, totalPD - PDAstro)
+Astro_Fishers_Astro_Neurons <- cbind(HCAstro, PDAstro)
+
+Astro_Fishers_Table <- rbind(Astro_Fishers_allcells, Astro_Fishers_Astro_Neurons)
+
+colnames(Astro_Fishers_Table) <- c("HC","PD")
+rownames(Astro_Fishers_Table) <- c("Total Non-Astrocytes","Astrocytes")
+
+fisher.test(Astro_Fishers_Table)
+
+Astro_Fishers_Table
 ```
 
 
 
+```{R}
+HCOPCs <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "OPCs"])
+PDOPCs <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "OPCs"])
+OPCs_Fishers_allcells <- cbind(totalHC - HCOPCs, totalPD - PDOPCs)
+OPCs_Fishers_OPCs_Neurons <- cbind(HCOPCs, PDOPCs)
+
+OPCs_Fishers_Table <- rbind(OPCs_Fishers_allcells, OPCs_Fishers_OPCs_Neurons)
+
+colnames(OPCs_Fishers_Table) <- c("HC","PD")
+rownames(OPCs_Fishers_Table) <- c("Total Non-OPCs","OPCs")
+
+fisher.test(OPCs_Fishers_Table)
+
+OPCs_Fishers_Table
+
+```
+
+
+```{R}
+HCGlu_GABA_Neurons <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Glu_GABA neurons"])
+PDGlu_GABA_Neurons <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Glu_GABA neurons"])
+Glu_GABA_Neurons_Fishers_allcells <- cbind(totalHC - HCGlu_GABA_Neurons, totalPD - PDGlu_GABA_Neurons)
+Glu_GABA_Neurons_Fishers_Glu_GABA_Neurons_Neurons <- cbind(HCGlu_GABA_Neurons, PDGlu_GABA_Neurons)
+
+Glu_GABA_Neurons_Fishers_Table <- rbind(Glu_GABA_Neurons_Fishers_allcells, Glu_GABA_Neurons_Fishers_Glu_GABA_Neurons_Neurons)
+
+colnames(Glu_GABA_Neurons_Fishers_Table) <- c("HC","PD")
+rownames(Glu_GABA_Neurons_Fishers_Table) <- c("Total Non-Glu_GABA neurons","Glu_GABA neurons")
+
+fisher.test(Glu_GABA_Neurons_Fishers_Table)
+
+Glu_GABA_Neurons_Fishers_Table
+```
+
+
+```{R}
+HCMicroglia <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Microglia"])
+PDMicroglia <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Microglia"])
+Microglia_Fishers_allcells <- cbind(totalHC - HCMicroglia, totalPD - PDMicroglia)
+Microglia_Fishers_Microglia_Neurons <- cbind(HCMicroglia, PDMicroglia)
+
+Microglia_Fishers_Table <- rbind(Microglia_Fishers_allcells, Microglia_Fishers_Microglia_Neurons)
+
+colnames(Microglia_Fishers_Table) <- c("HC","PD")
+rownames(Microglia_Fishers_Table) <- c("Total Non-Microglia","Microglia")
+
+fisher.test(Microglia_Fishers_Table)
+
+Microglia_Fishers_Table
+```
+
+
+```{R}
+HCEndothelialcells <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Endothelial cells"])
+PDEndothelialcells <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Endothelial cells"])
+Endothelialcells_Fishers_allcells <- cbind(totalHC - HCEndothelialcells, totalPD - PDEndothelialcells)
+Endothelialcells_Fishers_Endothelialcells_Neurons <- cbind(HCEndothelialcells, PDEndothelialcells)
+
+Endothelialcells_Fishers_Table <- rbind(Endothelialcells_Fishers_allcells, Endothelialcells_Fishers_Endothelialcells_Neurons)
+
+colnames(Endothelialcells_Fishers_Table) <- c("HC","PD")
+rownames(Endothelialcells_Fishers_Table) <- c("Total Non-Endothelial cells","Endothelial cells")
+
+fisher.test(Endothelialcells_Fishers_Table)
+
+Endothelialcells_Fishers_Table
+```
+
+```{R}
+HCGlu_Neurons <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Glu_Neurons"])
+PDGlu_Neurons <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Glu_Neurons"])
+Glu_Neurons_Fishers_allcells <- cbind(totalHC - HCGlu_Neurons, totalPD - PDGlu_Neurons)
+Glu_Neurons_Fishers_Glu_Neurons_Neurons <- cbind(HCGlu_Neurons, PDGlu_Neurons)
+
+Glu_Neurons_Fishers_Table <- rbind(Glu_Neurons_Fishers_allcells, Glu_Neurons_Fishers_Glu_Neurons_Neurons)
+
+colnames(Glu_Neurons_Fishers_Table) <- c("HC","PD")
+rownames(Glu_Neurons_Fishers_Table) <- c("Total Non-Glu_Neurons","Glu_Neurons")
+
+fisher.test(Glu_Neurons_Fishers_Table)
+
+Glu_Neurons_Fishers_Table
+```
+
+
+```{R}
+HCNaturalKillerCells <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "Natural Killer Cells?? "])
+PDNaturalKillerCells <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "Natural Killer Cells?? "])
+NaturalKillerCells_Fishers_allcells <- cbind(totalHC - HCNaturalKillerCells, totalPD - PDNaturalKillerCells)
+NaturalKillerCells_Fishers_NaturalKillerCells_Neurons <- cbind(HCNaturalKillerCells, PDNaturalKillerCells)
+
+NaturalKillerCells_Fishers_Table <- rbind(NaturalKillerCells_Fishers_allcells, NaturalKillerCells_Fishers_NaturalKillerCells_Neurons)
+
+colnames(NaturalKillerCells_Fishers_Table) <- c("HC","PD")
+rownames(NaturalKillerCells_Fishers_Table) <- c("Total Non-NaturalKillerCells","NaturalKillerCells")
+
+fisher.test(NaturalKillerCells_Fishers_Table)
+
+NaturalKillerCells_Fishers_Table
+```
+
+
+```{R}
+HCnovel_Cluster14 <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "novel_Cluster14"])
+PDnovel_Cluster14 <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "novel_Cluster14"])
+novel_Cluster14_Fishers_allcells <- cbind(totalHC - HCnovel_Cluster14, totalPD - PDnovel_Cluster14)
+novel_Cluster14_Fishers_novel_Cluster14_Neurons <- cbind(HCnovel_Cluster14, PDnovel_Cluster14)
+
+novel_Cluster14_Fishers_Table <- rbind(novel_Cluster14_Fishers_allcells, novel_Cluster14_Fishers_novel_Cluster14_Neurons)
+
+colnames(novel_Cluster14_Fishers_Table) <- c("HC","PD")
+rownames(novel_Cluster14_Fishers_Table) <- c("Total Non-novel_Cluster14","novel_Cluster14")
+
+fisher.test(novel_Cluster14_Fishers_Table)
+
+novel_Cluster14_Fishers_Table
+```
+
+```{R}
+HCnovel_Cluster16 <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "novel_Cluster16"])
+PDnovel_Cluster16 <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "novel_Cluster16"])
+novel_Cluster16_Fishers_allcells <- cbind(totalHC - HCnovel_Cluster16, totalPD - PDnovel_Cluster16)
+novel_Cluster16_Fishers_novel_Cluster16_Neurons <- cbind(HCnovel_Cluster16, PDnovel_Cluster16)
+
+novel_Cluster16_Fishers_Table <- rbind(novel_Cluster16_Fishers_allcells, novel_Cluster16_Fishers_novel_Cluster16_Neurons)
+
+colnames(novel_Cluster16_Fishers_Table) <- c("HC","PD")
+rownames(novel_Cluster16_Fishers_Table) <- c("Total Non-novel_Cluster16","novel_Cluster16")
+
+fisher.test(novel_Cluster16_Fishers_Table)
+
+novel_Cluster16_Fishers_Table
+```
+
+```{R}
+HCGABA_Neurons <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "HC" & cell_type_number_df$Var1 == "GABA Neurons"])
+PDGABA_Neurons <- sum(cell_type_number_df$Freq[cell_type_number_df$Var2 == "PD" & cell_type_number_df$Var1 == "GABA Neurons"])
+GABA_Neurons_Fishers_allcells <- cbind(totalHC - HCGABA_Neurons, totalPD - PDGABA_Neurons)
+GABA_Neurons_Fishers_GABA_Neurons_Neurons <- cbind(HCGABA_Neurons, PDGABA_Neurons)
+
+GABA_Neurons_Fishers_Table <- rbind(GABA_Neurons_Fishers_allcells, GABA_Neurons_Fishers_GABA_Neurons_Neurons)
+
+colnames(GABA_Neurons_Fishers_Table) <- c("HC","PD")
+rownames(GABA_Neurons_Fishers_Table) <- c("Total Non-GABA Neurons","GABA Neurons")
+
+fisher.test(GABA_Neurons_Fishers_Table)
+
+GABA_Neurons_Fishers_Table
+```
 
