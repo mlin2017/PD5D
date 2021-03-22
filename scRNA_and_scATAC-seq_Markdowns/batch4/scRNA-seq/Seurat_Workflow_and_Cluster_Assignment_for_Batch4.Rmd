@@ -24,26 +24,26 @@ library(enrichplot)
 Load the BRI-318, BRI-319, BRI-320, BRI-321, B0085, H0321, H1009, H1118  single-cell data.
 
 ```{r}
-BRI318.data <- Read10X(data.dir = "~/PD5D/scRNA-seq_Analyses/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI318")
+BRI318.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI318")
 ```
 
 ```{R}
-BRI319.data <- Read10X(data.dir = "~/PD5D/scRNA-seq_Analyses/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI319")
+BRI319.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI319")
 ```
 
 ```{R}
-BRI320.data <- Read10X(data.dir = "~/PD5D/scRNA-seq_Analyses/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI320")
+BRI320.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI320")
 ```
 
 ```{R}
-BRI321.data <- Read10X(data.dir = "~/PD5D/scRNA-seq_Analyses/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI321")
+BRI321.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project//Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI321")
 ```
 
 ```{R}
-B0085.data <- Read10X(data.dir = "~/PD5D/scRNA-seq_Analyses/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/B0085")
-H0321.data <- Read10X(data.dir = "~/PD5D/scRNA-seq_Analyses/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/H0321")
-H1009.data <- Read10X(data.dir = "~/PD5D/scRNA-seq_Analyses/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/H1009")
-H1118.data <- Read10X(data.dir = "~/PD5D/scRNA-seq_Analyses/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/H1118")
+B0085.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/B0085")
+H0321.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/H0321")
+H1009.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/H1009")
+H1118.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/H1118")
 ```
 
 

@@ -217,5 +217,75 @@ CD96 - positive
 IL7R/CD127 - positive
 
 
+Now we assess how many cells are assigned to the T cell cluster across our 8 samples
+
+
+```{R}
+table(Idents(AllMB))
+```
+
+
+```{R}
+prop.table(table(Idents(AllMB)))
+```
+
+Finding the average and range for number of unique genes detected per cell
+
+```{R}
+range(AllMB$nFeature_RNA)
+```
+
+
+```{R}
+mean(AllMB$nFeature_RNA)
+```
+
+The total cell number across our 8 samples is 15038
+
+
+Looking at additional markers suggested by Dan
+
+
+```{R}
+VlnPlot(AllMB, features = c("CD3D"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+VlnPlot(AllMB, features = c("CD3E"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+VlnPlot(AllMB, features = c("CD3G"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+T cell receptor alpha chain
+
+```{R}
+VlnPlot(AllMB, features = c("TRAC"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+
+
 
 
