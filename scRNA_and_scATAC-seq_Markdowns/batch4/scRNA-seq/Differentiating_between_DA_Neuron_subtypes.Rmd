@@ -357,3 +357,82 @@ fisher.test(GABA_Neurons_Fishers_Table)
 GABA_Neurons_Fishers_Table
 ```
 
+
+Instead of Fishers test, opting for a Wilcoxon test approach where each data point is the number of cells in a sample.
+
+
+```{R}
+sampleframe <- table(AllMB$sample_ID,AllMB$case)
+sampleframe <- as.data.frame(sampleframe)
+HealthyControls <- as.vector(sampleframe$Var1[which(sampleframe$Var2 == "HC" & sampleframe$Freq > 0)])
+ParkinsonsPatients <- as.vector(sampleframe$Var1[which(sampleframe$Var2 == "PD" & sampleframe$Freq > 0)])
+```
+
+```{R}
+table(Idents(AllMB), AllMB$sample_ID)
+celltable2 <- table(Idents(AllMB), AllMB$sample_ID)
+cell_type_number_df2 <- as.data.frame(celltable2, stringsAsFactors=FALSE)
+
+cell_type_number_df2
+```
+
+
+```{R}
+library(dplyr)
+library(tidyr)
+
+cell_type_number_df2 <- group_by(cell_type_number_df2, Var2) %>% mutate(sampletotal = sum(Freq)) 
+
+cell_type_number_df2$cellfraction <- cell_type_number_df2$Freq/cell_type_number_df2$sampletotal
+```
+
+
+
+```{R}
+library(reshape2)
+melted_cell_type_number_df2 <- melt(cell_type_number_df2)
+```
+
+```{R}
+melted_cell_type_number_df2 <- data.frame(lapply(melted_cell_type_number_df2, as.vector), stringsAsFactors=FALSE)
+
+melted_cell_type_number_df2_fractions <- melted_cell_type_number_df2[melted_cell_type_number_df2$variable=="cellfraction",]
+```
+
+
+```{R}
+melted_cell_type_number_df2_fractions$variable[which(melted_cell_type_number_df2_fractions$Var2 %in% HealthyControls)] <- "Healthy_Control"
+```
+
+```{R}
+melted_cell_type_number_df2_fractions$variable[which(melted_cell_type_number_df2_fractions$Var2 %in% ParkinsonsPatients)] <- "Parkinsons_Patient"
+```
+
+
+```{R}
+#lapply(unique(melted_cell_type_number_df2$Var1), wilcox.test, y=)
+
+wilcoxfun <- function (x) {
+        tempdf <- melted_cell_type_number_df2_fractions[melted_cell_type_number_df2_fractions$Var1 == x,]
+        wilcox.test(tempdf$value~tempdf$variable)
+}
+
+wilcoxfun("Endothelial cells")
+#lapply(kidney[,c("time", "age", "frail")], function(x) wilcox.test(x ~ kidney$sex, var.equal = TRUE))
+
+```
+
+lapply for custom wilcox test function
+
+```{R}
+unique(melted_cell_type_number_df2_fractions$Var1)
+```
+
+
+```{R}
+lapply(unique(melted_cell_type_number_df2_fractions$Var1), wilcoxfun)
+```
+
+No, significant results, likely due to there not being enough data points, something to return to.
+
+
