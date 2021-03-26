@@ -435,4 +435,198 @@ lapply(unique(melted_cell_type_number_df2_fractions$Var1), wilcoxfun)
 
 No, significant results, likely due to there not being enough data points, something to return to.
 
+Using MAST (recommended by "best practices" paper) to look for marker genes/genes DE between the two DA neuron subtypes
+
+
+```{R}
+library(MAST)
+
+DA1vsDA2DEGenes <- FindMarkers(AllMB, ident.1 = "Dopaminergic Neurons group 1", ident.2 = "Dopaminergic Neurons group 2", test.use = "MAST")
+
+```
+
+
+We get 2/3rds of the non-filtered genes ending up as differentially expressed... the basic assumptions underlying DE analyses fall apart, probably not reliable, "Best practices" paper does warn of overinflated p-values. Again, maybe something to come back to later?
+
+```{R}
+DA1vsDA2DEGenesPvalFilter <- DA1vsDA2DEGenes[DA1vsDA2DEGenes$p_val_adj <= 0.05,]
+
+```
+
+
+
+
+```{R}
+
+head(DA1vsDA2DEGenesPvalFilter,10)
+
+
+
+```
+
+```{R}
+VlnPlot(AllMB, features = c("MALAT1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+```
+
+```{R}
+VlnPlot(AllMB, features = c("ATP1B1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+```
+```{R}
+
+VlnPlot(AllMB, features = c("HSP90AA1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
++ logFCs mean the gene is more highly expressed in DA1 neurons, and - logFCs the opposite
+
+We are getting alot of genes that appear to be DE between DA neurons and all the rest of the genes. This could be interesting in itself as these "global differences" could explain why DA2 neurons do not appear to be significantly lost in PD patients whereas other types of neuron are. However, we are also interested in looking at genes specifically DE between DA1 and DA2 neurons. Therefore we will run DE analyses for DA1 and DA2 vs all, combine this genelist and remove them from the DA1 vs DA2 analysis. 
+
+
+```{R}
+
+DA1vsALLGenes <- FindMarkers(AllMB, ident.1 = "Dopaminergic Neurons group 1", test.use = "MAST")
+
+
+DA1vsALLGenesPvalFilter <- DA1vsALLGenes[DA1vsALLGenes$p_val_adj <= 0.05,]
+
+DA1vsALLGenesPvalFilterGenes <- rownames(DA1vsALLGenesPvalFilter)
+```
+
+
+```{R}
+
+DA2vsALLGenes <- FindMarkers(AllMB, ident.1 = "Dopaminergic Neurons group 2", test.use = "MAST")
+
+
+DA2vsALLGenesPvalFilter <- DA2vsALLGenes[DA2vsALLGenes$p_val_adj <= 0.05,]
+
+
+DA2vsALLGenesPvalFilterGenes <- rownames(DA2vsALLGenesPvalFilter)
+```
+
+
+```{R}
+DAneuronsvsALLDEgenes <- unique(c(DA1vsALLGenesPvalFilterGenes,DA2vsALLGenesPvalFilterGenes))
+
+
+
+```
+
+
+
+
+```{R}
+DA1vsDA2DEGenesPvalFiltervsALLfilter <- DA1vsDA2DEGenesPvalFilter[-which(rownames(DA1vsDA2DEGenesPvalFilter) %in% DAneuronsvsALLDEgenes),]
+
+
+```
+
+
+
+```{R}
+head(DA1vsDA2DEGenesPvalFiltervsALLfilter,50)
+
+
+```
+
+```{R}
+
+VlnPlot(AllMB, features = c("NRG3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("MGAT3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("DAG1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("IPO7"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("TDP2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+Some of these results look very odd, it seems like the DE algorithm only needs the gene to be expressed in a minority of cells at a high level to call differential expression...... Maybe this is OK for defining clusters in conjunction with violin plots but for a more robust analysis maybe create raw counts matrix where columns are the cluster that cell was assigned to. Maybe also include the sample and batch at a later time?
+
+
+Writing raw counts matrix to csv file in case we want to explore different avenues for differential expression analysis
+
+```{R}
+
+RawCountMatrix <- GetAssayData(object = AllMB, slot = "counts")
+colnames(RawCountMatrix)
+
+colnames(RawCountMatrix) <- make.unique(as.vector(AllMB@active.ident))
+```
+
+
+```{R}
+write.table(as.matrix(RawCountMatrix), 
+            'Files/RawCountsMatrix.csv', 
+            sep = ',', row.names = T, col.names = T, quote = F)
+
+
+```
+
+
+
+
 

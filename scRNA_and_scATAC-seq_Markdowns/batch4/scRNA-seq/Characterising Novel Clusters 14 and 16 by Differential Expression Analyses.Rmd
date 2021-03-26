@@ -1,0 +1,142 @@
+---
+title: "Characterising Novel Clusters 14 and 16 by Differential Expression Analyses"
+output: html_document
+---
+
+In this markdown we attempt to characterise novel clusters 14 and 16 by looking at genes that are differentially upregulated in these clusters relative to all the other clusters and visualising the results using violin plots
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(MAST)
+```
+
+
+```{R}
+AllMB <- readRDS("Files/AllMB_Assigned.rds")
+```
+
+
+```{R}
+
+NC14vsALLGenes <- FindMarkers(AllMB, ident.1 = "novel_Cluster14", test.use = "MAST")
+
+
+NC14vsALLGenesPvalFilter <- NC14vsALLGenes[NC14vsALLGenes$p_val_adj <= 0.05,]
+
+NC14vsALLGenesPvalFilterGenes <- rownames(NC14vsALLGenesPvalFilter)
+```
+
+```{R}
+head(NC14vsALLGenesPvalFilter,50)
+```
+```{R}
+
+VlnPlot(AllMB, features = c("SOX9"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("CTNNB1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("SLC6A20"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("SLC6A20"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("CEMIP"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+
+VlnPlot(AllMB, features = c("VIM"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("CCDC153"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+
+VlnPlot(AllMB, features = c("CDH2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+
+DA2vsALLGenes <- FindMarkers(AllMB, ident.1 = "Dopaminergic Neurons group 2", test.use = "MAST")
+
+
+DA2vsALLGenesPvalFilter <- DA2vsALLGenes[DA2vsALLGenes$p_val_adj <= 0.05,]
+
+
+DA2vsALLGenesPvalFilterGenes <- rownames(DA2vsALLGenesPvalFilter)
+```
+
+
+
