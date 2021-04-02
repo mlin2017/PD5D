@@ -473,7 +473,7 @@ saveRDS(AllMB,"AllMB_Unassigned.rds")
  oligo = 0,1,2,7
  OPCs=4
  Microglia = 6
- Endothelial= 9,11, 15
+ Endothelial= 9,11,15
  novel = 13, 14, 16
  
  #########################################################

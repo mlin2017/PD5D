@@ -27,10 +27,8 @@ library(enrichplot)
 
 ```{R}
 AllMB <- readRDS("Files/AllMB_Assigned.rds")
-
-
-
 ```
+
 
 ```{R}
 VlnPlot(AllMB, features = c("TH"),pt.size = 0) +
@@ -386,6 +384,47 @@ cell_type_number_df2 <- group_by(cell_type_number_df2, Var2) %>% mutate(sampleto
 cell_type_number_df2$cellfraction <- cell_type_number_df2$Freq/cell_type_number_df2$sampletotal
 ```
 
+```{R}
+cell_type_number_df2$status <- "HC"
+cell_type_number_df2$status[cell_type_number_df2$Var2 %in% ParkinsonsPatients] <- "PD"
+cell_type_number_df2_ordered <- cell_type_number_df2[order(cell_type_number_df2$status),]
+```
+
+creating an excel table from cell_type_number_df2
+
+
+```{R}
+samplesheet = NULL
+samplesheet <- data.frame(row.names = unique(cell_type_number_df2_ordered$Var1))
+for (i in unique(cell_type_number_df2_ordered$Var2)) {
+        tempdf1 <- cell_type_number_df2_ordered[cell_type_number_df2_ordered$Var2 == i,]
+        tempdf2 <- as.data.frame(tempdf1$cellfraction)
+        rownames(tempdf2) <- tempdf1$Var1
+        colnames(tempdf2) <- paste(unique(tempdf1$status),unique(tempdf1$Var2),"Fraction",sep="_")
+        samplesheet <- as.data.frame(cbind(samplesheet,tempdf2))
+}
+
+#write.table(samplesheet, file = "Files/Batch4_Cell_Cluster_Fractions.csv",quote = FALSE, sep = ",",row.names = TRUE,col.names = NA)
+```
+
+
+
+```{R}
+samplesheetrawnumbers = NULL
+samplesheetrawnumbers <- data.frame(row.names = unique(cell_type_number_df2_ordered$Var1))
+for (i in unique(cell_type_number_df2_ordered$Var2)) {
+        tempdf1 <- cell_type_number_df2_ordered[cell_type_number_df2_ordered$Var2 == i,]
+        tempdf2 <- as.data.frame(tempdf1$Freq)
+        rownames(tempdf2) <- tempdf1$Var1
+        colnames(tempdf2) <- paste(unique(tempdf1$status),unique(tempdf1$Var2),"Count",sep="_")
+        samplesheetrawnumbers <- as.data.frame(cbind(samplesheetrawnumbers,tempdf2))
+}
+
+#write.table(samplesheetrawnumbers, file = "Files/Batch4_Cell_Cluster_Counts.csv",quote = FALSE, sep = ",",row.names = TRUE,col.names = NA)
+```
+
+
+
 
 
 ```{R}
@@ -397,29 +436,42 @@ melted_cell_type_number_df2 <- melt(cell_type_number_df2)
 melted_cell_type_number_df2 <- data.frame(lapply(melted_cell_type_number_df2, as.vector), stringsAsFactors=FALSE)
 
 melted_cell_type_number_df2_fractions <- melted_cell_type_number_df2[melted_cell_type_number_df2$variable=="cellfraction",]
+
+melted_cell_type_number_df2_rawcounts <- melted_cell_type_number_df2[melted_cell_type_number_df2$variable=="Freq",]
 ```
 
 
 ```{R}
 melted_cell_type_number_df2_fractions$variable[which(melted_cell_type_number_df2_fractions$Var2 %in% HealthyControls)] <- "Healthy_Control"
+
+melted_cell_type_number_df2_rawcounts$variable[which(melted_cell_type_number_df2_rawcounts$Var2 %in% HealthyControls)] <- "Healthy_Control"
 ```
 
 ```{R}
 melted_cell_type_number_df2_fractions$variable[which(melted_cell_type_number_df2_fractions$Var2 %in% ParkinsonsPatients)] <- "Parkinsons_Patient"
+
+melted_cell_type_number_df2_rawcounts$variable[which(melted_cell_type_number_df2_rawcounts$Var2 %in% ParkinsonsPatients)] <- "Parkinsons_Patient"
 ```
 
 
 ```{R}
 #lapply(unique(melted_cell_type_number_df2$Var1), wilcox.test, y=)
 
-wilcoxfun <- function (x) {
-        tempdf <- melted_cell_type_number_df2_fractions[melted_cell_type_number_df2_fractions$Var1 == x,]
+wilcoxfun <- function (x,y) {
+        tempdf <- y[y$Var1 == x,]
         wilcox.test(tempdf$value~tempdf$variable)
 }
 
+ttestfun <- function (x,y) {
+        tempdf <- y[y$Var1 == x,]
+        t.test(tempdf$value~tempdf$variable)
+}
+
 wilcoxfun("Endothelial cells")
+
 #lapply(kidney[,c("time", "age", "frail")], function(x) wilcox.test(x ~ kidney$sex, var.equal = TRUE))
 
+ttestfun("Endothelial cells")
 ```
 
 lapply for custom wilcox test function
@@ -436,6 +488,22 @@ lapply(unique(melted_cell_type_number_df2_fractions$Var1), wilcoxfun)
 No, significant results, likely due to there not being enough data points, something to return to.
 
 Using MAST (recommended by "best practices" paper) to look for marker genes/genes DE between the two DA neuron subtypes
+
+
+repeating for t-test
+
+```{R}
+lapply(unique(melted_cell_type_number_df2_fractions$Var1),y=melted_cell_type_number_df2_fractions, ttestfun)
+```
+
+
+Repeating t-test for raw cluster counts instead of fractions
+
+
+```{R}
+lapply(unique(melted_cell_type_number_df2_rawcounts$Var1),y=melted_cell_type_number_df2_rawcounts, ttestfun)
+```
+
 
 
 ```{R}
@@ -483,6 +551,8 @@ VlnPlot(AllMB, features = c("ATP1B1"),pt.size = 0) +
               legend.key.size = unit(0.4,"cm"))
 
 ```
+
+
 ```{R}
 
 VlnPlot(AllMB, features = c("HSP90AA1"),pt.size = 0) +
@@ -609,20 +679,20 @@ Some of these results look very odd, it seems like the DE algorithm only needs t
 
 Writing raw counts matrix to csv file in case we want to explore different avenues for differential expression analysis
 
-```{R}
+#```{R}
 
 RawCountMatrix <- GetAssayData(object = AllMB, slot = "counts")
-colnames(RawCountMatrix)
+#colnames(RawCountMatrix)
 
 colnames(RawCountMatrix) <- make.unique(as.vector(AllMB@active.ident))
-```
+#```
 
 
 ```{R}
+
 write.table(as.matrix(RawCountMatrix), 
             'Files/RawCountsMatrix.csv', 
             sep = ',', row.names = T, col.names = T, quote = F)
-
 
 ```
 

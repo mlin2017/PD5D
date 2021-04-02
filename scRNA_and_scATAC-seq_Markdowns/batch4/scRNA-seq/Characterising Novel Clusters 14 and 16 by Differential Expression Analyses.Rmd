@@ -51,6 +51,8 @@ A fair few genes were also noted to be differentially expressed in cancer
 
 Checking a selection of DE and non-DE markers through violin plots
 
+
+
 ```{R}
 
 VlnPlot(AllMB, features = c("SOX9"),pt.size = 0) +
