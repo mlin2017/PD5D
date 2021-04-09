@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+.DS_Store
 scRNA_and_scATAC-seq_Markdowns/batch4/scRNA-seq/Files
 scRNA_and_scATAC-seq_Markdowns/batch4/scRNA-seq/Figures
 scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files
