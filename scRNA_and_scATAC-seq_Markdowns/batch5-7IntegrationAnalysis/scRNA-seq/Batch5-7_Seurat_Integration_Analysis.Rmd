@@ -1,0 +1,173 @@
+---
+title: "Batch5-7_Seurat_Integration_Analysis"
+output: html_document
+---
+
+
+Reading in the three different batches and assigning metadata
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+```
+
+
+
+Batch 5,6,7 read in
+
+```{r}
+BN0009.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0009")
+BN0339.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0339")
+BN0341.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0341")
+BN0415.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0415")
+BN0329.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/BN0329")
+BN0347.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/BN0347")
+BN0348.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/BN0348")
+BN0464.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/BN0464")
+BN0602.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_031821/scRNA-seq/Files/cellranger_matrices/BN0602")
+BN0644.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_031821/scRNA-seq/Files/cellranger_matrices/BN0644")
+BN1855.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_031821/scRNA-seq/Files/cellranger_matrices/BN1855")
+```
+
+
+
+```{r}
+Batch567_MTG <- CreateSeuratObject(counts = cbind(BN0009.data,
+                                           BN0339.data,
+                                           BN0341.data,
+                                           BN0415.data,
+                                           BN0329.data,
+                                           BN0347.data,
+                                           BN0348.data,
+                                           BN0464.data,
+                                           BN0602.data,
+                                           BN0644.data,
+                                           BN1855.data),
+                            project = "Batch567_MTG",
+                            min.cells = 3)
+```
+
+
+1) sample ID
+```{r}
+Batch567_MTG@meta.data$sample_ID <- c(rep("BN0009", ncol(BN0009.data)),
+                               rep("BN0339", ncol(BN0339.data)),
+                               rep("BN0341", ncol(BN0341.data)),
+                               rep("BN0415", ncol(BN0415.data)),
+                               rep("BN0329", ncol(BN0329.data)),
+                               rep("BN0347", ncol(BN0347.data)),
+                               rep("BN0348", ncol(BN0348.data)),
+                               rep("BN0464", ncol(BN0464.data)),
+                               rep("BN0602", ncol(BN0602.data)),
+                               rep("BN0644", ncol(BN0644.data)),
+                               rep("BN1855", ncol(BN1855.data)))
+```
+
+2) case : Healthy Control (HC) or Parkinson Disease (PD)
+```{r}
+Batch567_MTG@meta.data$case <- c(rep("PD", ncol(BN0009.data)),
+                          rep("HC", ncol(BN0339.data)),
+                          rep("HC", ncol(BN0341.data)),
+                          rep("ILB", ncol(BN0415.data)),
+                          rep("PD", ncol(BN0329.data)),
+                          rep("HC", ncol(BN0347.data)),
+                          rep("PD", ncol(BN0348.data)),
+                          rep("ILB", ncol(BN0464.data)),
+                          rep("ILB", ncol(BN0602.data)),
+                          rep("PD", ncol(BN0644.data)),
+                          rep("HC", ncol(BN1855.data))
+                          )
+```
+
+3) Batch 
+```{r}
+Batch567_MTG@meta.data$batch <- c(rep("Batch5", ncol(BN0009.data)),
+                                rep("Batch5", ncol(BN0339.data)),
+                                rep("Batch5", ncol(BN0341.data)),
+                                rep("Batch5", ncol(BN0415.data)),
+                                rep("Batch6", ncol(BN0329.data)),
+                                rep("Batch6", ncol(BN0347.data)),
+                                rep("Batch6", ncol(BN0348.data)),
+                                rep("Batch6", ncol(BN0464.data)),
+                                rep("Batch7", ncol(BN0602.data)),
+                                rep("Batch7", ncol(BN0644.data)),
+                                rep("Batch7", ncol(BN1855.data)))
+```
+
+
+
+```{R}
+Batch567_MTG.list <- SplitObject(Batch567_MTG, split.by = "batch")
+
+Batch567_MTG.list <- lapply(X = Batch567_MTG.list, FUN = function(x) {
+    x <- NormalizeData(x)
+    x <- FindVariableFeatures(x, selection.method = "vst", nfeatures = 2000)
+})
+```
+
+Save single-cell elements. 
+```{r}
+saveRDS(Batch567_MTG.list,"Files/Batch567_MTGlist.rds")
+```
+
+
+########################################################################################
+
+```{R}
+
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(patchwork)
+
+Batch567_MTG.list=readRDS("Files/Batch567_MTGlist.rds")
+
+```
+
+```{R}
+
+# select features that are repeatedly variable across datasets for integration
+features <- SelectIntegrationFeatures(object.list = Batch567_MTG.list)
+
+```
+
+
+Find anchors
+
+
+```{R}
+MTG.anchors <- FindIntegrationAnchors(object.list = Batch567_MTG.list, anchor.features = features)
+```
+
+Combine batches
+
+
+```{R}
+
+# this command creates an 'integrated' data assay
+MTG.combined <- IntegrateData(anchorset = MTG.anchors)
+
+
+```
+

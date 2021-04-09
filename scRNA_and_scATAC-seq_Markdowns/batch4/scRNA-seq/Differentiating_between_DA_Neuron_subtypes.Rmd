@@ -441,11 +441,16 @@ melted_cell_type_number_df2_rawcounts <- melted_cell_type_number_df2[melted_cell
 ```
 
 
+
+
 ```{R}
 melted_cell_type_number_df2_fractions$variable[which(melted_cell_type_number_df2_fractions$Var2 %in% HealthyControls)] <- "Healthy_Control"
 
 melted_cell_type_number_df2_rawcounts$variable[which(melted_cell_type_number_df2_rawcounts$Var2 %in% HealthyControls)] <- "Healthy_Control"
 ```
+
+
+
 
 ```{R}
 melted_cell_type_number_df2_fractions$variable[which(melted_cell_type_number_df2_fractions$Var2 %in% ParkinsonsPatients)] <- "Parkinsons_Patient"
@@ -469,7 +474,7 @@ ttestfun <- function (x,y) {
 
 wilcoxfun("Endothelial cells")
 
-#lapply(kidney[,c("time", "age", "frail")], function(x) wilcox.test(x ~ kidney$sex, var.equal = TRUE))
+  #lapply(kidney[,c("time", "age", "frail")], function(x) wilcox.test(x ~ kidney$sex, var.equal = TRUE))
 
 ttestfun("Endothelial cells")
 ```
@@ -482,7 +487,7 @@ unique(melted_cell_type_number_df2_fractions$Var1)
 
 
 ```{R}
-lapply(unique(melted_cell_type_number_df2_fractions$Var1), wilcoxfun)
+lapply(unique(melted_cell_type_number_df2_fractions$Var1), y=melted_cell_type_number_df2_fractions, wilcoxfun)
 ```
 
 No, significant results, likely due to there not being enough data points, something to return to.
