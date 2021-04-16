@@ -105,6 +105,34 @@ Batch567_MTG@meta.data$batch <- c(rep("Batch5", ncol(BN0009.data)),
                                 rep("Batch7", ncol(BN1855.data)))
 ```
 
+```{r}
+Batch567_MTG[["percent.mt"]] <- PercentageFeatureSet(Batch567_MTG, pattern = "^MT-")
+
+VlnPlot(Batch567_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size=0)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+
+
+average nfeature_RNA
+
+```{R}
+library(stats)
+nfeature_RNA <- Batch567_MTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch567_MTG@meta.data$nFeature_RNA)
+
+```
+
+
+
+Filtering low quality cells:
+```{r}
+Batch567_MTG <- subset(Batch567_MTG, subset = nFeature_RNA > 200 & nfeature_RNA < threeMAD & percent.mt < 5)
+```
 
 
 ```{R}
@@ -160,6 +188,14 @@ Find anchors
 MTG.anchors <- FindIntegrationAnchors(object.list = Batch567_MTG.list, anchor.features = features)
 ```
 
+
+```{r}
+#saveRDS(MTG.anchors,"Files/Batch567_MTGanchors.rds")
+```
+
+
+
+
 Combine batches
 
 
@@ -168,6 +204,160 @@ Combine batches
 # this command creates an 'integrated' data assay
 MTG.combined <- IntegrateData(anchorset = MTG.anchors)
 
+```
+
+Saving integrated data
+
+```{R}
+saveRDS(MTG.combined,"Files/Batch567_MTGcombined.rds")
+```
+
+#######################################################################################
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+```
+
+```{R}
+MTG.combined=readRDS("Files/Batch567_MTGcombined.rds")
 
 ```
+
+
+```{R}
+DefaultAssay(MTG.combined) <- "integrated"
+```
+
+
+
+
+
+```{r}
+all.genes <- rownames(MTG.combined)
+
+MTG.combined <- ScaleData(MTG.combined, features = all.genes, verbose = FALSE)
+
+```
+
+
+finding the top 30 principal components for cells
+```{r}
+MTG.combined <- RunPCA(MTG.combined, npcs = 30, verbose = FALSE)
+```
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(MTG.combined, dims = 1:2, reduction = "pca")
+```
+
+
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = MTG.combined, reduction = "pca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = MTG.combined, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+
+Run Harmony
+```{r}
+MTG.combined <- RunHarmony(MTG.combined, group.by.vars = "case", plot_convergence = TRUE, assay.use = "integrated")
+```
+
+
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(MTG.combined, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+```{r}
+DimPlot(object = MTG.combined, reduction = "harmony", pt.size = .1, group.by = "case")
+```
+
+
+cells in harmony 1 axis
+```{r}
+VlnPlot(object = MTG.combined, features = "harmony_1", group.by = "case",  pt.size = .1)
+```
+
+
+```{R}
+
+ElbowPlot(MTG.combined, ndims = 30)
+
+```
+
+
+Finding Clusters of cells:
+```{r}
+MTG.combined <- FindNeighbors(MTG.combined, reduction = "harmony", dims = 1:21)
+MTG.combined <- FindClusters(MTG.combined, resolution = 0.5)
+```
+
+```{r}
+MTG.combined <- RunUMAP(MTG.combined, reduction = "harmony", dims = 1:21)
+```
+
+run tsne based on top 10 harmony axis: 
+
+```{r}
+MTG.combined <- RunTSNE(MTG.combined, reduction = "harmony", dims = 1:21)
+```
+
+plot umap: 
+```{r}
+DimPlot(MTG.combined, reduction = "umap", label = TRUE,pt.size = 0.01)
+```
+
+```{r}
+DimPlot(MTG.combined, reduction = "umap", group.by = "case",pt.size = 0.1)
+```
+
+```{r}
+DimPlot(MTG.combined, reduction = "umap", group.by = "experiment",pt.size = 0.1)
+```
+
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+DimPlot(MTG.combined, reduction = "tsne", split.by = "case", label = TRUE, ncol = 1)
+```
+
+
+Find markers for every cluster compared to all remaining cells, report only the positive ones
+```{r}
+MTG.combined.markers <- FindAllMarkers(MTG.combined, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

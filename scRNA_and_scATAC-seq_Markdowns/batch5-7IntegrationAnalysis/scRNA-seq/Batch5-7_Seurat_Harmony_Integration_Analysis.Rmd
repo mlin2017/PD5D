@@ -1,0 +1,642 @@
+---
+title: "Batch5-7_Seurat_Integration_Analysis"
+output: html_document
+---
+
+
+Reading in the three different batches and assigning metadata
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+```
+
+
+
+Batch 5,6,7 read in
+
+```{r}
+BN0009.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/Batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0009")
+BN0339.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/Batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0339")
+BN0341.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/Batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0341")
+BN0415.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/Batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0415")
+BN0329.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/BN0329")
+BN0347.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/BN0347")
+BN0348.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/BN0348")
+BN0464.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/BN0464")
+BN0602.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_031821/scRNA-seq/Files/cellranger_matrices/BN0602")
+BN0644.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_031821/scRNA-seq/Files/cellranger_matrices/BN0644")
+BN1855.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_031821/scRNA-seq/Files/cellranger_matrices/BN1855")
+```
+
+
+
+```{r}
+Batch567_MTG <- CreateSeuratObject(counts = cbind(BN0009.data,
+                                           BN0339.data,
+                                           BN0341.data,
+                                           BN0415.data,
+                                           BN0329.data,
+                                           BN0347.data,
+                                           BN0348.data,
+                                           BN0464.data,
+                                           BN0602.data,
+                                           BN0644.data,
+                                           BN1855.data),
+                            project = "Batch567_MTG",
+                            min.cells = 3)
+```
+
+
+1) sample ID
+```{r}
+Batch567_MTG@meta.data$sample_ID <- c(rep("BN0009", ncol(BN0009.data)),
+                               rep("BN0339", ncol(BN0339.data)),
+                               rep("BN0341", ncol(BN0341.data)),
+                               rep("BN0415", ncol(BN0415.data)),
+                               rep("BN0329", ncol(BN0329.data)),
+                               rep("BN0347", ncol(BN0347.data)),
+                               rep("BN0348", ncol(BN0348.data)),
+                               rep("BN0464", ncol(BN0464.data)),
+                               rep("BN0602", ncol(BN0602.data)),
+                               rep("BN0644", ncol(BN0644.data)),
+                               rep("BN1855", ncol(BN1855.data)))
+```
+
+2) case : Healthy Control (HC) or Parkinson Disease (PD)
+```{r}
+Batch567_MTG@meta.data$case <- c(rep("PD", ncol(BN0009.data)),
+                          rep("HC", ncol(BN0339.data)),
+                          rep("HC", ncol(BN0341.data)),
+                          rep("ILB", ncol(BN0415.data)),
+                          rep("PD", ncol(BN0329.data)),
+                          rep("HC", ncol(BN0347.data)),
+                          rep("PD", ncol(BN0348.data)),
+                          rep("ILB", ncol(BN0464.data)),
+                          rep("ILB", ncol(BN0602.data)),
+                          rep("PD", ncol(BN0644.data)),
+                          rep("HC", ncol(BN1855.data))
+                          )
+```
+
+3) Batch 
+```{r}
+Batch567_MTG@meta.data$batch <- c(rep("Batch5", ncol(BN0009.data)),
+                                rep("Batch5", ncol(BN0339.data)),
+                                rep("Batch5", ncol(BN0341.data)),
+                                rep("Batch5", ncol(BN0415.data)),
+                                rep("Batch6", ncol(BN0329.data)),
+                                rep("Batch6", ncol(BN0347.data)),
+                                rep("Batch6", ncol(BN0348.data)),
+                                rep("Batch6", ncol(BN0464.data)),
+                                rep("Batch7", ncol(BN0602.data)),
+                                rep("Batch7", ncol(BN0644.data)),
+                                rep("Batch7", ncol(BN1855.data)))
+```
+
+```{r}
+Batch567_MTG[["percent.mt"]] <- PercentageFeatureSet(Batch567_MTG, pattern = "^MT-")
+
+VlnPlot(Batch567_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size=0)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+
+
+average nfeature_RNA
+
+```{R}
+library(stats)
+nfeature_RNA <- Batch567_MTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch567_MTG@meta.data$nFeature_RNA)
+
+```
+
+
+
+Filtering low quality cells:
+```{r}
+Batch567_MTG <- subset(Batch567_MTG, subset = nFeature_RNA > 200 & nfeature_RNA < threeMAD & percent.mt < 5)
+```
+
+
+
+Log Normalizing data: 
+```{r}
+Batch567_MTG <- NormalizeData(Batch567_MTG, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+
+
+Finding and plotting 2000 most variable features
+
+```{R}
+Batch567_MTG <- FindVariableFeatures(Batch567_MTG, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(Batch567_MTG), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(Batch567_MTG)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+```
+
+```{R}
+plot1
+```
+
+```{R}
+plot2
+```
+
+Run the standard workflow for visualization and clustering :
+
+save list of all genes
+```{r}
+all.genes <- rownames(Batch567_MTG)
+```
+
+center and scale data
+```{r}
+Batch567_MTG <- ScaleData(Batch567_MTG, features = all.genes, verbose = FALSE)
+```
+
+
+finding the top 30 principal components for cells
+```{r}
+Batch567_MTG <- RunPCA(Batch567_MTG, npcs = 30, verbose = FALSE)
+```
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(Batch567_MTG, dims = 1:2, reduction = "pca")
+```
+
+
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = Batch567_MTG, reduction = "pca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = Batch567_MTG, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+
+Run Harmony
+```{r}
+Batch567_MTG <- RunHarmony(Batch567_MTG, group.by.vars = c("batch","case"), plot_convergence = TRUE)
+```
+
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(Batch567_MTG, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+
+```{r}
+DimPlot(object = Batch567_MTG, reduction = "harmony", pt.size = .1, group.by = "batch")
+```
+
+```{r}
+
+Harmony2Dimensions_Batch_Coloured <- DimPlot(object = Batch567_MTG, reduction = "harmony", pt.size = .1, group.by = "batch") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+Harmony2Dimensions_Batch_Coloured
+
+ggsave(Harmony2Dimensions_Batch_Coloured, filename = "Figures/Harmony2Dimensions_Batch_Coloured_scRNA_seq_Batch567.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+```
+
+
+
+
+
+```{R}
+testplot <- DimPlot(object = Batch567_MTG, reduction = "harmony", pt.size = .1, group.by = "batch")
+testplot[[1]]$layers[[1]]$aes_params$alpha = ifelse (Batch567_MTG@meta.data$batch %in% c("Batch6","Batch7"), .0, .1)
+testplot
+```
+
+
+```{r}
+testplot <- DimPlot(object = Batch567_MTG, reduction = "harmony", pt.size = .1, group.by = "batch")
+testplot[[1]]$layers[[1]]$aes_params$alpha = ifelse (Batch567_MTG@meta.data$batch %in% c("Batch56767","Batch7"), .0, .1)
+testplot
+```
+
+```{r}
+testplot <- DimPlot(object = Batch567_MTG, reduction = "harmony", pt.size = .1, group.by = "batch")
+testplot[[1]]$layers[[1]]$aes_params$alpha = ifelse (Batch567_MTG@meta.data$batch %in% c("Batch56767","Batch6"), .0, .1)
+testplot
+```
+
+
+```{r}
+DimPlot(object = Batch567_MTG, reduction = "harmony", pt.size = .1, group.by = "batch", split.by = "batch")
+```
+
+```{r}
+
+Harmony2DimensionsBatchColouredSplit <- DimPlot(object = Batch567_MTG, reduction = "harmony", pt.size = .1, group.by = "batch", split.by = "batch") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
+
+Harmony2DimensionsBatchColouredSplit
+
+ggsave(Harmony2DimensionsBatchColouredSplit, filename = "Figures/Harmony2Dimensions_Batch_Coloured_Split_scRNA_seq_Batch567.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+cells in harmony 1 axis
+```{r}
+VlnPlot(object = Batch567_MTG, features = "harmony_1", group.by = "case",  pt.size = .1)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+ 2 dimensional reductions calculated: pca, harmony
+
+Determing the dimensionality of the dataset
+
+```{R}
+#Batch567_MTG <- JackStraw(Batch567_MTG, num.replicate = 100)
+#Batch567_MTG <- ScoreJackStraw(Batch567_MTG, dims = 1:20)
+#JackStrawPlot(Batch567_MTG, dims = 1:20)
+
+
+
+```
+
+```{R}
+ElbowPlot(Batch567_MTG)
+
+```
+12 looks like a suitable cutoff based on the elbow plot
+
+Finding Clusters of cells:
+```{r}
+Batch567_MTG <- FindNeighbors(Batch567_MTG, reduction = "harmony", dims = 1:12)
+Batch567_MTG <- FindClusters(Batch567_MTG, resolution = 0.5)
+```
+
+run Umap based on top 12 harmony axis: 
+
+```{r}
+Batch567_MTG <- RunUMAP(Batch567_MTG, reduction = "harmony", dims = 1:12)
+```
+
+run tsne based on top 10 harmony axis: 
+
+```{r}
+#Batch567_MTG <- RunTSNE(Batch567_MTG, reduction = "harmony", dims = 1:12)
+```
+
+plot umap: 
+```{r}
+DimPlot(Batch567_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
+```
+
+```{r}
+DimPlot(Batch567_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
+```
+
+```{r}
+DimPlot(Batch567_MTG, reduction = "umap", group.by = "batch",pt.size = 0.1)
+```
+
+```{R}
+UMAPBatchColouredClusters <- DimPlot(Batch567_MTG, reduction = "umap", group.by = "batch",pt.size = 0.1) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+UMAPBatchColouredClusters
+
+ggsave(UMAPBatchColouredClusters, filename = "Figures/UMAP_Batch_Coloured_Clusters_scRNA_seq_Batch567.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+
+
+
+```
+
+
+```{r}
+
+DimPlot(Batch567_MTG, reduction = "umap", group.by = "batch",pt.size = 0.1,split.by = "batch")
+
+UMAPBatchColouredClustersSplit <- DimPlot(Batch567_MTG, reduction = "umap", group.by = "batch",pt.size = 0.1,split.by = "batch") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
+
+UMAPBatchColouredClustersSplit
+
+ggsave(UMAPBatchColouredClustersSplit, filename = "Figures/UMAPBatch_Coloured_Clusters_Split_scRNA_seq_Batch567.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+```
+
+
+
+```{R}
+batchumap <- DimPlot(Batch567_MTG, reduction = "umap", group.by = "batch",pt.size = 0.1, )
+```
+
+
+
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+#DimPlot(Batch567_MTG, reduction = "tsne", split.by = "case", label = TRUE, ncol = 1)
+```
+
+Find markers for every cluster compared to all remaining cells, report only the positive ones
+```{r}
+#Batch567_MTG.Markers <- FindAllMarkers(Batch567_MTG, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
+
+```{r}
+unique(Batch567_MTG.Markers$cluster)
+```
+
+Top marker genes for each clusters: 
+```{r}
+#Batch567_MTG.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+#write.table(Batch567_MTG.Markers, file = "Files/AllMarkers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+#top10Markers <- Batch567_MTG.Markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+#write.table(top10Markers, file = "Files/top10Markers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+```
+
+Heatmap for some marker genes: 
+```{r}
+#features <- unique(top10Markers$gene)
+#DoHeatmap(Batch567_MTG, features = features, size = 2, draw.lines = FALSE, angle = 45,
+#          hjust = 0.2) + theme(axis.text.y = element_text(size = 5))
+```
+
+
+Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6 (VGLUT2), SLC17A7 (VGLUT1)
+ GABAergic neurons = SLC32A1 (VGAT), GAD1, GAD2
+ Dopaminergic neurons = TH, SLC6A3, SCL18A2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+ 
+
+ Glu_Neurons = 1,6,8,17
+ GABA_Neurons = 4,5,9,(16),21,22
+ Astrocytes = 7,14
+ oligo = 0,(15),20
+ OPCs= (7),16
+ Microglia = 13
+ Endothelial = 18,19
+ overlapping = 7
+ novel = 2,3,10,11,12 - all likely neurons/neuron related
+
+Find cell-types by plotting marker genes.
+
+Neuron Markers
+
+```{r}
+VlnPlot(Batch567_MTG, features = c("ENO2"),pt.size = 0)
+```
+Neurons: 1,4,5,6,7,9,11,12,13,14,15,16,19,20,21
+
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("RBFOX3"),pt.size = 0)
+```
+
+Glutamatergic neuron markers
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("SLC17A6"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch567_MTG, features = c("SLC17A7"),pt.size = 0)
+```
+1,6,8,17 - Glu?
+
+GABAergic markers
+
+
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("SLC32A1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch567_MTG, features = c("GAD1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch567_MTG, features = c("GAD2"),pt.size = 0)
+```
+4,5,9,(16),21,22 - GABA?
+
+weaker evidence for 10
+
+Astrocyte markers
+```{R}
+VlnPlot(Batch567_MTG, features = c("AQP4"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch567_MTG, features = c("GFAP"),pt.size = 0)
+```
+7,14,(18,19) - Astrocytes
+
+Oligodendrocyte markers
+
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("PLP1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch567_MTG, features = c("MBP"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("MOG"),pt.size = 0)
+```
+
+0,(15),20 - oligodendrocytes - strong
+
+
+
+OPC markers
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("VCAN"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch567_MTG, features = c("BCAN"),pt.size = 0)
+```
+
+7,16 - OPCs
+
+Microglia
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("CX3CR1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch567_MTG, features = c("P2RY12"),pt.size = 0)
+```
+
+13 - Microglia
+
+Endothelial Cells
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("FLT1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch567_MTG, features = c("CLDN5"),pt.size = 0)
+```
+18,19 - Endothelial cells
+
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("CD69"),pt.size = 0)
+```
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("CD8A"),pt.size = 0)
+```
+
+```{R}
+StandardCellMarkerVlnPlot1 <- VlnPlot(Batch567_MTG, features = c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP"),pt.size = 0, ncol = 1)
+
+ggsave(StandardCellMarkerVlnPlot1,filename = "Figures/StandardCellMarkerVlnPlot1.pdf", width = 20, height = 20)  
+
+StandardCellMarkerVlnPlot2 <- VlnPlot(Batch567_MTG, features = c("PLP1","MBP","MOG","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5","GFAP"),pt.size = 0, ncol = 1) 
+
+ggsave(StandardCellMarkerVlnPlot2,filename = "Figures/StandardCellMarkerVlnPlot2.pdf", width = 20, height = 20)            
+```
+
+
+
+```{R}
+saveRDS(Batch567_MTG,"Files/Batch567_Unassigned.rds")
+Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
+Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
+```
+
+
+
+ Glu_Neurons = 1,6,8,17
+ GABA_Neurons = 4,5,9,(16),21,22
+ Astrocytes = 7,14
+ oligo = 0,(15),20
+ OPCs= (7),16
+ Microglia = 13
+ Endothelial = 18,19
+ overlapping = 7
+ novel = 2,3,10,11,12 - all likely neurons/neuron related
+ 
+ 
+```{R}
+Batch567_MTG <- RenameIdents(Batch567_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
+                      `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
+                      `6` = "GLU Neurons", `7` = "OPCs/Astrocytes", `8` = "GLU Neurons",`9` = "GABA Neurons",
+                      `10` = "Novel Cluster 10", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
+                      `13` = "Microglia",`14` = "Astrocytes",
+                      `15` = "Oligodendrocytes", `16`="GABA Neurons", `17`="GLU Neurons", `18`="Endothelial",`19`="Endothelial",`20`="Oligodendrocytes",`21`="GABA Neurons",`22`="GABA Neurons")
+```
+
+
+
+
+Now let's plot cells with the assigned celltypes: 
+```{r}
+DimPlot(Batch567_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Batch567_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Files/UMAPclusters_scRNA_seq_Batch567.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6, SLC17A7
+ GABAergic neurons = SLC32A1, GAD1, GAD2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+
+```{R}
+StandardCellMarkerVlnPlot1Assigned <- VlnPlot(Batch567_MTG, features = c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP"),pt.size = 0, ncol = 1)
+
+ggsave(StandardCellMarkerVlnPlot1Assigned,filename = "Figures/StandardCellMarkerVlnPlot1Assigned.pdf", width = 20, height = 20)  
+
+StandardCellMarkerVlnPlot2Assigned <- VlnPlot(Batch567_MTG, features = c("PLP1","MBP","MOG","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5","GFAP"),pt.size = 0, ncol = 1) 
+
+ggsave(StandardCellMarkerVlnPlot2Assigned,filename = "Figures/StandardCellMarkerVlnPlot2Assigned.pdf", width = 20, height = 20)            
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

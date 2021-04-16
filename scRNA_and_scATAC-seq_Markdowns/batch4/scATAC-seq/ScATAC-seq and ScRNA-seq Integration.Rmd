@@ -1,0 +1,71 @@
+---
+title: "ATAC-seq and ScRNA-seq Integration"
+output: html_document
+---
+
+
+```{R}
+# Load libraries
+library(Signac)
+library(Seurat)
+library(GenomeInfoDb)
+#library(EnsDb.Hsapiens.v75)
+library(ggplot2)
+library(patchwork)
+library(hdf5r)
+#set.seed(1234)
+library(AnnotationHub)
+```
+
+   ERROR: dependencies ‘Rsamtools’, ‘Biostrings’, ‘ggbio’, ‘biovizBase’, ‘AnnotationFilter’ are not available for package ‘Signac’
+
+# read atacseq files : 1) count_mat, 2) metadata, 3) chrom_assay
+# counts1 is a matrix with rows are genomic regions (ex. chr1:631141-631806 ) 
+# and columns are samples (ex. AAACGAAAGAACCATA-2 ). the content in the matrix is 
+# the nummber of TNFs in each cell in the specific genomic region.
+
+
+```{R}
+hub = AnnotationHub()
+Ensembl98 <- query(hub, c("EnsDb", "Hsapiens", "98"))
+```
+
+
+
+
+
+```{R}
+counts <- Read10X_h5(filename = "./atac_merge/filtered_peak_bc_matrix.h5")
+chrom_assay <- CreateChromatinAssay(
+  counts = counts,
+  sep = c(":", "-"),
+  genome = 'hg19',
+  fragments = './atac_merge/fragments.tsv.gz')
+
+metadata <- read.csv(
+  file = "./atac_merge/singlecell.csv",
+  header = TRUE,
+  row.names = 1)
+
+# Create Seurat object for the atacseq data
+atac0 <- CreateSeuratObject(
+  counts = chrom_assay,
+  assay = "peaks",
+  meta.data = metadata)
+
+# Preprocess atacseq data: 
+preprocess_attac <- function(atac) {
+  # extract gene annotations from EnsDb
+  annotations <- GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v75)
+  
+  # change to UCSC style since the data was mapped to hg19
+  seqlevelsStyle(annotations) <- 'UCSC'
+  genome(annotations) <- "hg19"}
+```
+
+
+
+
+
+  
+  

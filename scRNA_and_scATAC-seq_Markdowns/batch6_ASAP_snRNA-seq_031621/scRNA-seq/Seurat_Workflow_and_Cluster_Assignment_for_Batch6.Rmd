@@ -266,6 +266,8 @@ JackStrawPlot(Batch6_MTG, dims = 1:20)
 
 
 ```
+
+
 ```{R}
 ElbowPlot(Batch6_MTG, ndims = 30)
 
