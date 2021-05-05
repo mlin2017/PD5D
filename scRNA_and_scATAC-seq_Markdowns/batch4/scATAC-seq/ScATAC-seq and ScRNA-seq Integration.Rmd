@@ -28,6 +28,7 @@ library(AnnotationHub)
 ```{R}
 hub = AnnotationHub()
 Ensembl98 <- query(hub, c("EnsDb", "Hsapiens", "98"))
+Ensembl98 <- Ensembl98[[1]]
 ```
 
 
@@ -35,37 +36,687 @@ Ensembl98 <- query(hub, c("EnsDb", "Hsapiens", "98"))
 
 
 ```{R}
-counts <- Read10X_h5(filename = "./atac_merge/filtered_peak_bc_matrix.h5")
+counts <- Read10X_h5(filename = "Files/cellranger_aggr_output/filtered_peak_bc_matrix.h5")
 chrom_assay <- CreateChromatinAssay(
   counts = counts,
   sep = c(":", "-"),
-  genome = 'hg19',
-  fragments = './atac_merge/fragments.tsv.gz')
+  genome = 'hg38',
+  fragments = 'Files/cellranger_aggr_output/fragments.tsv.gz')
 
 metadata <- read.csv(
-  file = "./atac_merge/singlecell.csv",
+  file = "Files/cellranger_aggr_output/singlecell.csv",
   header = TRUE,
   row.names = 1)
 
 # Create Seurat object for the atacseq data
-atac0 <- CreateSeuratObject(
+atac <- CreateSeuratObject(
   counts = chrom_assay,
   assay = "peaks",
   meta.data = metadata)
 
-# Preprocess atacseq data: 
-preprocess_attac <- function(atac) {
-  # extract gene annotations from EnsDb
-  annotations <- GetGRangesFromEnsDb(ensdb = EnsDb.Hsapiens.v75)
+
   
-  # change to UCSC style since the data was mapped to hg19
-  seqlevelsStyle(annotations) <- 'UCSC'
-  genome(annotations) <- "hg19"}
+
+```
+
+
+```{R}
+samples <- read.csv(file.path("Files/cellranger_aggr_output", "aggrtable.csv"), stringsAsFactors=F)
+
+cellcodes <- as.data.frame(atac@assays$peaks@data@Dimnames[[2]])
+colnames(cellcodes) <- "barcodes"
+rownames(cellcodes) <- cellcodes$barcodes
+
+cellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", cellcodes$barcodes))
+cellcodes$samples <- as.vector(samples$library_id[cellcodes$libcodes])
+
+atac@meta.data$sample_ID <- cellcodes$samples
+
+```
+
+
+```{R}
+annotations <- GetGRangesFromEnsDb(ensdb = Ensembl98) 
+  
+  # change to UCSC style since the data was mapped to hg38
+seqlevelsStyle(annotations) <- 'UCSC'
+genome(annotations) <- "hg38"
+  
+  # add the gene information to the object
+Annotation(atac) <- annotations
+  
+  # compute nucleosome signal score per cell
+atac <- NucleosomeSignal(object = atac)
+  
+  # compute TSS enrichment score per cell
+atac <- TSSEnrichment(object = atac, fast = FALSE)
+  
+  # add blacklist ratio and fraction of reads in peaks
+atac$pct_reads_in_peaks <- atac$peak_region_fragments / atac$passed_filters * 100
+atac$blacklist_ratio <- atac$blacklist_region_fragments / atac$peak_region_fragments
+  
+  #Transcription Start Site (TSS) Enrichment Score - The TSS enrichment calculation is a signal to noise calculation.
+  #The reads around a reference set of TSSs are collected to form an aggregate distribution of reads
+  #centered on the TSSs and extending to 2000 bp in either direction (for a total of 4000bp).
+  #This distribution is then normalized by taking the average read depth in the 100 bps at each of the end flanks
+  #of the distribution (for a total of 200bp of averaged data) and calculating a fold change at each position over that average read depth.
+  #This means that the flanks should start at 1, and if there is high read signal at transcription start sites (highly open regions of the genome)
+  #there should be an increase in signal up to a peak in the middle. We take the signal value at the center of the distribution after this normalization as our TSS enrichment metric.
+  #Used to evaluate ATAC-seq. 
+  
+atac$high.tss <- ifelse(atac$TSS.enrichment > 2, 'High', 'Low')
+TSSPlot(atac, group.by = 'high.tss') + NoLegend()
+  
+  
+atac$nucleosome_group <- ifelse(atac$nucleosome_signal > 4, 'NS > 4', 'NS < 4')
+FragmentHistogram(object = atac, group.by = 'nucleosome_group')
+
+```
+
+Perform QC filtering
+
+```{R}
+VlnPlot(
+  object = atac,
+  features = c('pct_reads_in_peaks'),
+  pt.size = 0.1,
+  ncol = 5
+)
+```
+
+```{R}
+VlnPlot(
+  object = atac,
+  features = c('peak_region_fragments'),
+  pt.size = 0.1,
+  ncol = 5
+)
+```
+
+
+```{R}
+VlnPlot(
+  object = atac,
+  features = c('TSS.enrichment'),
+  pt.size = 0.1,
+  ncol = 5
+)
+```
+
+
+```{R}
+VlnPlot(
+  object = atac,
+  features = c('blacklist_ratio'),
+  pt.size = 0.1,
+  ncol = 5
+)
+```
+
+
+```{R}
+VlnPlot(
+  object = atac,
+  features = c('nucleosome_signal'),
+  pt.size = 0.1,
+  ncol = 5
+)
+```
+
+
+```{R}
+atac <- subset(
+  x = atac,
+  subset = pct_reads_in_peaks > 5 &
+           blacklist_ratio < 0.05 &
+           nucleosome_signal < 4 &
+           TSS.enrichment > 1
+)
+```
+
+
+```{R}
+atac <- RunTFIDF(atac)
+```
+
+
+Filter for cells with aggregate peak counts for more than 100. 
+
+```{R}
+atac <- subset(atac, subset = nCount_peaks > 100)
+```
+
+
+
+```{R}
+
+atac <- FindTopFeatures(atac, min.cutoff = 'q0')
+
+atac <- RunSVD(atac,reduction.name = "lsi")
+
+```
+
+
+```{R}
+
+DepthCor(atac)
+
+```
+
+UMAP plot based on LSI Dimensionality reduction.
+
+```{r}
+atac <- RunUMAP(object = atac, reduction = 'lsi', dims = 2:30)
+```
+
+Clustering cells based on Peak counts.Starting from LSI dimensionality reduction.
+```{r}
+atac <- FindNeighbors(object = atac, reduction = 'lsi', dims = 2:30)
+atac <- FindClusters(object = atac, verbose = FALSE, algorithm = 1,resolution=0.1) 
+```
+
+Plot the clusters using UMAP transformation.
+```{r}
+DimPlot(object = atac,reduction = 'umap', label = TRUE) + NoLegend()
+```
+
+
+Compute counts per cell in gene body and promoter region. 
+and add the gene activity matrix to the Seurat object as a new assay and normalize it
+
+```{r}
+gene.activities <- GeneActivity(atac)  
+atac[['RNA']] <- CreateAssayObject(counts = gene.activities)
+
+```
+
+Save the object
+```{r}
+saveRDS(atac,"Files/Batch4_ATAC-seq_processed_unlabelled.rds")
+
+```
+
+
+###################################################################################################
+
+```{r}
+Batch4_ATAC=readRDS("Files/Batch4_ATAC-seq_processed_unlabelled.rds")
+summary(Batch4_ATAC$nCount_peaks)
+```
+
+
+Now We focus on the Psedu expression data:
+1) Fil
+```{r}
+DefaultAssay(Batch4_ATAC) <- 'RNA'
+
+#Identifies features that are outliers on a 'mean variability plot'.
+Batch4_ATAC <- FindVariableFeatures(Batch4_ATAC)
+```
+
+Normalizing Psedu-gene expression.
+```{r}
+Batch4_ATAC<- NormalizeData(
+  object = Batch4_ATAC,
+  assay = 'RNA',
+  normalization.method = 'LogNormalize',
+  scale.factor = median(Batch4_ATAC$nCount_RNA)
+)
+```
+
+
+
+```{R}
+Batch4_RNA=readRDS("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scRNA-seq/Files/AllMB_Assigned.rds")
+
+```
+
+
+Here, based on maximizing correlations, we find matching cell of ATAC seq in RNA seq.
+
+```{r} 
+DefaultAssay(Batch4_RNA)<"RNA"
+
+transfer.anchors <- FindTransferAnchors(
+  reference = Batch4_RNA,
+  query = Batch4_ATAC,
+  reference.assay = "RNA",
+  query.assay = "RNA",
+  reduction = 'cca'
+)
+
+
+#dim(transfer.anchors@anchors)
+#transfer.anchors@anchor.features
+# rna$celltype <- Idents(rna)
+```
+
+transfer.anchors <- FindTransferAnchors(
+  reference = Batch4_RNA,
+  query = Batch4_ATAC,
+  features = VariableFeatures(object = Batch4_ATAC), 
+  reference.assay = "RNA",
+  query.assay = "RNA",
+  reduction = 'cca'
+)
+
+
+And now we can transfer celltypes to cells in ATACseq analaysis. 
+
+```{r}
+predicted.labels <- TransferData(
+  anchorset = transfer.anchors,
+  refdata = Idents(Batch4_RNA),
+  weight.reduction = Batch4_ATAC[['lsi']],
+  dims = 2:30
+)
+
+Batch4_ATAC <- AddMetaData(object = Batch4_ATAC, metadata = predicted.labels)
+saveRDS(Batch4_ATAC,"./atac_merge_filtered_matched_100.rds")
+
+```
+
+
+```{R}
+
+saveRDS(Batch4_ATAC,"Files/Batch4_ATAC_merged.rds")
+
+saveRDS(transfer.anchors,"Files/TransferAnchors.rds")
+
+
+
+```
+
+
+##############################################################################################
+
+
+```{R}
+Batch4_RNA=readRDS("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scRNA-seq/Files/AllMB_Assigned.rds")
+
+ATAC_Batch4=readRDS("Files/Batch4_ATAC_merged.rds")
+
+transfer.anchors=readRDS("Files/TransferAnchors.rds")
+
+
+```
+
+
+```{R}
+DimPlot(Batch4_ATAC, group.by = "predicted.id", label = TRUE, repel = TRUE)
+
+
+```
+```{R}
+UMAPclusters <- DimPlot(Batch4_ATAC, label = TRUE, repel = TRUE, pt.size = 0, label.size = 3,group.by="predicted.id") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Files/UMAPclusters_scATAC_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+```{R}
+DefaultAssay(Batch4_ATAC) <- 'peaks'
+
+Idents(Batch4_ATAC) <- Batch4_ATAC$predicted.id
+
+```
+
+Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6 (VGLUT2), SLC17A7 (VGLUT1)
+ GABAergic neurons = SLC32A1 (VGAT), GAD1, GAD2
+ Dopaminergic neurons = TH, SLC6A3, SCL18A2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+
+Neurons
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "ENO2",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "RBFOX3",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+GLU neurons
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC17A6",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC17A7",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+GABA
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC32A1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "GAD1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "GAD2",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+DA neurons
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC6A3",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC6A3",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "TH",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+Astrocytes
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "AQP4",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "GFAP",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "PLP1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "MBP",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "VCAN",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "BCAN",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "CX3CR1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "P2RY12",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "FLT1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "CLDN5",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
 ```
 
 
 
 
+```{R}
 
-  
-  
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "CD8A",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+```
+
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "CD69",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+```
+
+
+
+Creating grouped clusters to plot coverage plots and call peaks
+
+```{R}
+
+
+
+```
+
+```{R}
+Batch4_ATAC <- RenameIdents(Batch4_ATAC, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
+                      `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
+                      `6` = "GLU Neurons", `7` = "OPCs/Astrocytes", `8` = "GLU Neurons",`9` = "GABA Neurons",
+                      `10` = "Novel Cluster 10", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
+                      `13` = "Microglia",`14` = "Astrocytes",
+                      `15` = "Oligodendrocytes", `16`="GABA Neurons", `17`="GLU Neurons", `18`="Endothelial",`19`="Endothelial",`20`="Oligodendrocytes",`21`="GABA Neurons",`22`="GABA Neurons")
+```
+
+
+```{R}
+
+
+
+
+
+```
+
+
+
+
