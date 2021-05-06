@@ -76,6 +76,15 @@ atac@meta.data$sample_ID <- cellcodes$samples
 
 
 ```{R}
+samples$region <- c("MTG","MTG","Midbrain","Midbrain","Midbrain","Midbrain","Midbrain","Midbrain")
+
+cellcodes$region <- as.vector(samples$region[cellcodes$libcodes])
+
+atac@meta.data$region <- cellcodes$region
+
+```
+
+```{R}
 annotations <- GetGRangesFromEnsDb(ensdb = Ensembl98) 
   
   # change to UCSC style since the data was mapped to hg38
@@ -163,6 +172,36 @@ VlnPlot(
 )
 ```
 
+```{R}
+
+saveRDS(atac,file = "Files/Batch4_ATAC_unfiltered")
+
+```
+
+
+```{R}
+
+atac <- readRDS("Files/Batch4_ATAC_unfiltered")
+
+```
+
+
+#ORIGINAL
+atac <- subset(
+  x = atac,
+  subset = pct_reads_in_peaks > 5 &
+           blacklist_ratio < 0.05 &
+           nucleosome_signal < 4 &
+           TSS.enrichment > 1
+)
+
+```{R}
+atac <- subset(
+  x = atac,
+  subset = region %in% "Midbrain"
+)
+
+```
 
 ```{R}
 atac <- subset(
@@ -173,7 +212,6 @@ atac <- subset(
            TSS.enrichment > 1
 )
 ```
-
 
 ```{R}
 atac <- RunTFIDF(atac)
@@ -312,7 +350,7 @@ predicted.labels <- TransferData(
 )
 
 Batch4_ATAC <- AddMetaData(object = Batch4_ATAC, metadata = predicted.labels)
-saveRDS(Batch4_ATAC,"./atac_merge_filtered_matched_100.rds")
+
 
 ```
 
@@ -330,11 +368,24 @@ saveRDS(transfer.anchors,"Files/TransferAnchors.rds")
 
 ##############################################################################################
 
+```{R}
+# Load libraries
+library(Signac)
+library(Seurat)
+library(GenomeInfoDb)
+#library(EnsDb.Hsapiens.v75)
+library(ggplot2)
+library(patchwork)
+library(hdf5r)
+#set.seed(1234)
+library(AnnotationHub)
+```
+
 
 ```{R}
 Batch4_RNA=readRDS("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scRNA-seq/Files/AllMB_Assigned.rds")
 
-ATAC_Batch4=readRDS("Files/Batch4_ATAC_merged.rds")
+Batch4_ATAC=readRDS("Files/Batch4_ATAC_merged.rds")
 
 transfer.anchors=readRDS("Files/TransferAnchors.rds")
 
@@ -343,10 +394,18 @@ transfer.anchors=readRDS("Files/TransferAnchors.rds")
 
 
 ```{R}
+
 DimPlot(Batch4_ATAC, group.by = "predicted.id", label = TRUE, repel = TRUE)
 
+```
+
+```{R}
+
+table(Batch4_ATAC$predicted.id)
 
 ```
+
+
 ```{R}
 UMAPclusters <- DimPlot(Batch4_ATAC, label = TRUE, repel = TRUE, pt.size = 0, label.size = 3,group.by="predicted.id") + 
         theme(axis.text = element_text(size=8),
@@ -693,20 +752,66 @@ CoveragePlot(
 
 Creating grouped clusters to plot coverage plots and call peaks
 
+
+
+```{R}
+Batch4_ATAC <- RenameIdents(Batch4_ATAC, `Glu_Neurons` = "Neurons",`GABA Neurons` = "Neurons", `OPCs` = "Oligodendrocytes", `Glu_GABA neurons` = "Neurons",`Dopaminergic Neurons group 1` = "Neurons")
+```
+
+
+```{R}
+unique(Idents(Batch4_ATAC))
+
+Batch4_ATAC$grouped_id <- Idents(Batch4_ATAC)
+
+DimPlot(Batch4_ATAC, group.by = "grouped_id", label = TRUE, repel = TRUE)
+
+```
+
+
+```{R}
+peaks <- CallPeaks(
+  object = Batch4_ATAC,
+  group.by = "grouped_id",
+  macs2.path = "~/anaconda3/envs/ASAPConda/bin/macs2",
+  outdir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scATAC-seq/Files/macs2",
+  cleanup = FALSE
+)
+```
+
+
+```{R}
+library(rtracklayer)
+
+ATAC_bed <- data.frame(as.vector(seqnames(peaks)), 
+           start(peaks),
+           end(peaks),
+           as.vector(peaks@elementMetadata$peak_called_in))
+
+write.table(ATAC_bed,file="Files/ATAC_peaks_all.bed",sep = "\t", col.names = FALSE, row.names = FALSE)
+
+```
+
+
+
+
+
+```{R}
+Astrocyte_Peaks <- read.delim("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scATAC-seq/Files/macs2/Astrocytes_peaks.narrowPeak", stringsAsFactors = FALSE, sep = "\t")
+
+Astrocyte_Peaks_R1 <- gsub("X","",colnames(Astrocyte_Peaks))
+Astrocyte_Peaks <- rbind(Astrocyte_Peaks_R1, Astrocyte_Peaks)
+colnames(Astrocyte_Peaks) <- c("chromosome","start","end","peak_name","score","strand","fold_change","minus_log10_pvalue","minus_log10_qvalue","summit_dist_from_start")
+```
+
+
+
 ```{R}
 
 
 
 ```
 
-```{R}
-Batch4_ATAC <- RenameIdents(Batch4_ATAC, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
-                      `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
-                      `6` = "GLU Neurons", `7` = "OPCs/Astrocytes", `8` = "GLU Neurons",`9` = "GABA Neurons",
-                      `10` = "Novel Cluster 10", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
-                      `13` = "Microglia",`14` = "Astrocytes",
-                      `15` = "Oligodendrocytes", `16`="GABA Neurons", `17`="GLU Neurons", `18`="Endothelial",`19`="Endothelial",`20`="Oligodendrocytes",`21`="GABA Neurons",`22`="GABA Neurons")
-```
 
 
 ```{R}
@@ -714,9 +819,4 @@ Batch4_ATAC <- RenameIdents(Batch4_ATAC, `0` = "Oligodendrocytes", `1` = "GLU Ne
 
 
 
-
 ```
-
-
-
-
