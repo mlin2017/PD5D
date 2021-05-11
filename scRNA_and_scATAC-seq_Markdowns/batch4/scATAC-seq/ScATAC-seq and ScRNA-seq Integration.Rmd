@@ -445,9 +445,8 @@ CoveragePlot(
   window = 1000,
   peaks = TRUE)
 
-
-
 ```
+
 
 ```{R}
 
@@ -755,7 +754,7 @@ Creating grouped clusters to plot coverage plots and call peaks
 
 
 ```{R}
-Batch4_ATAC <- RenameIdents(Batch4_ATAC, `Glu_Neurons` = "Neurons",`GABA Neurons` = "Neurons", `OPCs` = "Oligodendrocytes", `Glu_GABA neurons` = "Neurons",`Dopaminergic Neurons group 1` = "Neurons")
+Batch4_ATAC <- RenameIdents(Batch4_ATAC, `Glu_Neurons` = "Neurons",`GABA Neurons` = "Neurons", `OPCs` = "Oligodendrocytes", `Glu_GABA neurons` = "Neurons",`Dopaminergic Neurons group 1` = "Neurons", `Natural Killer Cells?? ` = "CD8+ T Cells", `novel_Cluster14` = "Novel Cluster 14",`novel_Cluster16` = "Novel Cluster 16")
 ```
 
 
@@ -764,9 +763,383 @@ unique(Idents(Batch4_ATAC))
 
 Batch4_ATAC$grouped_id <- Idents(Batch4_ATAC)
 
-DimPlot(Batch4_ATAC, group.by = "grouped_id", label = TRUE, repel = TRUE)
+DimPlot(Batch4_ATAC, label = TRUE, repel = TRUE, pt.size = 0, label.size = 4,group.by="grouped_id") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
 
 ```
+
+```{R}
+grouped_id_Batch4_ATAC_UMAP <- DimPlot(Batch4_ATAC, label = TRUE, repel = TRUE, pt.size = 0, label.size = 4, group.by="grouped_id") + 
+              theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm")) +
+              labs(title = "Midbrain ATAC-seq Clusters")
+
+
+ggsave(grouped_id_Batch4_ATAC_UMAP, filename = "Figures/Grouped_UMAPclusters_scATAC_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "ENO2",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "RBFOX3",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+GLU neurons
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC17A6",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC17A7",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+GABA
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC32A1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "GAD1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "GAD2",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+DA neurons
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC6A3",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "SLC6A3",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "TH",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+TH_Coverage_Plot <- CoveragePlot(
+  object = Batch4_ATAC,
+  region = "TH",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+ggsave(TH_Coverage_Plot, filename = "Figures/TH_Coverage_Plot_scATAC_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+Astrocytes
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "AQP4",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+AQP4_Coverage_Plot <- CoveragePlot(
+  object = Batch4_ATAC,
+  region = "AQP4",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+ggsave(AQP4_Coverage_Plot, filename = "Figures/AQP4_Coverage_Plot_scATAC_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "GFAP",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "PLP1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+PLP1_Coverage_Plot <- CoveragePlot(
+  object = Batch4_ATAC,
+  region = "PLP1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+ggsave(PLP1_Coverage_Plot, filename = "Figures/PLP1_Coverage_Plot_scATAC_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "MBP",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "VCAN",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "BCAN",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "CX3CR1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+CX3CR1_Coverage_Plot <- CoveragePlot(
+  object = Batch4_ATAC,
+  region = "CX3CR1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+ggsave(CX3CR1_Coverage_Plot, filename = "Figures/CX3CR1_Coverage_Plot_scATAC_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+```
+
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "P2RY12",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "FLT1",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "CLDN5",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+
+```
+
+
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "CD8A",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+```
+
+
+
+```{R}
+
+CoveragePlot(
+  object = Batch4_ATAC,
+  region = "CD69",
+  annotation = TRUE,
+  window = 1000,
+  peaks = TRUE)
+
+
+```
+
+```{R}
+hub = AnnotationHub()
+Ensembl98 <- query(hub, c("EnsDb", "Hsapiens", "98"))
+Ensembl98 <- Ensembl98[[1]]
+```
+
+
+```{R}
+head(Batch4_ATAC@assays$peaks@annotation@ranges)
+
+```
+
+
+
+
 
 
 ```{R}
@@ -788,35 +1161,142 @@ ATAC_bed <- data.frame(as.vector(seqnames(peaks)),
            end(peaks),
            as.vector(peaks@elementMetadata$peak_called_in))
 
-write.table(ATAC_bed,file="Files/ATAC_peaks_all.bed",sep = "\t", col.names = FALSE, row.names = FALSE)
+write.table(ATAC_bed,file="Files/ATAC_peaks_all.bed",sep = "\t", col.names = FALSE, row.names = FALSE, quote = FALSE)
 
 ```
 
+################################################################################
 
 
+
+
+
+
+
+Identifying markers
+
+```{R}
+# Load libraries
+library(Signac)
+library(Seurat)
+library(GenomeInfoDb)
+#library(EnsDb.Hsapiens.v75)
+library(ggplot2)
+library(patchwork)
+library(hdf5r)
+#set.seed(1234)
+library(AnnotationHub)
+```
 
 
 ```{R}
-Astrocyte_Peaks <- read.delim("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scATAC-seq/Files/macs2/Astrocytes_peaks.narrowPeak", stringsAsFactors = FALSE, sep = "\t")
+Batch4_ATAC=readRDS("Files/Batch4_ATAC_merged.rds")
 
-Astrocyte_Peaks_R1 <- gsub("X","",colnames(Astrocyte_Peaks))
-Astrocyte_Peaks <- rbind(Astrocyte_Peaks_R1, Astrocyte_Peaks)
-colnames(Astrocyte_Peaks) <- c("chromosome","start","end","peak_name","score","strand","fold_change","minus_log10_pvalue","minus_log10_qvalue","summit_dist_from_start")
+DefaultAssay(Batch4_ATAC) <- 'peaks'
+
+Idents(Batch4_ATAC) <- Batch4_ATAC$predicted.id
+
+Batch4_ATAC <- RenameIdents(Batch4_ATAC, `Glu_Neurons` = "Neurons",`GABA Neurons` = "Neurons", `OPCs` = "Oligodendrocytes", `Glu_GABA neurons` = "Neurons",`Dopaminergic Neurons group 1` = "Neurons", `Natural Killer Cells?? ` = "CD8+ T Cells", `novel_Cluster14` = "Novel Cluster 14",`novel_Cluster16` = "Novel Cluster 16")
+Batch4_ATAC$grouped_id <- Idents(Batch4_ATAC)
+
+
 ```
 
+
+```{R}
+hub = AnnotationHub()
+Ensembl98 <- query(hub, c("EnsDb", "Hsapiens", "98"))
+Ensembl98 <- Ensembl98[[1]]
+annotations <- GetGRangesFromEnsDb(ensdb = Ensembl98)
+```
+
+
+```{R}
+NeuronDApeaks <- FindMarkers(
+  object = Batch4_ATAC,
+  ident.1 = "Neurons",
+  min.pct = 0.05,
+  test.use = "MAST",
+  latent.vars = 'peak_region_fragments'
+)
+
+NeuronDApeaks <- NeuronDApeaks[NeuronDApeaks$p_val_adj < 0.05,]
+
+NeuronDApeaksIncreasedAccessibility <- NeuronDApeaks[NeuronDApeaks$avg_log2FC >= 0.5,]
+```
 
 
 ```{R}
 
-
+ClosestFeature_NeuronDAPeaks_Batch4_ATAC <- ClosestFeature(Batch4_ATAC,regions = rownames(NeuronDApeaksIncreasedAccessibility))
 
 ```
 
+
+```{R}
+OligodendrocyteDAPeaks <- FindMarkers(
+  object = Batch4_ATAC,
+  ident.1 = "Oligodendrocytes",
+  min.pct = 0.05,
+  test.use = "MAST",
+  latent.vars = 'peak_region_fragments'
+)
+
+OligodendrocyteDAPeaks <- OligodendrocyteDAPeaks[OligodendrocyteDAPeaks$p_val_adj < 0.05,]
+
+OligodendrocyteDAPeaksIncreasedAccessibility <- OligodendrocyteDAPeaks[OligodendrocyteDAPeaks$avg_log2FC >= 0.5,]
+```
 
 
 ```{R}
 
-
-
+ClosestFeature_OligodendrocyteDAPeaks_Batch4_ATAC <- ClosestFeature(Batch4_ATAC,regions = rownames(OligodendrocyteDAPeaksIncreasedAccessibility))
 
 ```
+
+
+```{R}
+AstrocyteDAPeaks <- FindMarkers(
+  object = Batch4_ATAC,
+  ident.1 = "Astrocytes",
+  min.pct = 0.05,
+  test.use = "MAST",
+  latent.vars = 'peak_region_fragments'
+)
+
+AstrocyteDAPeaks <- AstrocyteDAPeaks[AstrocyteDAPeaks$p_val_adj < 0.05,]
+
+AstrocyteDAPeaksIncreasedAccessibility <- AstrocyteDAPeaks[AstrocyteDAPeaks$avg_log2FC >= 0.5,]
+```
+
+
+```{R}
+
+ClosestFeature_AstrocyteDAPeaks_Batch4_ATAC <- ClosestFeature(Batch4_ATAC,regions = rownames(AstrocyteDAPeaksIncreasedAccessibility))
+
+```
+
+
+```{R}
+MicrogliaDAPeaks <- FindMarkers(
+  object = Batch4_ATAC,
+  ident.1 = "Microglia",
+  min.pct = 0.05,
+  test.use = "MAST",
+  latent.vars = 'peak_region_fragments'
+)
+
+MicrogliaDAPeaks <- MicrogliaDAPeaks[MicrogliaDAPeaks$p_val_adj < 0.05,]
+
+MicrogliaDAPeaksIncreasedAccessibility <- MicrogliaDAPeaks[MicrogliaDAPeaks$avg_log2FC >= 0.5,]
+```
+
+
+```{R}
+
+ClosestFeature_MicrogliaDAPeaks_Batch4_ATAC <- ClosestFeature(Batch4_ATAC,regions = rownames(MicrogliaDAPeaksIncreasedAccessibility))
+
+```
+
+
+
