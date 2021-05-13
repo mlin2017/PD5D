@@ -13,7 +13,7 @@ library(psych)
 library(pheatmap)
 library(harmony)
 #library(clusterProfiler)
-library(org.Hs.eg.db)
+#library(org.Hs.eg.db)
 library(DOSE)
 library(GOSemSim)
 library(enrichplot)
@@ -717,18 +717,32 @@ RidgePlot(AllMB, features=c("GAD2"))
 Assigning cell type identity to clusters: 
 
 ```{r}
-AllMB <- RenameIdents(AllMB, `0` = "Oligodendrocytes", `1` = "Oligodendrocytes", `2` = "Oligodendrocytes",
-                      `3` = "Astrocytes", `4` = "OPCs", `5` = "Glu_GABA neurons",
+AllMB_assigned <- RenameIdents(AllMB, `0` = "Oligodendrocytes", `1` = "Oligodendrocytes", `2` = "Oligodendrocytes",
+                      `3` = "Astrocytes", `4` = "OPCs", `5` = "GLU_GABA neurons",
                       `6` = "Microglia", `7` = "Oligodendrocytes", `8` = "Astrocytes",`9` = "Endothelial cells",
-                      `10` = "Glu_Neurons", `11` = "Endothelial cells",`12` = "Dopaminergic Neurons group 1",
-                      `13` = "Natural Killer Cells?? ",`14` = "novel_Cluster14",
-                      `15` = "Endothelial cells", `16`="novel_Cluster16", `17`="GABA Neurons", `18`="Dopaminergic Neurons group 2")
+                      `10` = "GLU Neurons", `11` = "Endothelial cells",`12` = "Dopaminergic Neurons group 1",
+                      `13` = "CD8+ T Cells",`14` = "Novel Cluster 14",
+                      `15` = "Endothelial cells", `16`="Novel Cluster 16", `17`="GABA Neurons", `18`="Dopaminergic Neurons group 2")
 ```
+
+```{r}
+AllMB_group_assigned <- RenameIdents(AllMB, `0` = "Oligodendrocytes", `1` = "Oligodendrocytes", `2` = "Oligodendrocytes", `3` = "Astrocytes 1", `4` = "Oligodendrocytes", `5` = "GLU/GABA Neurons",`6` = "Microglia", `7` = "Oligodendrocytes", `8` = "Astrocytes 2",`9` = "Endothelial cells",`10` = "GLU/GABA Neurons", `11` = "Endothelial cells",`12` = "Dopaminergic Neurons",`13` = "CD8+ T Cells",`14` = "Novel Cluster 14",`15` = "Endothelial cells", `16`="Novel Cluster 16", `17`="GLU/GABA Neurons", `18`="Dopaminergic Neurons")
+```
+
+
+```{R}
+saveRDS(AllMB_group_assigned,"AllMB_Group_Assigned.rds")
+#AllMB=readRDS("AllMB.rds")
+```
+
 
 ```{R}
 #saveRDS(AllMB,"AllMB_Assigned.rds")
 #AllMB=readRDS("AllMB.rds")
 ```
+
+
+
 
 ```{R}
 
@@ -1296,5 +1310,7 @@ VlnPlot(AllMB, features = c("PCP4"),pt.size = 0) +
 
 #ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
+
+
 
 
