@@ -1718,8 +1718,6 @@ PLP1_bar_chart <- ggplot(PLP1_table_subset, aes(x=clusters, y=mean, fill=cluster
         
 ggsave(PLP1_bar_chart, filename = "Figures/PLP1_bar_chart_scRNA_seq_Batch4_Midbrain.pdf", device = "pdf", width = 4, height = 4, units = "in")
 
-
-
 ```
 
 

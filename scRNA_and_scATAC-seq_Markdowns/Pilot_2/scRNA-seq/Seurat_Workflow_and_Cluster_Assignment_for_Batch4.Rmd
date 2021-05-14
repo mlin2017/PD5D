@@ -64,7 +64,8 @@ H1009.data<-H1009.data[rownames(H1009.data)%in%genes_common,]
 H1118.data<-H1118.data[rownames(H1118.data)%in%genes_common,]
 ```
 
-Lets see what is the gene expression data dimension is : 
+Lets see what is the gene expression data dimension is :
+
 ```{r}
 dim(BRI318.data)
 dim(BRI319.data)
