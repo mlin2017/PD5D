@@ -27,6 +27,8 @@ library(stringr)
 
 AllMB_group_assigned <- readRDS("Files/AllMB_Group_Assigned.rds")
 
+AllMB_group_assigned_rawcounts <- AllMB_group_assigned@assays$RNA@counts
+
 ```
 
 

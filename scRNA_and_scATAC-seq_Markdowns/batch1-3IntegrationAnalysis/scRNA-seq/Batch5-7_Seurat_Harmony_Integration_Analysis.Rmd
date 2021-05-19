@@ -580,7 +580,9 @@ Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
 Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
 ```
 
-
+```{r}
+DimPlot(Batch567_MTG, reduction = "umap", split.by = "case",pt.size = 0.1)
+```
 
  Glu_Neurons = 1,6,8,17
  GABA_Neurons = 4,5,9,(16),21,22
@@ -593,6 +595,16 @@ Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.dat
  novel = 2,3,10,11,12 - all likely neurons/neuron related
  
  
+```{R}
+case_clusters <- paste(Batch567_MTG$case,Batch567_MTG$seurat_clusters,sep = "_")
+
+table(case_clusters)
+
+
+```
+ 
+ 
+
 ```{R}
 Batch567_MTG <- RenameIdents(Batch567_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
                       `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
