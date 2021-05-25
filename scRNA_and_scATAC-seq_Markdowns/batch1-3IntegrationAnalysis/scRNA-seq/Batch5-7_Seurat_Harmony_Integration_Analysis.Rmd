@@ -603,14 +603,20 @@ table(case_clusters)
 
 ```
  
- 
-
-```{R}
 Batch567_MTG <- RenameIdents(Batch567_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
                       `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
                       `6` = "GLU Neurons", `7` = "Astrocytes 2", `8` = "GLU Neurons",`9` = "GABA Neurons",
                       `10` = "Novel Cluster 10", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
                       `13` = "Microglia",`14` = "Astrocytes 1",
+                      `15` = "Oligodendrocytes", `16`="GABA Neurons", `17`="GLU Neurons", `18`="Endothelial",`19`="Endothelial",`20`="Oligodendrocytes",`21`="GABA Neurons",`22`="GABA Neurons")
+ 
+
+```{R}
+Batch567_MTG <- RenameIdents(Batch567_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
+                      `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
+                      `6` = "GLU Neurons", `7` = "Astrocytes", `8` = "GLU Neurons",`9` = "GABA Neurons",
+                      `10` = "Novel Cluster 10", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
+                      `13` = "Microglia",`14` = "Astrocytes",
                       `15` = "Oligodendrocytes", `16`="GABA Neurons", `17`="GLU Neurons", `18`="Endothelial",`19`="Endothelial",`20`="Oligodendrocytes",`21`="GABA Neurons",`22`="GABA Neurons")
 ```
 

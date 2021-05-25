@@ -1,0 +1,235 @@
+---
+title: "Finding_Progression_Markers_for_Temporal_Cortex_Glial_Cells"
+output: html_document
+---
+
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+```
+
+
+```{R}
+Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
+Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
+```
+
+
+```{R}
+Batch567_MTG$case <- gsub("ILB","PD",Batch567_MTG$case)
+case_clusters <- paste(Batch567_MTG$case,Batch567_MTG$seurat_clusters,sep = "_")
+```
+
+
+```{R}
+Batch567_MTG <- RenameIdents(Batch567_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
+                      `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
+                      `6` = "GLU Neurons", `7` = "Astrocytes", `8` = "GLU Neurons",`9` = "GABA Neurons",
+                      `10` = "Novel Cluster 10", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
+                      `13` = "Microglia",`14` = "Astrocytes",
+                      `15` = "Oligodendrocytes", `16`="GABA Neurons", `17`="GLU Neurons", `18`="Endothelial",`19`="Endothelial",`20`="Oligodendrocytes",`21`="GABA Neurons",`22`="GABA Neurons")
+```
+
+NOTE: MAST uses the conservative bonferroni correction to generate the adjusted p-values (p-value divided by the number of tests)
+
+
+Astrocytes
+
+```{R}
+Astrocytes <- subset(Batch567_MTG, idents = "Astrocytes")
+Idents(Astrocytes) <- "case"
+Astrocytes.PD_Prog.Markers <- FindMarkers(Astrocytes, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST")
+Astrocytes.PD_Prog.Markers$gene <- rownames(Astrocytes.PD_Prog.Markers)
+Astrocytes.PD_Prog.Markers_Filtered <- Astrocytes.PD_Prog.Markers[Astrocytes.PD_Prog.Markers$p_val_adj <= 0.05,]
+top_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered[1:50,]
+#top_pos_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = avg_log2FC)
+#top_neg_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = -avg_log2FC)
+```
+
+```{R}
+avg.Astrocytes <- as.data.frame(AverageExpression(Astrocytes, verbose = FALSE)$RNA)
+avg.Astrocytes$gene <- rownames(avg.Astrocytes)
+avg.Astrocytes_topmarkers <- avg.Astrocytes[avg.Astrocytes$gene %in% unique(top_Astrocytes.PD_Prog.Markers$gene),]
+#negfeatures_Astrocytes <- unique(top10_neg_Astrocytes.PD_Prog.Markers$gene)
+#features <- c(posfeatures, negfeatures)
+avg.Astrocytes_topmarkers <- avg.Astrocytes_topmarkers[match(top_Astrocytes.PD_Prog.Markers$gene,avg.Astrocytes_topmarkers$gene),]
+top_Astrocytes.PD_Prog.Markers$PD_mean <- avg.Astrocytes_topmarkers$PD
+top_Astrocytes.PD_Prog.Markers$HC_mean <- avg.Astrocytes_topmarkers$HC
+top_Astrocytes.PD_Prog.Markers$Status <- "Upregulated"
+top_Astrocytes.PD_Prog.Markers$Status[top_Astrocytes.PD_Prog.Markers$avg_log2FC < 0] <- "Downregulated"
+top_Astrocytes.PD_Prog.Markers$Status <- factor(top_Astrocytes.PD_Prog.Markers$Status, c("Upregulated","Downregulated"))
+PosAstroGenes <- top_Astrocytes.PD_Prog.Markers$gene[top_Astrocytes.PD_Prog.Markers$avg_log2FC > 1]
+NegAstroGenes <- top_Astrocytes.PD_Prog.Markers$gene[top_Astrocytes.PD_Prog.Markers$avg_log2FC < -1]
+```
+
+
+```{R}
+
+AstroScatter <- ggplot(top_Astrocytes.PD_Prog.Markers, aes(HC_mean, PD_mean, color = status)) + geom_point(size = 0.5) + ggtitle("Astrocytes") +
+                theme_cowplot(12) +
+                theme(legend.position = "none",
+                      plot.title = element_text(hjust = 0.5)) +
+                xlab("HC Mean") +
+                ylab("PD Mean") +
+                scale_colour_manual(values = (c("red","blue")))
+                
+                
+AstroScatter <- LabelPoints(plot = AstroScatter, points = PosAstroGenes, repel = TRUE, xnudge = 0, ynudge = 0, size = 3, color = "red")
+AstroScatter <- LabelPoints(plot = AstroScatter, points = NegAstroGenes, repel = TRUE, xnudge = 0, ynudge = 0, size = 3,
+                  color = "blue")
+AstroScatter
+
+ggsave(AstroScatter, filename = "Figures/AstroScatter_Top_50_SigGenes_HC_and_PD_MTG.pdf", device = "pdf", width = 4, height = 4, units = "in")
+
+#DoHeatmap(Astrocytes, features = top_pos_Astrocytes.PD_Prog.Markers$gene, size = 4, angle = 0,
+#                 hjust = 0.5) + ggtitle("Astrocytes") + theme(axis.text.y = element_text(size = 8))
+
+#VlnPlot(Astrocytes, features = top_pos_Astrocytes.PD_Prog.Markers$gene, adjust = TRUE, pt.size = 0)
+```
+
+
+```{R}
+
+write.csv(top_Astrocytes.PD_Prog.Markers,file = "Files/Top_50_SigGenes_Astrocyte_Markers_HC_vs_PD_MTG.csv", quote = FALSE)
+
+```
+
+Microglia
+
+```{R}
+Microglia <- subset(Batch567_MTG, idents = "Microglia")
+Idents(Microglia) <- "case"
+Microglia.PD_Prog.Markers <- FindMarkers(Microglia, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST")
+Microglia.PD_Prog.Markers$gene <- rownames(Microglia.PD_Prog.Markers)
+Microglia.PD_Prog.Markers_Filtered <- Microglia.PD_Prog.Markers[Microglia.PD_Prog.Markers$p_val_adj <= 0.05,]
+top_Microglia.PD_Prog.Markers <- Microglia.PD_Prog.Markers_Filtered[1:50,]
+#top_pos_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = avg_log2FC)
+#top_neg_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = -avg_log2FC)
+```
+
+```{R}
+avg.Microglia <- as.data.frame(AverageExpression(Microglia, verbose = FALSE)$RNA)
+avg.Microglia$gene <- rownames(avg.Microglia)
+avg.Microglia_topmarkers <- avg.Microglia[avg.Microglia$gene %in% unique(top_Microglia.PD_Prog.Markers$gene),]
+#negfeatures_Astrocytes <- unique(top10_neg_Astrocytes.PD_Prog.Markers$gene)
+#features <- c(posfeatures, negfeatures)
+avg.Microglia_topmarkers <- avg.Microglia_topmarkers[match(top_Microglia.PD_Prog.Markers$gene,avg.Microglia_topmarkers$gene),]
+top_Microglia.PD_Prog.Markers$PD_mean <- avg.Microglia_topmarkers$PD
+top_Microglia.PD_Prog.Markers$HC_mean <- avg.Microglia_topmarkers$HC
+top_Microglia.PD_Prog.Markers$Status <- "Upregulated"
+top_Microglia.PD_Prog.Markers$Status[top_Microglia.PD_Prog.Markers$avg_log2FC < 0] <- "Downregulated"
+top_Microglia.PD_Prog.Markers$Status <- factor(top_Microglia.PD_Prog.Markers$Status, c("Upregulated","Downregulated"))
+PosMicrogliaGenes <- top_Microglia.PD_Prog.Markers$gene[top_Microglia.PD_Prog.Markers$avg_log2FC > 1]
+NegMicrogliaGenes <- top_Microglia.PD_Prog.Markers$gene[top_Microglia.PD_Prog.Markers$avg_log2FC < -1]
+```
+
+
+```{R}
+
+MicrogliaScatter <- ggplot(top_Microglia.PD_Prog.Markers, aes(HC_mean, PD_mean, color = Status)) + geom_point(size = 0.5) + ggtitle("Microglia") +
+                theme_cowplot(12) +
+                theme(legend.position = "none",
+                      plot.title = element_text(hjust = 0.5)) +
+                xlab("HC Mean") +
+                ylab("PD Mean") +
+                scale_colour_manual(values = (c("red","blue")))
+                
+                
+MicrogliaScatter <- LabelPoints(plot = MicrogliaScatter, points = PosMicrogliaGenes, repel = TRUE, xnudge = 0, ynudge = 0, size = 3, color = "red")
+MicrogliaScatter <- LabelPoints(plot = MicrogliaScatter, points = NegMicrogliaGenes, repel = TRUE, xnudge = 0, ynudge = 0, size = 3,
+                  color = "blue")
+MicrogliaScatter
+
+ggsave(MicrogliaScatter, filename = "Figures/MicrogliaScatter_Top_50_SigGenes_HC_and_PD_MTG.pdf", device = "pdf", width = 4, height = 4, units = "in")
+
+#DoHeatmap(Astrocytes, features = top_pos_Astrocytes.PD_Prog.Markers$gene, size = 4, angle = 0,
+#                 hjust = 0.5) + ggtitle("Astrocytes") + theme(axis.text.y = element_text(size = 8))
+
+#VlnPlot(Astrocytes, features = top_pos_Astrocytes.PD_Prog.Markers$gene, adjust = TRUE, pt.size = 0)
+```
+
+
+```{R}
+
+write.csv(top_Microglia.PD_Prog.Markers,file = "Files/Top_50_SigGenes_Microglia_Markers_HC_vs_PD_MTG.csv", quote = FALSE)
+
+```
+
+
+Oligodendrocytes
+
+```{R}
+Oligodendrocytes <- subset(Batch567_MTG, idents = "Oligodendrocytes")
+Idents(Oligodendrocytes) <- "case"
+Oligodendrocytes.PD_Prog.Markers <- FindMarkers(Oligodendrocytes, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST")
+Oligodendrocytes.PD_Prog.Markers$gene <- rownames(Oligodendrocytes.PD_Prog.Markers)
+Oligodendrocytes.PD_Prog.Markers_Filtered <- Oligodendrocytes.PD_Prog.Markers[Oligodendrocytes.PD_Prog.Markers$p_val_adj <= 0.05,]
+top_Oligodendrocytes.PD_Prog.Markers <- Oligodendrocytes.PD_Prog.Markers_Filtered[1:50,]
+#top_pos_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = avg_log2FC)
+#top_neg_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = -avg_log2FC)
+```
+
+```{R}
+avg.Oligodendrocytes <- as.data.frame(AverageExpression(Oligodendrocytes, verbose = FALSE)$RNA)
+avg.Oligodendrocytes$gene <- rownames(avg.Oligodendrocytes)
+avg.Oligodendrocytes_topmarkers <- avg.Oligodendrocytes[avg.Oligodendrocytes$gene %in% unique(top_Oligodendrocytes.PD_Prog.Markers$gene),]
+#negfeatures_Astrocytes <- unique(top10_neg_Astrocytes.PD_Prog.Markers$gene)
+#features <- c(posfeatures, negfeatures)
+avg.Oligodendrocytes_topmarkers <- avg.Oligodendrocytes_topmarkers[match(top_Oligodendrocytes.PD_Prog.Markers$gene,avg.Oligodendrocytes_topmarkers$gene),]
+top_Oligodendrocytes.PD_Prog.Markers$PD_mean <- avg.Oligodendrocytes_topmarkers$PD
+top_Oligodendrocytes.PD_Prog.Markers$HC_mean <- avg.Oligodendrocytes_topmarkers$HC
+top_Oligodendrocytes.PD_Prog.Markers$Status <- "Upregulated"
+top_Oligodendrocytes.PD_Prog.Markers$Status[top_Oligodendrocytes.PD_Prog.Markers$avg_log2FC < 0] <- "Downregulated"
+top_Oligodendrocytes.PD_Prog.Markers$Status <- factor(top_Oligodendrocytes.PD_Prog.Markers$Status, c("Upregulated","Downregulated"))
+PosOligodendrocytesGenes <- top_Oligodendrocytes.PD_Prog.Markers$gene[top_Oligodendrocytes.PD_Prog.Markers$avg_log2FC > 1]
+NegOligodendrocytesGenes <- top_Oligodendrocytes.PD_Prog.Markers$gene[top_Oligodendrocytes.PD_Prog.Markers$avg_log2FC < -1]
+```
+
+
+```{R}
+
+OligodendrocytesScatter <- ggplot(top_Oligodendrocytes.PD_Prog.Markers, aes(HC_mean, PD_mean, color = Status)) + geom_point(size = 0.5) + ggtitle("Oligodendrocytes") +
+                theme_cowplot(12) +
+                theme(legend.position = "none",
+                      plot.title = element_text(hjust = 0.5)) +
+                xlab("HC Mean") +
+                ylab("PD Mean") +
+                scale_colour_manual(values = (c("red","blue")))
+                
+                
+OligodendrocytesScatter <- LabelPoints(plot = OligodendrocytesScatter, points = PosOligodendrocytesGenes, repel = TRUE, xnudge = 0, ynudge = 0, size = 3, color = "red")
+OligodendrocytesScatter <- LabelPoints(plot = OligodendrocytesScatter, points = NegOligodendrocytesGenes, repel = TRUE, xnudge = 0, ynudge = 0, size = 3,
+                  color = "blue")
+OligodendrocytesScatter
+
+ggsave(OligodendrocytesScatter, filename = "Figures/OligodendrocytesScatter_Top_50_SigGenes_HC_and_PD_MTG.pdf", device = "pdf", width = 4, height = 4, units = "in")
+
+#DoHeatmap(Astrocytes, features = top_pos_Astrocytes.PD_Prog.Markers$gene, size = 4, angle = 0,
+#                 hjust = 0.5) + ggtitle("Astrocytes") + theme(axis.text.y = element_text(size = 8))
+
+#VlnPlot(Astrocytes, features = top_pos_Astrocytes.PD_Prog.Markers$gene, adjust = TRUE, pt.size = 0)
+```
+
+
+```{R}
+
+write.csv(top_Oligodendrocytes.PD_Prog.Markers,file = "Files/Top_50_SigGenes_Oligodendrocytes_Markers_HC_vs_PD_MTG.csv", quote = FALSE)
+
+```
+
+
