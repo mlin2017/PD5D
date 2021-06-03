@@ -21,6 +21,15 @@ library(enrichplot)
 library(sciplot)
 library(reshape2)
 library(MAST)
+library(DESeq2)
+library(Matrix.utils)
+```
+
+
+```{R}
+
+GWAS_PD_Genes <- c("KRTCAP2","NUCKS1","GBA","SIPA1L2","ITPKB","FCGR2A","PMVK","VAMP4","KCNS3","MAP4K4","TMEM163","RAB29","STK39","KCNIP3","IP6K2","SATB1","SPTSSB","TMEM175","MCCC1","BST1","GAK","FAM47E","KPNA1","MED12L","LCORL","SCARB2","SNCA","HLA-DRB5","ELOVL7","CAMK2D","CLCN3","RIMS1","C5orf24","GPNMB","CTSB","RPS12","FYN","TRIM40","BIN3","FGF20","SH3GL2","ITGA8","GBF1","UBAP2","RNF141","FAM49B","SCAF11","DLG2","BAG3","IGSF9B","INPP5F","FBRSL1","CAB39L","GALC","CHD9","GCH1","HIP1R","FGF20","CASC16","SYT17","CD19","MIPOL1","CHRNB1","WNT3","NOD2","RETREG3","UBTF","SETD1A","CRHR1","GRN","MED13","SPPL2B","DYRK1A","DNAH17","MEX3C","ASXL3","CRLS1","LRRK2","RIT1","VPS13C")
+
 ```
 
 
@@ -37,16 +46,34 @@ case_clusters <- paste(Batch567_MTG$case,Batch567_MTG$seurat_clusters,sep = "_")
 
 
 ```{R}
-Batch567_MTG <- RenameIdents(Batch567_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
-                      `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
+Batch567_MTG <- RenameIdents(Batch567_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "GLU Neurons",
+                      `3` = "GLU Neurons", `4` = "GABA Neurons", `5` = "GABA Neurons",
                       `6` = "GLU Neurons", `7` = "Astrocytes", `8` = "GLU Neurons",`9` = "GABA Neurons",
-                      `10` = "Novel Cluster 10", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
+                      `10` = "GLU Neurons", `11` = "GLU Neurons",`12` = "GLU Neurons",
                       `13` = "Microglia",`14` = "Astrocytes",
                       `15` = "Oligodendrocytes", `16`="GABA Neurons", `17`="GLU Neurons", `18`="Endothelial",`19`="Endothelial",`20`="Oligodendrocytes",`21`="GABA Neurons",`22`="GABA Neurons")
 ```
 
-NOTE: MAST uses the conservative bonferroni correction to generate the adjusted p-values (p-value divided by the number of tests)
 
+
+```{R}
+
+DimPlot(Batch567_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+
+```{R}
+VlnPlot(Batch567_MTG,features = "RIT1")
+```
+
+NOTE: MAST uses the conservative bonferroni correction to generate the adjusted p-values (p-value divided by the number of tests)
 
 Astrocytes
 
@@ -101,6 +128,151 @@ ggsave(AstroScatter, filename = "Figures/AstroScatter_Top_50_SigGenes_HC_and_PD_
 
 #VlnPlot(Astrocytes, features = top_pos_Astrocytes.PD_Prog.Markers$gene, adjust = TRUE, pt.size = 0)
 ```
+
+Violin Plot
+
+```{r}
+VlnPlot(Astrocytes, features = c("GNA14"),pt.size = 0, split.by = "case") +
+theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 8),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 8),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+Astro_GNA14 <- FetchData(Astrocytes, vars = c("ident", c("GNA14","SLC14A1")), slot = "counts")
+#Astro_GNA14 <- FetchData(Astrocytes, vars = c("ident", c("GNA14","SLC14A1"), slot = "counts"))
+
+ggplot(Astro_GNA14, aes(x=ident, y=GNA14)) +
+                      geom_violin() +
+                      theme(axis.text = element_text(size=8),
+                      axis.title = element_text(size = 8),
+                      legend.text = element_text(size = 8),
+                      legend.position = "none",
+                      title = element_text(size = 8))
+
+
+
+#ggsave(AstroVlnPlot_GNA14_MTG, filename = "Figures/AstroVlnPlot_GNA14_MTG.pdf", device = "pdf", width = 1, height = 1, units = "in")
+```
+
+```{R}
+library(wesanderson)
+
+Astro_marker_melt <- melt(Astro_GNA14)
+
+Astro_barchart_table <- group_by(Astro_marker_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+Darjeeling <- wes_palette("Darjeeling1")
+
+ggplot(Astro_barchart_table, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(stat = "identity", alpha = 1) + 
+        facet_wrap(~variable) +
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE), width = 0.4, alpha = 0.9, size = 0.5, colors="black") +
+        theme(axis.title = element_blank(), axis.text.x = element_blank(),
+              axis.ticks = element_blank(),
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold")) +
+        scale_fill_manual(name="Case",values = Darjeeling[c(2,3)])
+
+Astrocyte_HCvsPDGOI_barchart_MTG_large <- ggplot(Astro_barchart_table, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(stat = "identity", alpha = 1) + 
+        facet_wrap(~variable) +
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE), width = 0.4, alpha = 0.9, size = 0.5, colors="black") +
+        theme(axis.title = element_blank(), axis.text.x = element_blank(),
+              axis.ticks = element_blank(),
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold")) +
+        scale_fill_manual(name="Case",values = Darjeeling[c(2,3)])
+
+ggsave(Astrocyte_HCvsPDGOI_barchart_MTG_large, filename = "Figures/Astrocyte_HCvsPDGOI_barchart_MTG_large.pdf", device = "pdf", width = 4, height = 4, units = "in")
+
+Astrocyte_HCvsPDGOI_barchart_MTG <- ggplot(Astro_barchart_table, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(stat = "identity", alpha = 1) + 
+        facet_wrap(~variable) +
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE), width = 0.4, alpha = 0.9, size = 0.1, colors="black") +
+        ylab("Astrocytes") +
+        theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+              axis.title.y = element_text(size = 5),
+              axis.ticks.x = element_blank(),
+              axis.ticks.y = element_line(size = 0.2),
+              strip.text = element_text(size = 3.5,face = "bold"),
+              axis.text = element_text(size=4),
+              legend.position = "none",) +
+        scale_fill_manual(name="Case",values = Darjeeling[c(2,3)])
+
+ggsave(Astrocyte_HCvsPDGOI_barchart_MTG, filename = "Figures/Astrocyte_HCvsPDGOI_barchart_MTG.pdf", device = "pdf", width = 2.1, height = 1, units = "in")
+
+```
+
+
+Testing for differential expression of GWAS PD genes
+
+```{R}
+
+Astrocytes.PD_Prog.Markers_Filtered_GWAS <- Astrocytes.PD_Prog.Markers_Filtered[Astrocytes.PD_Prog.Markers_Filtered$gene %in% GWAS_PD_Genes,]
+
+```
+
+
+data_counts <- FetchData(Batch567_MTG, vars = c("ident",rownames(Batch567_MTG@assays$RNA@counts)), slot = "counts")
+
+scaledrowSums <- 1e6/rowSums(data_counts[2:length(colnames(data_counts))])
+
+AstrocyteCellIds <- rownames(Astro_GNA14) %in% scaledrowSums
+
+match(AstrocyteCellIds,names(scaledrowSums))
+
+AstrocyteScaledrowSums <- scaledrowSums[match(AstrocyteCellIds,names(scaledrowSums))]
+
+Astro_GNA14$GNA14 <- Astro_GNA14$GNA14*AstrocyteScaledrowSums
+
+Astro_GNA14$SLC14A1 <- Astro_GNA14$SLC14A1*AstrocyteScaledrowSums
+
+Astro_marker_melt <- melt(Astro_GNA14)
+
+Astro_barchart_table <- group_by(Astro_marker_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+
+
+
+
+
+ggplot(Astro_barchart_table, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(stat = "identity", alpha = 1) + 
+        facet_wrap(~variable) +
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE), width = 0.4, alpha = 0.9, size = 0.5, colors="black") +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"))
+
+```{R}
+
+Astro_DEProgGenes <- FetchData(Astrocytes, vars = c("ident", c("RIMS2","SLC14A1")), slot = "counts")
+
+Astro_DEProgGenes_melt <- melt(Astro_DEProgGenes)
+
+Astro_DEProgGenes_barchart_table <- group_by(Astro_DEProgGenes_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+ggplot(Astro_DEProgGenes_barchart_table, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(stat = "identity", alpha = 1) + 
+        facet_wrap(~variable) +
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE), width = 0.4, alpha = 0.9, size = 0.1, colors="black") +
+        ylab("Astrocytes") +
+        theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+              axis.title.y = element_text(size = 5),
+              axis.ticks.x = element_blank(),
+              axis.ticks.y = element_line(size = 0.2),
+              strip.text = element_text(size = 3.5,face = "bold"),
+              axis.text = element_text(size=4),
+              legend.position = "none",) +
+        scale_fill_manual(name="Case",values = Darjeeling[c(2,3)])
+
+ggsave(Astrocyte_HCvsPDGOI_barchart_MTG, filename = "Figures/Astrocyte_HCvsPDGOI_barchart_MTG.pdf", device = "pdf", width = 2.1, height = 1, units = "in")
+
+
+
+```
+
 
 
 ```{R}
@@ -163,6 +335,43 @@ ggsave(MicrogliaScatter, filename = "Figures/MicrogliaScatter_Top_50_SigGenes_HC
 #VlnPlot(Astrocytes, features = top_pos_Astrocytes.PD_Prog.Markers$gene, adjust = TRUE, pt.size = 0)
 ```
 
+```{R}
+Microglia_GOI <- FetchData(Microglia, vars = c("ident", c("P2RY12","GRID2","SPP1")), slot = "counts")
+
+Microglia_marker_melt <- melt(Microglia_GOI)
+
+Microglia_barchart_table <- group_by(Microglia_marker_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+Darjeeling <- wes_palette("Darjeeling1")
+
+Microglia_HCvsPDGOI_barchart_MTG <- ggplot(Microglia_barchart_table, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(stat = "identity", alpha = 1) + 
+        facet_wrap(~variable) +
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE), width = 0.4, alpha = 0.9, size = 0.1, colors="black") +
+        ylab("Microglia") +
+        theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+              axis.title.y = element_text(size = 5),
+              axis.ticks.x = element_blank(),
+              axis.ticks.y = element_line(size = 0.2),
+              strip.text = element_text(size = 3.5,face = "bold"),
+              axis.text = element_text(size=4),
+              legend.position = "none",) +
+        scale_fill_manual(name="Case",values = Darjeeling[c(2,3)])
+
+ggsave(Microglia_HCvsPDGOI_barchart_MTG, filename = "Figures/Microglia_HCvsPDGOI_barchart_MTG.pdf", device = "pdf", width = 3, height = 1, units = "in")
+
+
+
+
+```
+
+
+```{R}
+
+Microglia.PD_Prog.Markers_Filtered_GWAS <- Microglia.PD_Prog.Markers_Filtered[Microglia.PD_Prog.Markers_Filtered$gene %in% GWAS_PD_Genes,]
+
+```
+
 
 ```{R}
 
@@ -223,6 +432,44 @@ ggsave(OligodendrocytesScatter, filename = "Figures/OligodendrocytesScatter_Top_
 #                 hjust = 0.5) + ggtitle("Astrocytes") + theme(axis.text.y = element_text(size = 8))
 
 #VlnPlot(Astrocytes, features = top_pos_Astrocytes.PD_Prog.Markers$gene, adjust = TRUE, pt.size = 0)
+```
+
+
+```{R}
+Oligodendrocytes_GOI <- FetchData(Oligodendrocytes, vars = c("ident", c("PPP2R2B","CADM2","GRID2")), slot = "counts")
+
+Oligodendrocytes_marker_melt <- melt(Oligodendrocytes_GOI)
+
+Oligodendrocytes_barchart_table <- group_by(Oligodendrocytes_marker_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+Darjeeling <- wes_palette("Darjeeling1")
+
+Oligodendrocytes_HCvsPDGOI_barchart_MTG <- ggplot(Oligodendrocytes_barchart_table, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(stat = "identity", alpha = 1) + 
+        facet_wrap(~variable) +
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE), width = 0.4, alpha = 0.9, size = 0.1, colors="black") +
+        ylab("Oligodendrocytes") +
+        theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+              axis.title.y = element_text(size = 5),
+              axis.ticks.x = element_blank(),
+              axis.ticks.y = element_line(size = 0.2),
+              strip.text = element_text(size = 3.5,face = "bold"),
+              axis.text = element_text(size=4),
+              legend.position = "none",) +
+        scale_fill_manual(name="Case",values = Darjeeling[c(2,3)])
+
+ggsave(Oligodendrocytes_HCvsPDGOI_barchart_MTG, filename = "Figures/Oligodendrocytes_HCvsPDGOI_barchart_MTG.pdf", device = "pdf", width = 3.03, height = 1, units = "in")
+
+
+
+
+```
+
+
+```{R}
+
+Oligodendrocytes.PD_Prog.Markers_Filtered_GWAS <- Oligodendrocytes.PD_Prog.Markers_Filtered[Oligodendrocytes.PD_Prog.Markers_Filtered$gene %in% GWAS_PD_Genes,]
+
 ```
 
 

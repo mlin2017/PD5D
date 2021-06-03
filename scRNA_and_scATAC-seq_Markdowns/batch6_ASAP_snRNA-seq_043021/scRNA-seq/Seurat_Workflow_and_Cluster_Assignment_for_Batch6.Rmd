@@ -832,7 +832,7 @@ UMAPclusters <- DimPlot(Batch6_MTG, label = TRUE, repel = TRUE, pt.size = 0, lab
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(UMAPclusters, filename = "Files/UMAPclusters_scRNA_seq_Batch6.pdf", device = "pdf", width = 6, height = 4, units = "in")
+ggsave(UMAPclusters, filename = "Figures/UMAPclusters_scRNA_seq_Batch6.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
 
 ```{r}

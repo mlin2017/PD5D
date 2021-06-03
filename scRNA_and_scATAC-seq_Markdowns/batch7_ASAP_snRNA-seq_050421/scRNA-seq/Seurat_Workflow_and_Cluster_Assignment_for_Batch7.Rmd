@@ -798,7 +798,7 @@ VlnPlot(Batch7_MTG, features = c("CLDN5","TH","P2RY12","GRM4","BCAN"),pt.size = 
 
 
 
- Glu_Neurons = 0,1,2,3,7,8,13,15,16,18,19 - Glu?
+ Glu_Neurons = 0,1,2,3,7,8,12,13,15,16,18,19,21 - Glu?
  GABA_Neurons = 5,6,10,16
  Astrocytes = 9,20
  oligo = 4,19
@@ -811,12 +811,12 @@ VlnPlot(Batch7_MTG, features = c("CLDN5","TH","P2RY12","GRM4","BCAN"),pt.size = 
 Assigning cell type identity to clusters: 
 
 ```{r}
-Batch7_MTG <- RenameIdents(Batch7_MTG, `0` = "Glu_Neurons", `1` = "Glu_Neurons", `2` = "Glu_Neurons",
-                      `3` = "Glu_Neurons", `4` = "Oligodendrocytes", `5` = "GABA Neurons",
-                      `6` = "GABA Neurons", `7` = "Glu_Neurons", `8` = "Glu_Neurons",`9` = "Astrocytes",
-                      `10` = "GABA Neurons", `11` = "Microglia",`12` = "Novel Cluster 12",
-                      `13` = "Glu_Neurons",`14` = "Endothelial",
-                      `15` = "Glu_Neurons", `16`="GABA Neurons", `17`="OPCs", `18`="Glu_Neurons", `19`="Oligodendrocytes",  `20`="Astrocytes", `21` = "Novel Cluster 21", `22` = "Endothelial")
+Batch7_MTG <- RenameIdents(Batch7_MTG, `0` = "GLU Neurons", `1` = "GLU Neurons", `2` = "GLU Neurons",
+                      `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GABA Neurons",
+                      `6` = "GABA Neurons", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "Astrocytes",
+                      `10` = "GABA Neurons", `11` = "Microglia",`12` = "GLU Neurons",
+                      `13` = "GLU Neurons",`14` = "Endothelial",
+                      `15` = "GLU Neurons", `16`="GABA Neurons", `17`="OPCs", `18`="GLU Neurons", `19`="Oligodendrocytes",  `20`="Astrocytes", `21` = "GLU Neurons", `22` = "Endothelial")
 ```
 
 ```{R}

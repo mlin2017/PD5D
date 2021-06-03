@@ -428,6 +428,11 @@ Neuron  = ENO2, RBFOX3
  Endothelial = 18,19
  overlapping = 7
  novel = 2,3,10,11,12 - all likely neurons/neuron related
+ 
+```{R}
+Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
+Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
+```
 
 Find cell-types by plotting marker genes.
 
@@ -446,12 +451,13 @@ VlnPlot(Batch567_MTG, features = c("RBFOX3"),pt.size = 0)
 Glutamatergic neuron markers
 
 ```{R}
-VlnPlot(Batch567_MTG, features = c("SLC17A6"),pt.size = 0)
+VlnPlot(Batch567_MTG, features = c("SLC17A6"),pt.size = 1)
 ```
+
 ```{R}
 VlnPlot(Batch567_MTG, features = c("SLC17A7"),pt.size = 0)
 ```
-1,6,8,17 - Glu?
+1,2,3,6,8,10,11,12,17 - Glu?
 
 GABAergic markers
 

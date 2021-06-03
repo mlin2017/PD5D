@@ -64,7 +64,6 @@ Batch5_MTG@meta.data$sample_ID <- cellcodes$samples
 
 ```
 
-
 ```{R}
 samples$case <- c("HC","HC","ILBD","ILBD")
 
@@ -520,9 +519,9 @@ Glutamatergic neuron markers
 VlnPlot(Batch5_MTG, features = c("SLC17A6"),pt.size = 0)
 ```
 ```{R}
-VlnPlot(Batch5_MTG, features = c("SLC17A7"),pt.size = 0)
+VlnPlot(Batch5_MTG, features = c("SLC17A7"),pt.size = 1)
 ```
-4,5,13,17,19,21 - Glu?
+1,2,5,8,9,11,16,17,18,19 - Glu?
 
 GABAergic markers
 
@@ -537,7 +536,7 @@ VlnPlot(Batch5_MTG, features = c("GAD1"),pt.size = 0)
 ```{R}
 VlnPlot(Batch5_MTG, features = c("GAD2"),pt.size = 0)
 ```
-9,10,12,14 - GABA?
+3,4,12,14 - GABA?
 
 weaker evidence for 10
 
@@ -548,7 +547,7 @@ VlnPlot(Batch5_MTG, features = c("AQP4"),pt.size = 0)
 ```{R}
 VlnPlot(Batch5_MTG, features = c("GFAP"),pt.size = 0)
 ```
-7,(18,20) - Astrocytes
+6, 19 - Astrocytes
 
 Oligodendrocyte markers
 
@@ -578,18 +577,18 @@ VlnPlot(Batch5_MTG, features = c("VCAN"),pt.size = 0)
 VlnPlot(Batch5_MTG, features = c("BCAN"),pt.size = 0)
 ```
 
-16 - OPCs
+14 - OPCs
 
 Microglia
 
 ```{R}
-VlnPlot(Batch5_MTG, features = c("CX3CR1"),pt.size = 0)
+VlnPlot(Batch5_MTG, features = c("CX3CR1"),pt.size = 1)
 ```
 ```{R}
-VlnPlot(Batch5_MTG, features = c("P2RY12"),pt.size = 0)
+VlnPlot(Batch5_MTG, features = c("P2RY12"),pt.size = 1)
 ```
 
-11 - Microglia
+10 - Microglia
 
 Endothelial Cells
 
@@ -599,7 +598,7 @@ VlnPlot(Batch5_MTG, features = c("FLT1"),pt.size = 0)
 ```{R}
 VlnPlot(Batch5_MTG, features = c("CLDN5"),pt.size = 0)
 ```
-18,20 - Endothelial cells
+15 - Endothelial cells
 
  Neuron  = ENO2, RBFOX3
  Glutamatergic neurons = SLC17A6, SLC17A7
@@ -785,26 +784,25 @@ VlnPlot(Batch5_MTG, features = c("CLDN5","TH","P2RY12","GRM4","BCAN"),pt.size = 
 
 
 
- Glu_Neurons = 4,5,13,17,19,21
- GABA_Neurons = 9,10,12,14
- Astrocytes = 7
- oligo = 0,3
- OPCs= 16
- Microglia = 11
- Endothelial = 18,20
- overlapping = 4
- novel = 1,2,6,8,15,16,22,23 - all likely neurons - all likely neurons
+1,2,5,8,9,11,13,16,17,18,19 - Glu?
+3,4,12,14 - GABA?
+6, 19 - Astrocytes
+0,7 - oligodendrocytes - strong
+14 - OPCs
+10 - Microglia
+15 - Endothelial cells
+novel = 1,2,6,8,15,16,22,23 - all likely neurons - all likely neurons
 
 
 Assigning cell type identity to clusters: 
 
 ```{r}
-Batch5_MTG <- RenameIdents(Batch5_MTG, `0` = "Oligodendrocytes", `1` = "Glu_Neurons", `2` = "Oligodendrocytes",
-                      `3` = "Glu_Neurons", `4` = "Astrocytes/OPCs", `5` = "Novel Cluster 5",
-                      `6` = "GABA Neurons", `7` = "GABA Neurons", `8` = "Microglia",`9` = "OPCs",
-                      `10` = "Glu_Neurons", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
-                      `13` = "Novel Cluster 13",`14` = "Novel Cluster 14",
-                      `15` = "Endothelial", `16`="GABA Neurons", `17`="Glu_Neurons", `18`="Astrocytes")
+Batch5_MTG <- RenameIdents(Batch5_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "GLU Neurons",
+                      `3` = "GABA Neurons", `4` = "GABA Neurons", `5` = "GLU Neurons",
+                      `6` = "Astrocytes", `7` = "Oligodendrocytes", `8` = "GLU Neurons",`9` = "GLU Neurons",
+                      `10` = "Microglia", `11` = "GLU Neurons",`12` = "GABA Neurons",
+                      `13` = "GLU Neurons",`14` = "GABA Neurons",
+                      `15` = "Endothelial", `16`="GLU Neurons", `17`="GLU Neurons", `18`="GLU Neurons", `19`="Astrocytes")
 ```
 
 ```{R}
