@@ -35,8 +35,8 @@ Batch8.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_mat
 checking dimensions to check all samples have the same set of genes
 
 ```{r}
-dim(Batch8.data)
 
+dim(Batch8.data)
 
 ```
 
@@ -244,6 +244,9 @@ Determing the dimensionality of the dataset
 ```{R}
 ElbowPlot(Batch8_MTG)
 
+Batch8_MTG_ElbowPlot <- ElbowPlot(Batch8_MTG)
+
+ggsave2("Figures/Batch8_MTG_ElbowPlot.pdf", Batch8_MTG_ElbowPlot, device = "pdf", width = 4, height = 4, units = "in")
 ```
 10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
 

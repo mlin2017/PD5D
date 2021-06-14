@@ -18,6 +18,7 @@ library(DOSE)
 library(GOSemSim)
 library(enrichplot)
 library(stringr)
+library(MAST)
 ```
 
 
@@ -31,7 +32,7 @@ Batch4.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_an
 Batch5.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-seq_042721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
 Batch6.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_043021/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
 Batch7.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
-Batch8.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
+Batch1to8.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch1to8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
 
 ```
 
@@ -44,7 +45,7 @@ batch4samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_
 batch5samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-seq_042721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 batch6samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_043021/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 batch7samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
-batch8samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Batch1to8samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch1to8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 ```
 
 
@@ -140,8 +141,14 @@ Batch1to8_MTG <- FindVariableFeatures(Batch1to8_MTG, selection.method = "vst", n
 ```
 
 ```{R}
-saveRDS(Batch1to8_MTG,"Files/Batch1to8_MTG_preclustering")
+saveRDS(Batch1to8_MTG,"Files/Batch1to8_MTG_preclustering.rds")
 
+```
+
+###############################################################################
+
+```{R}
+Batch1to8_MTG <- readRDS("Batch1to8_MTG_preclustering.rds")
 ```
 
 center and scale data
@@ -149,5 +156,171 @@ center and scale data
 all.genes <- rownames(Batch1to8_MTG)
 Batch1to8_MTG <- ScaleData(Batch1to8_MTG, features = all.genes, verbose = FALSE)
 ```
+
+
+finding the top 30 principal components for cells
+```{r}
+Batch1to8_MTG <- RunPCA(Batch1to8_MTG, npcs = 30, verbose = FALSE)
+```
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(Batch1to8_MTG, dims = 1:2, reduction = "pca")
+```
+
+
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = Batch1to8_MTG, reduction = "pca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = Batch1to8_MTG, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+
+Run Harmony
+```{r}
+Batch1to8_MTG <- RunHarmony(Batch1to8_MTG, group.by.vars = "case", plot_convergence = TRUE)
+```
+
+
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(Batch1to8_MTG, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+```{r}
+DimPlot(object = Batch1to8_MTG, reduction = "harmony", pt.size = .1, group.by = "case")
+```
+cells in harmony 1 axis
+```{r}
+VlnPlot(object = Batch1to8_MTG, features = "harmony_1", group.by = "case",  pt.size = .1)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+ 2 dimensional reductions calculated: pca, harmony
+
+Determing the dimensionality of the dataset
+
+```{R}
+#Batch1to8_MTG <- JackStraw(Batch1to8_MTG, num.replicate = 100)
+#Batch1to8_MTG <- ScoreJackStraw(Batch1to8_MTG, dims = 1:12)
+#JackStrawPlot(Batch1to8_MTG, dims = 1:20)
+
+
+
+```
+
+```{R}
+ElbowPlot(Batch1to8_MTG)
+
+Batch1to8_MTG_ElbowPlot <- ElbowPlot(Batch1to8_MTG)
+
+ggsave2("Figures/Batch1to8_MTG_ElbowPlot.pdf", Batch1to8_MTG_ElbowPlot, device = "pdf", width = 4, height = 4, units = "in")
+```
+
+
+###################################################################################################
+
+
+```{R}
+
+Batch1to8_MTG <- FindNeighbors(Batch1to8_MTG, reduction = "harmony", dims = 1:20)
+Batch1to8_MTG <- FindClusters(Batch1to8_MTG, resolution = 0.5)
+Batch1to8_MTG <- RunUMAP(Batch1to8_MTG, reduction = "harmony", dims = 1:20)
+
+Batch1to8_MTG_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", label = TRUE, pt.size = 0.01) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(Batch1to8_MTG_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+Batch1to8_MTG_Case_Group_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", group.by = "case",pt.size = 0.1) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(Batch1to8_MTG_Case_Group_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_Case_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+Batch1to8_MTG_Region_Group_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", group.by = "batch",pt.size = 0.1) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(Batch1to8_MTG_Region_Group_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_Region_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+Batch1to8_MTG_Case_Split_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(Batch1to8_MTG_Case_Split_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_Case_Split_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 8, units = "in")
+
+Batch1to8_MTG_Region_Split_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", split.by = "batch", label = TRUE, ncol = 1) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(Batch1to8_MTG_Region_Split_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_Region_Split_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 8, units = "in")
+
+library(reshape2)
+library(sciplot)
+library(ggplot2)
+
+MarkerGenes <- c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP","PLP1","MBP","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5")
+
+data_barplot <- FetchData(Batch1to8_MTG, vars = c("ident",rownames(Batch1to8_MTG@assays$RNA@counts)), slot = "counts")
+
+scaledrowSums <- 1e6/rowSums(data_barplot[2:length(colnames(data_barplot))])
+
+swpt_barplot <- sweep(data_barplot[,2:length(colnames(data_barplot))],1,scaledrowSums,FUN = "*")
+
+swpt_data_barplot_markers <- swpt_barplot[,which(colnames(swpt_barplot) %in% MarkerGenes)]
+
+swpt_data_barplot_markers$ident <- as.vector(data_barplot$ident)
+
+data_barplot_melt <- melt(swpt_data_barplot_markers)
+
+data_barplot_melt$ident <- as.vector(data_barplot_melt$ident)
+data_barplot_melt$variable <- as.vector(data_barplot_melt$variable)
+data_barplot_melt$value <- as.numeric(as.vector(data_barplot_melt$value))
+
+data_barplot_melt_sum <- group_by(data_barplot_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(MarkerGenes))
+
+Batch1to8_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+ggsave(Batch1to8_barchart,filename = "Files/Batch1to8_Marker_Barchart", device = "pdf", width = 12, height = 12, units = "in")
+
+```
+
 
 

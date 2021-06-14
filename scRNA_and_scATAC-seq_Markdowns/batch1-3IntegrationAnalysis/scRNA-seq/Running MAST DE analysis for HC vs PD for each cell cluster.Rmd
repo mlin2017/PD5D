@@ -1,0 +1,111 @@
+---
+title: "Running MAST DE analysis for HC vs PD for each cell cluster"
+output: html_document
+---
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(DESeq2)
+library(Matrix.utils)
+library(stringr)
+library(NMF)
+```
+
+
+```{R}
+
+Astrocytes_RAWCOUNTS <- read.delim("Files/Astrocytes_RAWCOUNTS.tsv")
+
+data(Astrocytes_RAWCOUNTS, package = 'MAST')
+
+
+
+```
+
+log2(CPM+1) transforming our data before starting MAST workflow
+
+```{R}
+
+scaledrowSums <- 1e6/rowSums(Astrocytes_RAWCOUNTS[1:length(colnames(Astrocytes_RAWCOUNTS))])
+
+swpt_Astrocytes_RAWCOUNTS <- sweep(Astrocytes_RAWCOUNTS[,1:length(colnames(Astrocytes_RAWCOUNTS))],1,scaledrowSums,FUN = "*")
+
+pseudoswpt_Astrocytes_RAWCOUNTS <- sweep(swpt_Astrocytes_RAWCOUNTS[,1:length(colnames(swpt_Astrocytes_RAWCOUNTS))],1,1,FUN = "+")
+
+logspseudowpt_Astrocytes_RAWCOUNTS <- t(apply(pseudoswpt_Astrocytes_RAWCOUNTS,1,log2))
+
+Astrocytescellmetadata <- data.frame(cbind(str_extract(colnames(logspseudowpt_Astrocytes_RAWCOUNTS), "BN[[:digit:]]+"),str_extract(colnames(logspseudowpt_Astrocytes_RAWCOUNTS), "PD|HC")))
+
+colnames(Astrocytescellmetadata) <- c("batch","case")
+
+
+```
+
+Starting MAST analysis
+
+```{R}
+scaAstroMAST <- FromMatrix(logspseudowpt_Astrocytes_RAWCOUNTS, cData = Astrocytescellmetadata)
+
+
+```
+
+```{R}
+
+aheatmap(assay(scaAstroMAST[1:1000,]), labRow='', annCol=as.data.frame(colData(scaAstroMAST)[,c('case')]), distfun='spearman')
+
+#aheatmap(assay(scaAstroMAST[1:1000,]), labRow='', annCol=as.data.frame(colData(scaAstroMAST)[,c('condition', 'ourfilter')]), distfun='spearman')
+
+```
+creating detection rate per cell scaling
+
+```{R}
+cdr2 <- colSums(assay(scaAstroMAST)>0)
+#qplot(x=cdr2, y=colData(scaAstroMAST)$) + xlab('New CDR') + ylab('Old CDR')
+colData(scaAstroMAST)$cngeneson <- scale(cdr2)
+
+```
+
+
+
+```{R}
+
+scaSample <- scaAstroMAST[sample(which(freq(scaAstroMAST)>.1), 20),]
+flat <- as(scaSample, 'data.table')
+ggplot(flat, aes(x=value))+geom_density() + facet_wrap(~symbolid, scale='free_y')
+
+
+```
+
+```{R}
+
+
+
+```
+
+
+
+
+
+
+
+```{R}
+
+
+
+```
+

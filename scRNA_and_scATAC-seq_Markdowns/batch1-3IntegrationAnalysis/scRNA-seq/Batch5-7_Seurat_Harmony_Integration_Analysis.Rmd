@@ -27,7 +27,7 @@ library(enrichplot)
 Batch 5,6,7 read in
 
 ```{r}
-BN0009.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/Batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0009")
+BN0009.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch1_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0009")
 BN0339.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/Batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0339")
 BN0341.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/Batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0341")
 BN0415.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Repository/scRNA_and_scATAC-seq_Markdowns/Batch5_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/BN0415")
