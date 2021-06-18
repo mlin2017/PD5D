@@ -108,7 +108,26 @@ AstrocyteNormalisedCounts <- cbind(rownames(AstrocyteNormalisedCounts),Astrocyte
 
 colnames(AstrocyteNormalisedCounts)[c(1,2)] <- c("NAME","description")
 
-write.table(AstrocyteNormalisedCounts, "Files/AstrocyteNormalisedCounts.txt",sep = "\t", row.names = FALSE,quote = FALSE)
+test <- rbind(colnames(AstrocyteNormalisedCounts), AstrocyteNormalisedCounts)
+
+test <- rbind(c(nrow(AstrocyteNormalisedCounts),ncol(AstrocyteNormalisedCounts) -2,rep("",ncol(AstrocyteNormalisedCounts)-2)),test)
+
+test <- rbind(c("#1.2",rep("",ncol(AstrocyteNormalisedCounts))),test)
+
+#write.table(AstrocyteNormalisedCounts, "Files/AstrocyteNormalisedCounts.txt",sep = "\t", row.names = FALSE,quote = FALSE)
+```
+
+
+```{R}
+TestAstrocyteNormalisedCounts <- AstrocyteNormalisedCounts
+
+header1 <- c("#")
+
+write.table(TestAstrocyteNormalisedCounts, "Files/Test_AstrocyteNormalisedCounts.txt",sep = "\t", row.names = FALSE,quote = FALSE)
+```
+
+
+```{R}
 
 PhenotypeFile <- data.frame(rbind(as.vector(str_extract(colnames(Astrocyte_Counts_Aggr),"PD|HC"))))
 
@@ -477,4 +496,149 @@ teeezRes_pvalfilter
 
 ```
 
-      
+Creating a function to run through GSE table creation 
+
+```{R}
+
+writeGSEtable <- function(cluster, SeuObj){
+  tempframe <- subset(SeuObj, idents = cluster)
+  tempframe <- tempframe[rowSums(tempframe@assays$RNA@counts) >= 10, ]
+  tempframe <- tempframe@assays$RNA@counts
+  coldata <- data.frame(as.vector(tempframe$case),as.vector(tempframe$sample_ID))
+  row.names(coldata) <- colnames(tempframe)
+  colnames(coldata) <- c("Case","Sample")
+  tempframe <- t(aggregate.Matrix(t(tempframe), 
+                       groupings = coldata, fun = "sum"))
+  #check colnames to see if aggregation has worked and create a coldata table for DESeq2
+  coldata_aggr <- data.frame(factor(str_extract(colnames(tempframe),"PD|HC")),factor(gsub("HC_|PD_","",colnames(tempframe))))
+  colnames(coldata_aggr) <- c("Case","Sample")
+  tempframe <- DESeqDataSetFromMatrix(countData = tempframe,
+                       colData = coldata_aggr,
+                       design = ~ Case)
+  tempframe <- DESeq(tempframe)
+  tempframe <- results(tempframe,name="Case_PD_vs_HC")
+  tempframe <- tempframe[!is.na(tempframe$padj),]
+  tempframe <- tempframe[tempframe$padj <= 0.05,]
+  tempframe <- data.frame(counts(tempframe, normalized = TRUE))
+
+tempframe <- cbind(rep(NA,length(tempframe[,1])),tempframe)
+
+tempframe <- cbind(rownames(tempframe),tempframe)
+
+colnames(tempframe)[c(1,2)] <- c("NAME","description")
+
+write.table(tempframe, paste("Files/",deparse(substitute(cluster)),"_test.txt", sep = ""), sep = "\t", row.names = FALSE,quote = FALSE)
+  
+  
+  
+  
+  
+  
+}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+Astrocytes <- subset(Batch567_MTG, idents = "Astrocytes")
+
+Idents(Astrocytes) <- "case"
+
+#Performing DESeq differential expression analysis
+
+#remove lowly expressed genes
+
+Astrocytes_Filter <- Astrocytes[rowSums(Astrocytes@assays$RNA@counts) >= 10, ]
+
+#grab counts, create aggrtable and aggregate based on sample and condition
+
+Astrocyte_Counts <- Astrocytes_Filter@assays$RNA@counts
+
+coldata <- data.frame(as.vector(Astrocytes_Filter$case),as.vector(Astrocytes_Filter$sample_ID))
+
+row.names(coldata) <- colnames(Astrocyte_Counts)
+
+colnames(coldata) <- c("Case","Sample")
+
+Astrocyte_Counts_Aggr <- t(aggregate.Matrix(t(Astrocyte_Counts), 
+                       groupings = coldata, fun = "sum"))
+
+#check colnames to see if aggregation has worked and create a coldata table for DESeq2
+
+colnames(Astrocyte_Counts_Aggr)
+
+coldata_aggr <- data.frame(factor(str_extract(colnames(Astrocyte_Counts_Aggr),"PD|HC")),factor(gsub("HC_|PD_","",colnames(Astrocyte_Counts_Aggr))))
+
+colnames(coldata_aggr) <- c("Case","Sample")
+
+Astrocytedds <- DESeqDataSetFromMatrix(countData = Astrocyte_Counts_Aggr,
+                       colData = coldata_aggr,
+                       design = ~ Case)
+
+AstrocyteddsDESeq <- DESeq(Astrocytedds)
+
+resultsNames(AstrocyteddsDESeq)
+
+AstrocytesRes <- results(AstrocyteddsDESeq,name="Case_PD_vs_HC")
+
+AstrocytesRes_filter <- AstrocytesRes[!is.na(AstrocytesRes$padj),]
+
+AstrocytesRes_pvalfilter <- AstrocytesRes_filter[AstrocytesRes_filter$padj <= 0.05,]
+
+AstrocytesRes_pvalfilter
+
+Performing original DEseq2 analysis to try and recreate error
+
+
+
+```{R}
+Astrocytes <- subset(Batch567_MTG, idents = "Astrocytes")
+
+Idents(Astrocytes) <- "case"
+
+#Performing DESeq differential expression analysis
+
+#remove lowly expressed genes
+
+Astrocytes_Filter <- Astrocytes[rowSums(Astrocytes@assays$RNA@counts) >= 10, ]
+
+#grab counts, create aggrtable and aggregate based on sample and condition
+
+Astrocyte_Counts <- Astrocytes_Filter@assays$RNA@counts
+
+coldata <- data.frame(as.vector(Astrocytes_Filter$case),as.vector(Astrocytes_Filter$sample_ID))
+
+row.names(coldata) <- colnames(Astrocyte_Counts)
+
+colnames(coldata) <- c("Case","Sample")
+
+Astrocytedds <- DESeqDataSetFromMatrix(countData = Astrocyte_Counts,
+                       colData = coldata,
+                       design = ~ Case)
+
+AstrocyteddsDESeq <- DESeq(Astrocytedds)
+
+resultsNames(AstrocyteddsDESeq)
+
+AstrocytesRes <- results(AstrocyteddsDESeq,name="Case_PD_vs_HC")
+
+AstrocytesRes_filter <- AstrocytesRes[!is.na(AstrocytesRes$padj),]
+
+AstrocytesRes_pvalfilter <- AstrocytesRes_filter[AstrocytesRes_filter$padj <= 0.05,]
+
+AstrocytesRes_pvalfilter
+```
+
+
+
+
+
+
