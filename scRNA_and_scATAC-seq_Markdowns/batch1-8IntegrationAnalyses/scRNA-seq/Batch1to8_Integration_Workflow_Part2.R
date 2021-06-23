@@ -26,7 +26,7 @@ Batch1to8_MTG <- RunUMAP(Batch1to8_MTG, reduction = "harmony", dims = 1:20)
 
 saveRDS(Batch1to8_MTG,"/n/scratch3/users/j/jap0606/batch1to8/Batch1to8_MTG_Part2.rds")
 
-Batch1to8_MTG_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", label = TRUE, pt.size = 0.01) + 
+Batch1to8_MTG_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -35,7 +35,7 @@ Batch1to8_MTG_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", label 
 
 ggsave(Batch1to8_MTG_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
 
-Batch1to8_MTG_Case_Group_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", group.by = "case",pt.size = 0.1) + 
+Batch1to8_MTG_Case_Group_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", group.by = "case", pt.size = 0.1, label.size=2.5, repel = TRUE) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -44,7 +44,7 @@ Batch1to8_MTG_Case_Group_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "um
 
 ggsave(Batch1to8_MTG_Case_Group_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_Case_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
 
-Batch1to8_MTG_Region_Group_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", group.by = "batch",pt.size = 0.1) + 
+Batch1to8_MTG_Region_Group_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", group.by = "batch",pt.size = 0.1, label.size=2.5, repel = TRUE) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -53,7 +53,7 @@ Batch1to8_MTG_Region_Group_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "
 
 ggsave(Batch1to8_MTG_Region_Group_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_Region_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
 
-Batch1to8_MTG_Case_Split_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
+Batch1to8_MTG_Case_Split_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1, label.size=2.5, repel = TRUE) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -62,7 +62,7 @@ Batch1to8_MTG_Case_Split_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "um
 
 ggsave(Batch1to8_MTG_Case_Split_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_Case_Split_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 8, units = "in")
 
-Batch1to8_MTG_Region_Split_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", split.by = "batch", label = TRUE, ncol = 1) + 
+Batch1to8_MTG_Region_Split_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", split.by = "batch", label = TRUE, ncol = 1, label.size=2.5, repel = TRUE) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -116,7 +116,7 @@ ggsave(Batch1to8_barchart,filename = "Files/Batch1to8_Marker_Barchart", device =
 Markerggplots <- function(SeurObj,Genes){
   for (i in Genes) {
     TempViolin <- VlnPlot(SeurObj, features = i ,pt.size = 0)
-    ggsave(TempViolin, filename = paste("Files/",i,"_VlnPlot.pdf",sep = ""), device = "pdf", width = 12, height = 4, units = "in")
+    ggsave(TempViolin, filename = paste("Figures/",i,"_VlnPlot.pdf",sep = ""), device = "pdf", width = 12, height = 4, units = "in")
 }}
 
 Markerggplots(Batch1to8_MTG,MarkerGenes)
@@ -126,7 +126,7 @@ Markerggplots(Batch1to8_MTG,MarkerGenes)
 Markerggplotspt1 <- function(SeurObj,Genes){
   for (i in Genes) {
     TempViolin <- VlnPlot(SeurObj, features = i ,pt.size = 1)
-    ggsave(TempViolin, filename = paste("Files/",i,"_Pt1_VlnPlot.pdf",sep = ""), device = "pdf", width = 12, height = 4, units = "in")
+    ggsave(TempViolin, filename = paste("Figures/",i,"_Pt1_VlnPlot.pdf",sep = ""), device = "pdf", width = 12, height = 4, units = "in")
 }}
 
 Markerggplotspt1(Batch1to8_MTG,MarkerGenes)
