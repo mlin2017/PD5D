@@ -17,6 +17,8 @@ library(harmony)
 library(DOSE)
 library(GOSemSim)
 library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
 ```
 
 
@@ -185,18 +187,18 @@ Determining "Dimensionality" of the dataset
 
 finding the top 30 principal components for cells
 ```{r}
-Batch7_MTG <- RunPCA(Batch7_MTG, npcs = 30, verbose = FALSE)
+Batch7_MTG <- RunGLMPCA(Batch7_MTG, features=Batch7_MTG@assays$RNA@var.features, L = 30)
 ```
 
 see contribution of genes to construct each of these principal components.
 ```{r}
-VizDimLoadings(Batch7_MTG, dims = 1:2, reduction = "pca")
+VizDimLoadings(Batch7_MTG, dims = 1:2, reduction = "glmpca")
 ```
 
 
 plot cells in the first two principal components colored by case: 
 ```{r}
-DimPlot(object = Batch7_MTG, reduction = "pca", pt.size = .1, group.by = "case")
+DimPlot(object = Batch7_MTG, reduction = "glmpca", pt.size = .1, group.by = "case")
 ```
 
 Coordinate of cells in PC 1 characterized by case: 
@@ -206,7 +208,7 @@ VlnPlot(object = Batch7_MTG, features = "PC_1", group.by = "case",  pt.size = .1
 
 Run Harmony
 ```{r}
-Batch7_MTG <- RunHarmony(Batch7_MTG, group.by.vars = "case", plot_convergence = TRUE)
+Batch7_MTG <- RunHarmony(Batch7_MTG, group.by.vars = "case", reduction = "glmpca", plot_convergence = TRUE)
 ```
 
 
@@ -242,21 +244,27 @@ Determing the dimensionality of the dataset
 ```
 
 ```{R}
-ElbowPlot(Batch7_MTG)
+ElbowPlot(Batch7_MTG, reduction = "harmony")
 
 ```
+
+```{R}
+ElbowPlot(Batch7_MTG, reduction = "glmpca")
+
+```
+
 10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
 
 Finding Clusters of cells:
 ```{r}
-Batch7_MTG <- FindNeighbors(Batch7_MTG, reduction = "harmony", dims = 1:10)
-Batch7_MTG <- FindClusters(Batch7_MTG, resolution = 0.5)
+Batch7_MTG <- FindNeighbors(Batch7_MTG, reduction = "harmony", dims = 1:15)
+Batch7_MTG <- FindClusters(Batch7_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch7_MTG <- RunUMAP(Batch7_MTG, reduction = "harmony", dims = 1:10)
+Batch7_MTG <- RunUMAP(Batch7_MTG, reduction = "harmony", dims = 1:15)
 ```
 
 run tsne based on top 10 harmony axis: 
@@ -286,7 +294,7 @@ Batch7_MTG_Case_UMAP <- DimPlot(Batch7_MTG, reduction = "umap", split.by = "case
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(Batch7_MTG_Case_UMAP, filename = "Figures/Batch7_MTG_Case_UMAP.pdf", device = "pdf", width = 6, height = 8, units = "in")
+ggsave(Batch7_MTG_Case_UMAP, filename = "Figures/GLMPCA_Batch7_MTG_Case_UMAP.pdf", device = "pdf", width = 6, height = 8, units = "in")
 ```
 
 
@@ -352,7 +360,7 @@ FeaturePlot(Batch7_MTG, features = c("ENO2", "RBFOX3","SLC17A6", "SLC17A7","AQP4
 ```
 
 ```{r}
-saveRDS(Batch7_MTG,"Files/Batch7_MTG_Unassigned.rds")
+saveRDS(Batch7_MTG,"Files/GLMPCA_Batch7_MTG_Unassigned.rds")
 ```
 
 
@@ -379,7 +387,7 @@ library(enrichplot)
  
  
 ```{R}
-Batch7_MTG=readRDS("Files/Batch7_MTG_Unassigned.rds")
+Batch7_MTG=readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
 ```
  
 Testing T-cell/immune cell markers
@@ -522,7 +530,7 @@ VlnPlot(Batch7_MTG, features = c("SLC17A6"),pt.size = 1)
 ```{R}
 VlnPlot(Batch7_MTG, features = c("SLC17A7"),pt.size = 0)
 ```
-0,1,2,3,7,8,13,15,16,18,19,20,22 - Glu?
+1,2,3,5,7,8,10,14,15,18,20,21 - Glu?
 
 GABAergic markers
 
@@ -531,6 +539,7 @@ GABAergic markers
 ```{R}
 VlnPlot(Batch7_MTG, features = c("SLC32A1"),pt.size = 1)
 ```
+
 ```{R}
 VlnPlot(Batch7_MTG, features = c("GAD1"),pt.size = 0)
 ```
@@ -540,7 +549,7 @@ VlnPlot(Batch7_MTG, features = c("GAD1"),pt.size = 0)
 VlnPlot(Batch7_MTG, features = c("GAD2"),pt.size = 0)
 ```
 
-5,6,10,16 - GABA?
+6,9,12,17,22 - GABA?
 
 weaker evidence for 10
 
@@ -561,7 +570,7 @@ ALDH1L1
 
 
 
-9 (20) - Astrocytes
+11 - Astrocytes
 
 Oligodendrocyte markers
 
@@ -578,7 +587,7 @@ VlnPlot(Batch7_MTG, features = c("MBP"),pt.size = 0)
 VlnPlot(Batch7_MTG, features = c("MOG"),pt.size = 1)
 ```
 
-4,19 - oligodendrocytes - strong
+4 - oligodendrocytes - strong
 
 
 
@@ -591,7 +600,7 @@ VlnPlot(Batch7_MTG, features = c("VCAN"),pt.size = 0)
 VlnPlot(Batch7_MTG, features = c("BCAN"),pt.size = 0)
 ```
 
-17 - OPCs
+19 - OPCs
 
 Microglia
 
@@ -602,7 +611,7 @@ VlnPlot(Batch7_MTG, features = c("CX3CR1"),pt.size = 1)
 VlnPlot(Batch7_MTG, features = c("P2RY12"),pt.size = 1)
 ```
 
-11 - Microglia
+12 - Microglia
 
 Endothelial Cells
 
@@ -612,7 +621,27 @@ VlnPlot(Batch7_MTG, features = c("FLT1"),pt.size = 0)
 ```{R}
 VlnPlot(Batch7_MTG, features = c("CLDN5"),pt.size = 0)
 ```
-14,22 - Endothelial cells
+16 - Endothelial cells
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("RELN"),pt.size = 0)
+```
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("CALB2"),pt.size = 1)
+```
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("CNR1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("PAFAH1B1"),pt.size = 1)
+```
+
+6 - Cajal-Retzius Cells
+
+
 
  Neuron  = ENO2, RBFOX3
  Glutamatergic neurons = SLC17A6, SLC17A7
@@ -623,6 +652,7 @@ VlnPlot(Batch7_MTG, features = c("CLDN5"),pt.size = 0)
  OPCs  =  VCAN, BCAN,
  Microglia = CX3CR1, P2RY12
  Endothelial cells = FLT1, CLDN5
+ 
  
  Alter to make it counts per million
 
@@ -684,7 +714,7 @@ Batch7_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill =
               strip.text.y.left = element_text(angle = 0)) + NoLegend()
 
 
-ggsave(Batch7_barchart,filename = "Files/Batch7_Marker_Barchart", device = "pdf", width = 12, height = 12, units = "in")
+ggsave(Batch7_barchart,filename = "Files/GLMPCA_Batch7_Marker_Barchart", device = "pdf", width = 12, height = 12, units = "in")
 ```
 1,2,3,5,10
 
@@ -882,25 +912,27 @@ VlnPlot(Batch7_MTG, features = c("CLDN5","TH","P2RY12","GRM4","BCAN"),pt.size = 
 
 
 
- Glu_Neurons = 0,1,2,3,7,8,12,13,15,16,18,19,21 - Glu?
- GABA_Neurons = 5,6,10,16
- Astrocytes = 9,20
- oligo = 4,19
- OPCs= 17
- Microglia = 11
- Endothelial = 14,22
- novel = 12,21 - all likely neurons - all likely neurons
+1,2,3,5,7,8,10,14,15,18,20,21 - Glu?
+9,12,17,22 - GABA?
+11 - Astrocytes
+4 - oligodendrocytes - strong
+19 - OPCs
+12 - Microglia
+16 - Endothelial cells
+6 - Cajal-Retzius Cells
+
+novel = 12,21 - all likely neurons - all likely neurons
 
 
 Assigning cell type identity to clusters: 
 
 ```{r}
-Batch7_MTG <- RenameIdents(Batch7_MTG, `0` = "GLU Neurons", `1` = "GLU Neurons", `2` = "GLU Neurons",
-                      `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GABA Neurons",
-                      `6` = "GABA Neurons", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "Astrocytes",
-                      `10` = "GABA Neurons", `11` = "Microglia",`12` = "GLU Neurons",
-                      `13` = "GLU Neurons",`14` = "Endothelial",
-                      `15` = "GLU Neurons", `16`="GABA Neurons", `17`="OPCs", `18`="GLU Neurons", `19`="Oligodendrocytes",  `20`="Astrocytes", `21` = "GLU Neurons", `22` = "Endothelial")
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons", `2` = "GLU Neurons",
+                      `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GLU Neurons",
+                      `6` = "Cajal-Retzius Cells", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "GABA Neurons",
+                      `10` = "GLU Neurons", `11` = "Astrocytes",`12` = "GABA Neurons",
+                      `13` = "Microglia",`14` = "GLU Neurons",
+                      `15` = "GLU Neurons", `16`="Endothelial", `17`="GABA Neurons", `18`="GLU Neurons", `19`="OPCs",  `20`="GLU Neurons", `21` = "GLU Neurons", `22` = "GABA Neurons")
 ```
 
 ```{R}
@@ -927,7 +959,7 @@ UMAPclusters <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, lab
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(UMAPclusters, filename = "Files/UMAPclusters_scRNA_seq_Batch7.pdf", device = "pdf", width = 6, height = 4, units = "in")
+ggsave(UMAPclusters, filename = "Files/GMAPCA_UMAPclusters_scRNA_seq_Batch7.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
 
 ```{r}
