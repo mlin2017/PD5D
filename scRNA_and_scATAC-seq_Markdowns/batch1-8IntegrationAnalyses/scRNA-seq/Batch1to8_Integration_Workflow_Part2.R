@@ -21,7 +21,7 @@ library(sciplot)
 Batch1to8_MTG <- readRDS("/n/scratch3/users/j/jap0606/batch1to8/Batch1to8_MTG_Part1.rds")
 
 Batch1to8_MTG <- FindNeighbors(Batch1to8_MTG, reduction = "harmony", dims = 1:20)
-Batch1to8_MTG <- FindClusters(Batch1to8_MTG, resolution = 0.5)
+Batch1to8_MTG <- FindClusters(Batch1to8_MTG, resolution = 0.5, algorithm = 4, method = "igraph")
 Batch1to8_MTG <- RunUMAP(Batch1to8_MTG, reduction = "harmony", dims = 1:20)
 
 saveRDS(Batch1to8_MTG,"/n/scratch3/users/j/jap0606/batch1to8/Batch1to8_MTG_Part2.rds")
@@ -71,7 +71,7 @@ Batch1to8_MTG_Region_Split_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "
 
 ggsave(Batch1to8_MTG_Region_Split_UMAP_Clusters, filename = "Figures/Batch1to8_MTG_Region_Split_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 32, units = "in")
 
-MarkerGenes <- c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP","PLP1","MBP","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5","IL7R","CD96","CD8A")
+MarkerGenes <- c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP","PLP1","MBP","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5","IL7R","CD96","CD8A","RELN","CALB2","CNR1")
 
 data_barplot <- FetchData(Batch1to8_MTG, vars = c("ident",MarkerGenes), slot = "data")
 
@@ -110,7 +110,7 @@ Batch1to8_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fil
               strip.text.y.left = element_text(angle = 0)) + NoLegend()
 
 
-ggsave(Batch1to8_barchart,filename = "Files/Batch1to8_Marker_Barchart", device = "pdf", width = 12, height = 12, units = "in")
+ggsave(Batch1to8_barchart,filename = "Files/Batch1to8_Marker_Barchart", device = "pdf", width = 12, height = 14, units = "in")
 
 
 Markerggplots <- function(SeurObj,Genes){

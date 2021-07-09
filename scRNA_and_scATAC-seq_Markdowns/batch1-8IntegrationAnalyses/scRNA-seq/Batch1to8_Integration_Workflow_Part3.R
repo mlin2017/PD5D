@@ -20,12 +20,8 @@ library(sciplot)
 
 Batch1to8_MTG <- readRDS("/n/scratch3/users/j/jap0606/batch1to8/Batch1to8_MTG_Part2.rds")
 
-Batch1to8_MTG <- RenameIdents(Batch1to8_MTG, `0` = "GLU_Neurons", `1` = "GLU_Neurons", `2` = "Oligodendrocytes",
-                      `3` = "GLU_Neurons", `4` = "Oligodendrocytes", `5` = "GABA_Neurons",
-                      `6` = "GLU_Neurons", `7` = "Astrocytes", `8` = "GLU_Neurons",`9` = "GLU_Neurons",
-                      `10` = "GABA_Neurons", `11` = "Microglia",`12` = "GABA_Neurons",
-                      `13` = "GLU_Neurons",`14` = "GABA_Neurons",
-                      `15` = "OPCs", `16`= "GLU_Neurons", `17`="Endothelial", `18`="Endothelial", `19`="GLU_Neurons",  `20`="GABA_Neurons", `21` = "Oligo_GLU_Neurons", `22` = "GLU_Neurons", `23` = "GLU_Neurons", `24` = "GLU_Neurons", `25` = "GLU_Neurons", `26` = "GLU_Neurons",`27` = "GABA_Neurons",`28` = "GLU_Neurons",`29` = "GLU_Neurons",`30` = "Oligo_GABA_Neurons",`31` = "GABA_Neurons",`32` = "GLU_Neurons",`33` = "GABA_Neurons",`34` = "Astrocytes", `35` = "GLU_Neurons")
+Batch1to8_MTG <- RenameIdents(Batch1to8_MTG, `1` = "GLU_Neurons", `2` = "GLU_Neurons", `3` = "Oligodendrocytes", `4` = "GLU_Neurons", `5` = "Astrocytes", `6` = "GLU_Neurons", `7` = "GLU_Neurons", `8` = "GABA_Neurons",`9` = "GABA_Neurons",`10` = "GLU_Neurons", `11` = "Microglia",`12` = "GABA_Neurons",`13` = "Unknown_Cluster_13",`14` = "OPCs",`15` = "GLU_Neurons", `16`= "Cajal_Retzius_Cells", `17`="GLU_GABA_Neurons", `18`="GABA_Neurons", `19`="GABA_Neurons",  `20`="Endothelial", `21` = "Endothelial", `22` = "Unknown_Cluster_22", `23` = "GLU_Neurons", `24` = "GLU_Neurons", `25` = "GLU_Neurons", `26` = "GLU_Neurons",`27` = "GABA_Neurons",`28` = "Unknown_Cluster_28",`29` = "CD8+_T_Cells",`30` = "Unknown_Cluster_30")
+                   
 
 Batch1to8_MTG_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
   theme(axis.text = element_text(size=8),

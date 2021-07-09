@@ -44,9 +44,9 @@ SeuratObject <- RenameIdents(SeuratObject, `0` = "GLU_Neurons", `1` = "GLU_Neuro
 
 ID_Order <- unique(SeuratObject@meta.data$sample_id)
 
-sex <- c("M","M","M","M","M","F","F","M","M","M","F","F","M","M","M","F","F","M","F","M","F","F","M","M","F","M","F","M","F","M","M")
+#sex <- c("M","M","M","M","M","F","F","M","M","M","F","F","M","M","M","F","F","M","F","M","F","F","M","M","F","M","F","M","F","M","M")
 
-SeuratObject@meta.data$sex <- SeuratObject@meta.data %>% group_by(sample_id) %>% mutate(Sex = rep(sex[match(unique(sample_id), ID_Order)], length(sample_id))) %>% .$Sex
+#SeuratObject@meta.data$sex <- SeuratObject@meta.data %>% group_by(sample_id) %>% mutate(Sex = rep(sex[match(unique(sample_id), ID_Order)], length(sample_id))) %>% .$Sex
 
 mkfilter <- function(cmatrixline) {
         sum(cmatrixline > 0)/length(cmatrixline)*100
@@ -59,7 +59,7 @@ Ident_Object@meta.data$DetRate <- as.vector(scale(colSums(Ident_Object@assays$RN
 Idents(Ident_Object) <- "case"
 
 #PD vs HC
-Ident.PDvsHC_Prog.Markers <- FindMarkers(Ident_Object, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate","batch"))
+Ident.PDvsHC_Prog.Markers <- FindMarkers(Ident_Object, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate","batch","RIN","PMI","age"))
 Ident.PDvsHC_Prog.Markers$gene <- rownames(Ident.PDvsHC_Prog.Markers)
 Ident.PDvsHC_Prog.Markers <-
         Ident.PDvsHC_Prog.Markers[Ident.PDvsHC_Prog.Markers$p_val_adj <= 0.05,]
