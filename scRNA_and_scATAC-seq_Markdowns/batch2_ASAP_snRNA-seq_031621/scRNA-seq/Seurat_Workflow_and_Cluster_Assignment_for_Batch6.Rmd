@@ -13,10 +13,12 @@ library(psych)
 library(pheatmap)
 library(harmony)
 #library(clusterProfiler)
-library(org.Hs.eg.db)
+#library(org.Hs.eg.db)
 library(DOSE)
 library(GOSemSim)
 library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
 ```
 
 
@@ -150,10 +152,19 @@ VlnPlot(Batch6_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), nc
  An object of class Seurat 
  25381 features across 6549 samples within 1 assay 
  Active assay: RNA (25381 features)
+ 
+```{R}
+library(stats)
+nfeature_RNA <- Batch6_MTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch6_MTG@meta.data$nFeature_RNA)
+
+```
 
 Filtering low quality cells:
 ```{r}
-Batch6_MTG <- subset(Batch6_MTG, subset = nFeature_RNA > 200 & percent.mt < 5)
+Batch6_MTG <- subset(Batch6_MTG, subset = nFeature_RNA > 200 & nfeature_RNA < threeMAD | percent.mt < 5)
 ```
 
 Now let's recheck the cell the counts for each group:
@@ -211,7 +222,7 @@ Determining "Dimensionality" of the dataset
 
 finding the top 30 principal components for cells
 ```{r}
-Batch6_MTG <- RunPCA(Batch6_MTG, npcs = 30, verbose = FALSE)
+Batch6_MTG <- RunGLMPCA(Batch6_MTG, features=Batch6_MTG@assays$RNA@var.features, L = 30)
 ```
 
 see contribution of genes to construct each of these principal components.
@@ -232,7 +243,7 @@ VlnPlot(object = Batch6_MTG, features = "PC_1", group.by = "case",  pt.size = .1
 
 Run Harmony
 ```{r}
-Batch6_MTG <- RunHarmony(Batch6_MTG, group.by.vars = "case", plot_convergence = TRUE)
+Batch6_MTG <- RunHarmony(Batch6_MTG, group.by.vars = c("sample_ID","case"), reduction = "glmpca", plot_convergence = TRUE, theta = c(1,1))
 ```
 
 
@@ -269,27 +280,52 @@ JackStrawPlot(Batch6_MTG, dims = 1:20)
 
 
 ```{R}
-ElbowPlot(Batch6_MTG, ndims = 30)
+ElbowPlot(Batch6_MTG, ndims = 30, reduction = "harmony")
 
 ```
 10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
 
 Finding Clusters of cells:
 ```{r}
-Batch6_MTG <- FindNeighbors(Batch6_MTG, reduction = "harmony", dims = 1:17)
-Batch6_MTG <- FindClusters(Batch6_MTG, resolution = 0.5)
+Batch6_MTG <- FindNeighbors(Batch6_MTG, reduction = "harmony", dims = 1:18)
+Batch6_MTG <- FindClusters(Batch6_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch6_MTG <- RunUMAP(Batch6_MTG, reduction = "harmony", dims = 1:17)
+Batch6_MTG <- RunUMAP(Batch6_MTG, reduction = "harmony", dims = 1:18)
+```
+
+```{r}
+DimPlot(Batch6_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Batch6_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_UMAPclusters_scRNA_seq_Batch6_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+UMAPclusters <- DimPlot(Batch6_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Split_GLMPCA_UMAPclusters_scRNA_seq_Batch6_MTG.pdf", device = "pdf", width = 12, height = 4, units = "in")
 ```
 
 run tsne based on top 10 harmony axis: 
 
 ```{r}
-Batch6_MTG <- RunTSNE(Batch6_MTG, reduction = "harmony", dims = 1:17)
+Batch6_MTG <- RunTSNE(Batch6_MTG, reduction = "harmony", dims = 1:18)
 ```
 
 plot umap: 

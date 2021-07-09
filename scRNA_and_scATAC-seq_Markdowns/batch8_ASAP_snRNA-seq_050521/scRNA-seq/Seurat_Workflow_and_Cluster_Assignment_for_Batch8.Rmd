@@ -17,6 +17,8 @@ library(harmony)
 library(DOSE)
 library(GOSemSim)
 library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
 ```
 
 
@@ -180,23 +182,20 @@ Batch8_MTG <- ScaleData(Batch8_MTG, features = all.genes, verbose = FALSE)
 Determining "Dimensionality" of the dataset
 
 
-
-
-
 finding the top 30 principal components for cells
 ```{r}
-Batch8_MTG <- RunPCA(Batch8_MTG, npcs = 30, verbose = FALSE)
+Batch8_MTG <- RunGLMPCA(Batch8_MTG, features=Batch8_MTG@assays$RNA@var.features, L = 30)
 ```
 
 see contribution of genes to construct each of these principal components.
 ```{r}
-VizDimLoadings(Batch8_MTG, dims = 1:2, reduction = "pca")
+VizDimLoadings(Batch8_MTG, dims = 1:2, reduction = "glmpca")
 ```
 
 
 plot cells in the first two principal components colored by case: 
 ```{r}
-DimPlot(object = Batch8_MTG, reduction = "pca", pt.size = .1, group.by = "case")
+DimPlot(object = Batch8_MTG, reduction = "glmpca", pt.size = .1, group.by = "case")
 ```
 
 Coordinate of cells in PC 1 characterized by case: 
@@ -206,7 +205,7 @@ VlnPlot(object = Batch8_MTG, features = "PC_1", group.by = "case",  pt.size = .1
 
 Run Harmony
 ```{r}
-Batch8_MTG <- RunHarmony(Batch8_MTG, group.by.vars = "case", plot_convergence = TRUE)
+Batch8_MTG <- RunHarmony(Batch8_MTG, group.by.vars = c("case","sample_ID"), reduction = "glmpca", plot_convergence = TRUE, theta = c(1,1))
 ```
 
 
@@ -242,7 +241,20 @@ Determing the dimensionality of the dataset
 ```
 
 ```{R}
-ElbowPlot(Batch8_MTG)
+
+ElbowPlot(Batch8_MTG, reduction = "glmpca")
+
+```
+
+
+```{R}
+
+ElbowPlot(Batch8_MTG, reduction = "harmony")
+
+```
+
+
+```{R}
 
 Batch8_MTG_ElbowPlot <- ElbowPlot(Batch8_MTG)
 
@@ -252,14 +264,14 @@ ggsave2("Figures/Batch8_MTG_ElbowPlot.pdf", Batch8_MTG_ElbowPlot, device = "pdf"
 
 Finding Clusters of cells:
 ```{r}
-Batch8_MTG <- FindNeighbors(Batch8_MTG, reduction = "harmony", dims = 1:11)
-Batch8_MTG <- FindClusters(Batch8_MTG, resolution = 0.5)
+Batch8_MTG <- FindNeighbors(Batch8_MTG, reduction = "harmony", dims = 1:16)
+Batch8_MTG <- FindClusters(Batch8_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch8_MTG <- RunUMAP(Batch8_MTG, reduction = "harmony", dims = 1:11)
+Batch8_MTG <- RunUMAP(Batch8_MTG, reduction = "harmony", dims = 1:16)
 ```
 
 run tsne based on top 10 harmony axis: 
@@ -274,35 +286,28 @@ DimPlot(Batch8_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
 ```
 
 ```{r}
-DimPlot(Batch8_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
-```
-TSNE Plot cells colored by clusters and grouped by case. 
-```{r}
-DimPlot(Batch8_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
-```
+DimPlot(Batch8_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
 
-```{r}
-Batch8_MTG_Case_UMAP <- DimPlot(Batch8_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
+UMAPclusters <- DimPlot(Batch8_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
         theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(Batch8_MTG_Case_UMAP, filename = "Figures/Batch8_MTG_Case_UMAP.pdf", device = "pdf", width = 6, height = 8, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_UMAPclusters_scRNA_seq_Batch8_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
 
 
-TSNE Plot cells colored by clusters and grouped by case. 
-```{r}
-#Batch8_MTG_Case_tsne <- DimPlot(Batch8_MTG, reduction = "tsne", split.by = "case", label = TRUE, ncol = 1) + 
-#        theme(axis.text = element_text(size=8),
-#              axis.title = element_text(size = 12),
-#              legend.text = element_text(size = 8),
-#              title = element_text(size = 12),
-#              legend.key.size = unit(0.4,"cm"))
+```{R}
+UMAPclusters <- DimPlot(Batch8_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
 
-#ggsave(Batch8_MTG_Case_tsne, filename = "Figures/Batch8_MTG_Case_tsne.pdf", device = "pdf", width = 6, height = 8, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Split_GLMPCA_UMAPclusters_scRNA_seq_Batch8_MTG.pdf", device = "pdf", width = 12, height = 4, units = "in")
 ```
 
 Find markers for every cluster compared to all remaining cells, report only the positive ones

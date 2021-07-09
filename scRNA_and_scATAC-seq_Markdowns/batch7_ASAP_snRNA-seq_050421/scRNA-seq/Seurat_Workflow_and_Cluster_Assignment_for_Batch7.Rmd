@@ -612,6 +612,17 @@ VlnPlot(Batch7_MTG, features = c("FLT1"),pt.size = 0)
 ```{R}
 VlnPlot(Batch7_MTG, features = c("CLDN5"),pt.size = 0)
 ```
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("RELN"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("CALB2"),pt.size = 1)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("CNR1"),pt.size = 0)
+```
+
 14,22 - Endothelial cells
 
  Neuron  = ENO2, RBFOX3
@@ -897,7 +908,7 @@ Assigning cell type identity to clusters:
 ```{r}
 Batch7_MTG <- RenameIdents(Batch7_MTG, `0` = "GLU Neurons", `1` = "GLU Neurons", `2` = "GLU Neurons",
                       `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GABA Neurons",
-                      `6` = "GABA Neurons", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "Astrocytes",
+                      `6` = "Cajal-Retzius Cells", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "Astrocytes",
                       `10` = "GABA Neurons", `11` = "Microglia",`12` = "GLU Neurons",
                       `13` = "GLU Neurons",`14` = "Endothelial",
                       `15` = "GLU Neurons", `16`="GABA Neurons", `17`="OPCs", `18`="GLU Neurons", `19`="Oligodendrocytes",  `20`="Astrocytes", `21` = "GLU Neurons", `22` = "Endothelial")

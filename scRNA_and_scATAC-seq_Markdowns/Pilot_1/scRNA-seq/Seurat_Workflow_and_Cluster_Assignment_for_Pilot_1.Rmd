@@ -1,0 +1,1308 @@
+---
+title: "Seurat Workflow and Cluster Assignment for Pilot_1"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(SeuratWrappers)
+library(glmpca)
+```
+
+
+
+Load the BRI-318, BRI-319, BRI-320, BRI-321, B0085, H0321, H1009, H1118  single-cell data.
+
+Loading in the single cell data
+
+```{r}
+Pilot_1.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+```
+
+
+
+
+
+
+checking dimensions to check all samples have the same set of genes
+
+```{r}
+dim(Pilot_1.data)
+
+
+```
+
+
+```{r}
+Pilot_1_MB <- CreateSeuratObject(counts = cbind(Pilot_1.data),
+                            project = "Pilot_1_MB",
+                            min.cells = 3)
+```
+
+
+```{R}
+samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+
+cellcodes <- as.data.frame(Pilot_1_MB@assays$RNA@data@Dimnames[[2]])
+colnames(cellcodes) <- "barcodes"
+rownames(cellcodes) <- cellcodes$barcodes
+
+cellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", cellcodes$barcodes))
+cellcodes$samples <- as.vector(samples$library_id[cellcodes$libcodes])
+
+Pilot_1_MB@meta.data$sample_ID <- cellcodes$samples
+
+
+
+```
+
+
+```{R}
+
+cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
+
+Pilot_1_MB@meta.data$case <- cellcodes$case
+
+Pilot_1_MB@meta.data$region <- "Midbrain"
+
+```
+
+
+
+
+
+ Quality Checking : 
+
+ Seurat allows you to easily explore QC metrics and filter cells based on any user-defined criteria.
+ A few QC metrics commonly used by the community include : 
+ The number of unique genes detected in each cell.
+ Low-quality cells or empty droplets will often have very few genes
+ Cell doublets or multiplets may exhibit an aberrantly high gene count
+ Similarly, the total number of molecules detected within a cell (correlates strongly with unique genes)
+ The percentage of reads that map to the mitochondrial genome
+ Low-quality / dying cells often exhibit extensive mitochondrial contamination
+ We calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
+ We use the set of all genes starting with MT- as a set of mitochondrial genes
+
+```{r}
+Pilot_1_MB[["percent.mt"]] <- PercentageFeatureSet(Pilot_1_MB, pattern = "^MT-")
+VlnPlot(Pilot_1_MB, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+ 
+ 
+```{R}
+library(stats)
+nfeature_RNA <- Pilot_1_MB@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Pilot_1_MB@meta.data$nFeature_RNA)
+
+```
+
+```{R}
+
+dim(Pilot_1_MB)
+```
+
+
+Filtering low quality cells:
+```{r}
+Pilot_1_MB <- subset(Pilot_1_MB, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD | percent.mt < 5)
+```
+
+
+```{R}
+dim(Pilot_1_MB)
+
+
+```
+
+
+Log Normalizing data: 
+```{r}
+Pilot_1_MB <- NormalizeData(Pilot_1_MB, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+
+Finding and plotting 2000 most variable features
+
+```{R}
+Pilot_1_MB <- FindVariableFeatures(Pilot_1_MB, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(Pilot_1_MB), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(Pilot_1_MB)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2
+plot1
+```
+
+```{R}
+plot2
+```
+
+Run the standard workflow for visualization and clustering :
+
+save list of all genes
+```{r}
+all.genes <- rownames(Pilot_1_MB)
+```
+
+center and scale data
+```{r}
+Pilot_1_MB <- ScaleData(Pilot_1_MB, features = all.genes, verbose = FALSE)
+```
+
+finding the top 30 principal components for cells
+```{r}
+Pilot_1_MB <- RunGLMPCA(Pilot_1_MB, features=Pilot_1_MB@assays$RNA@var.features, L = 30)
+```
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(Pilot_1_MB, dims = 1:2, reduction = "glmpca")
+```
+
+
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = Pilot_1_MB, reduction = "glmpca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = Pilot_1_MB, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+
+Run Harmony
+```{r}
+Pilot_1_MB <- RunHarmony(Pilot_1_MB, group.by.vars = c("sample_ID","case"), plot_convergence = TRUE, reduction = "glmpca", theta=c(1,1))
+```
+
+
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(AllMB, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+```{r}
+DimPlot(object = Pilot_1_MB, reduction = "harmony", pt.size = .1, group.by = "case")
+```
+cells in harmony 1 axis
+```{r}
+VlnPlot(object = Pilot_1_MB, features = "harmony_1", group.by = "case",  pt.size = .1)
+```
+
+
+```{R}
+
+ElbowPlot(Pilot_1_MB, reduction = "harmony")
+
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+ 2 dimensional reductions calculated: pca, harmony
+
+Finding Clusters of cells:
+```{r}
+Pilot_1_MB <- FindNeighbors(Pilot_1_MB, reduction = "harmony", dims = 1:14)
+Pilot_1_MB <- FindClusters(Pilot_1_MB, resolution = 0.5, algorithm = 4)
+```
+
+run Umap based on top 20 harmony axis: 
+
+```{r}
+Pilot_1_MB <- RunUMAP(Pilot_1_MB, reduction = "harmony", dims = 1:14)
+```
+
+run tsne based on top 20 harmony axis: 
+
+```{r}
+#AllMB <- RunTSNE(AllMB, reduction = "harmony", dims = 1:15)
+```
+
+plot umap: 
+```{r}
+DimPlot(Pilot_1_MB, reduction = "umap", label = TRUE,pt.size = 0.01)
+```
+
+```{r}
+DimPlot(Pilot_1_MB, reduction = "umap", group.by = "case",pt.size = 0.1)
+```
+
+
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+DimPlot(Pilot_1_MB, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
+```
+
+Now let's plot cells with the assigned celltypes: 
+```{r}
+DimPlot(Pilot_1_MB, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Pilot_1_MB, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_UMAPclusters_scRNA_seq_Pilot_1.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+UMAPclusters <- DimPlot(Pilot_1_MB, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Split_UMAPclusters_scRNA_seq_Pilot_1.pdf", device = "pdf", width = 12, height = 4, units = "in")
+```
+
+
+Find markers for every cluster compared to all remaining cells, report only the positive ones
+```{r}
+AllMB.markers <- FindAllMarkers(AllMB, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
+
+Save single-cell elements. 
+```{r}
+#saveRDS(AllMB,"AllMB.rds")
+```
+
+```{r}
+#AllMB=readRDS("AllMB.rds")
+```
+
+```{r}
+#saveRDS(AllMB.markers,"AllMB.markers.rds")
+```
+
+```{r}
+#AllMB.markers=readRDS("AllMB.markers.rds")
+#write.csv(AllMB.markers,"AllMB_markers.csv")
+```
+
+```{r}
+unique(AllMB.markers$cluster)
+```
+
+Top marker genes for each clusters: 
+```{r}
+AllMB.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_logFC)
+write.table(AllMB.markers, file = "AllMarkers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+top10Markers <- AllMB.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_logFC)
+write.table(top10Markers, file = "top10Markers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+```
+
+Heatmap for some marker genes: 
+```{r}
+features <- unique(top10Markers$gene)
+DoHeatmap(AllMB, features = features, size = 2, draw.lines = FALSE, angle = 45,
+          hjust = 0.2) + theme(axis.text.y = element_text(size = 5))
+```
+
+```{r}
+VlnPlot(AllMB, features = c("SLC32A1", "GAD1", "GAD2", "SLC17A6", "LPL", "OTX2", "ADCYAP1", "GRP", "VIP"),
+        ncol = 1)
+VlnPlot(AllMB, features = "LINC01608",
+        ncol = 1)
+```
+Plot these genes in the cluster plot:
+```{r}
+FeaturePlot(AllMB, features = c("ENO2", "RBFOX3","SLC17A6", "SLC17A7","AQP4", "GFAP"))
+```
+
+```{r}
+FeaturePlot(AllMB, features = c("SLC17A6", "SLC17A7"))
+```
+
+```{r}
+saveRDS(Pilot_1_MB,"Files/Pilot_1_MB_Unassigned.rds")
+```
+
+ Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6, SLC17A7
+ GABAergic neurons = SLC32A1, GAD1, GAD2
+ Dopaminergic neurons = TH, SLC6A3, SCL18A2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+ 
+
+ Glu_Neurons=10
+ GABA_Neurons = 5
+ Glu_GABA Neurons = 17
+ Dop_Neurons subgroup 1 = 12
+ Dop_Neurons subgroup 2 = 18
+ Astrocytes = 3,8
+ oligo = 0,1,2,7
+ OPCs=4
+ Microglia = 6
+ Endothelial= 9,11,15
+ novel = 13, 14, 16
+ 
+ #########################################################
+ 
+```{R}
+Pilot_1_MB=readRDS("Files/Pilot_1_MB_Unassigned.rds")
+```
+
+
+```{R}
+UMAPclusters <- DimPlot(Pilot_1_MB, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_UMAPclusters_scRNA_seq_Pilot_1.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+Testing T-cell/immune cell markers
+
+
+
+
+```{r}
+VlnPlot(Pilot_1_MB, features = c("CD96"),pt.size = 0)
+```
+NK Cell Markers
+
+```{r}
+VlnPlot(Pilot_1_MB, features = c("IL7R"),pt.size = 0)
+```
+
+
+CD16
+
+```{r}
+VlnPlot(Pilot_1_MB, features = c("FCGR3A"),pt.size = 0)
+```
+
+CD56
+
+```{r}
+VlnPlot(Pilot_1_MB, features = c("NCAM1"),pt.size = 0)
+```
+
+CD94
+
+
+```{r}
+VlnPlot(Pilot_1_MB, features = c("KLRD1"),pt.size = 0)
+```
+NKG2A
+
+```{r}
+VlnPlot(Pilot_1_MB, features = c("KLRC1"),pt.size = 0)
+```
+```{r}
+VlnPlot(Pilot_1_MB, features = c("CD244"),pt.size = 0)
+```
+
+resting T cell marker?
+
+```{r}
+VlnPlot(Pilot_1_MB, features = c("CD226"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Pilot_1_MB, features = c("CD8A"),pt.size = 0)
+```
+```{r}
+#VlnPlot(AllMB, features = c("1C7"),pt.size = 0)
+```
+
+```{r}
+TKillerCellMarkerVlnPlot <- VlnPlot(Pilot_1_MB, features = c("CD8A","CD226","CD244","CD96","IL7R","KLRD1","NCAM1","FCGR3A","KLRC1"),pt.size = 0, ncol = 1) 
+
+ggsave(TKillerCellMarkerVlnPlot,filename = "TKillerCellMarkerVlnPlot.pdf", width = 20, height = 20)            
+
+
+```
+
+
+##################################################################
+
+T lymphocyte markers
+
+```{r}
+VlnPlot(AllMB, features = c("CD69"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(AllMB, features = c("TFRC"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(AllMB, features = c("IL2RA"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(AllMB, features = c("CTLA4"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(AllMB, features = c("FOXP3"),pt.size = 0)
+```
+
+
+
+
+###################################################################
+
+Find cell-types by plotting marker genes.
+```{r}
+VlnPlot(Pilot_1_MB, features = c("ENO2"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("RBFOX3"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("SLC17A6"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("SLC17A7"),pt.size = 0)
+```
+
+GLU 9,10,19
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("SLC32A1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("GAD1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("GAD2"),pt.size = 0)
+```
+GABA - 5,6,10,16,18
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("TH"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("SLC6A3"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("SLC18A2"),pt.size = 0)
+```
+
+DA Neurons - 12
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("AQP4"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("GFAP"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("ALDH1L1"),pt.size = 0)
+```
+
+
+Astrocyte - 2
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("PLP1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("MBP"),pt.size = 0)
+```
+
+oligo 1,3,15
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("VCAN"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("BCAN"),pt.size = 0)
+```
+OPCs - 6
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("CX3CR1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("P2RY12"),pt.size = 0)
+```
+
+Microglia - 4
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("FLT1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Pilot_1_MB, features = c("CLDN5"),pt.size = 0)
+```
+
+Endothelial - 7,8,17
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("RELN"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("CALB2"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("CNR1"),pt.size = 1)
+```
+
+```{R}
+VlnPlot(Pilot_1_MB, features = c("PAFAH1B1"),pt.size = 1)
+```
+
+
+
+```{r}
+VlnPlot(AllMB, features = c("ENO2",
+                            "TH",
+                            "SLC6A3",
+                            "SLC18A2",
+                            "SLC17A6",
+                            "SLC17A7",
+                            "SLC32A1",
+                            "GAD1",
+                            "GAD2",
+                            "AQP4",
+                            "GFAP",
+                            "PLP1",
+                            "OLIG1",
+                            "VCAN",
+                            "CX3CR1",
+                            "P2RY12",
+                            "FLT1"),
+        pt.size =0,ncol = 1)
+
+#ggsave(thisplot, filename = "testplot", device = "pdf")
+```
+
+Find mean values of these genes across clusters.
+```{r}
+AverageExpression(AllMB, features = c("ENO2",
+                                      "TH",
+                                      "SLC6A3",
+                                      "SLC18A2",
+                                      "SLC17A6",
+                                      "SLC17A7",
+                                      "SLC32A1",
+                                      "GAD1",
+                                      "GAD2",
+                                      "AQP4",
+                                      "GFAP",
+                                      "PLP1",
+                                      "OLIG1",
+                                      "VCAN",
+                                      "CX3CR1",
+                                      "P2RY12",
+                                      "FLT1"),use.counts=TRUE)
+```
+Other form of ploting genes across clusters:
+```{r}
+RidgePlot(AllMB, features=c("ENO2"))
+RidgePlot(AllMB, features=c("TH"))
+RidgePlot(AllMB, features=c("SLC6A3"))
+RidgePlot(AllMB, features=c("SLC18A2"))
+RidgePlot(AllMB, features=c("SLC17A6"))
+RidgePlot(AllMB, features=c("GAD2"))
+```
+
+ 
+  Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6, SLC17A7
+ GABAergic neurons = SLC32A1, GAD1, GAD2
+ Dopaminergic neurons = TH, SLC6A3, SCL18A2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+ 
+ 
+ Glu_Neurons=10
+ GABA_Neurons = 5
+ Glu_GABA Neurons = 17
+ Dop_Neurons subgroup 1 = 12
+ Dop_Neurons subgroup 2 = 18
+ Astrocytes = 3,8
+ oligo = 0,1,2,7
+ OPCs=4
+ Microglia = 6
+ Endothelial= 9,11, 15
+ novel = 13, 14, 16
+
+GLU 9,10,19
+GABA - 5,6,10,16,18
+DA Neurons - 12
+Astrocyte - 2
+oligo 1,3,15
+OPCs - 6
+Microglia - 4
+Endothelial - 7,8,17
+novel=11,14
+
+Assigning cell type identity to clusters: 
+
+```{r}
+Pilot_1_MB <- RenameIdents(Pilot_1_MB, `1` = "Oligodendrocytes", `2` = "Astrocytes",
+                      `3` = "Oligodendrocytes", `4` = "Microglia", `5` = "GABA neurons",
+                      `6` = "GABA neurons", `7` = "Endothelial", `8` = "GABA neurons",`9` = "GLU neurons",
+                      `10` = "GLU_GABA Neurons", `11` = "Dopaminergic Neurons group 1",`12` = "Dopaminergic Neurons group 2",
+                      `13` = "CD8+ T Cells",`14` = "Cajal-Retzius Cells?",
+                      `15` = "Oligodendrocytes", `16`="GABA neurons", `17`="Endothelial", `18`="GABA neurons", `19`="GLU neurons")
+```
+
+```{r}
+AllMB_group_assigned <- RenameIdents(AllMB, `0` = "Oligodendrocytes", `1` = "Oligodendrocytes", `2` = "Oligodendrocytes", `3` = "Astrocytes 1", `4` = "Oligodendrocytes", `5` = "GLU/GABA Neurons",`6` = "Microglia", `7` = "Oligodendrocytes", `8` = "Astrocytes 2",`9` = "Endothelial cells",`10` = "GLU/GABA Neurons", `11` = "Endothelial cells",`12` = "Dopaminergic Neurons",`13` = "CD8+ T Cells",`14` = "Novel Cluster 14",`15` = "Endothelial cells", `16`="Novel Cluster 16", `17`="GLU/GABA Neurons", `18`="Dopaminergic Neurons")
+```
+
+
+```{R}
+saveRDS(AllMB_group_assigned,"AllMB_Group_Assigned.rds")
+#AllMB=readRDS("AllMB.rds")
+```
+
+
+```{R}
+#saveRDS(AllMB,"AllMB_Assigned.rds")
+#AllMB=readRDS("AllMB.rds")
+```
+
+
+
+
+```{R}
+
+AllMB <- readRDS("Files/AllMB_Assigned.rds")
+
+```
+
+what are dopaminergic neurons DA1 and DA2?
+
+
+Now let's plot cells with the assigned celltypes: 
+```{r}
+DimPlot(Pilot_1_MB, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Pilot_1_MB, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/UMAPclusters_scRNA_seq_Pilot_1.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+UMAPclusters <- DimPlot(Pilot_1_MB, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures_Pilot_1/Split_UMAPclusters_scRNA_seq_Pilot_1.pdf", device = "pdf", width = 12, height = 4, units = "in")
+```
+
+
+```{r}
+DimPlot(AllMB, label = TRUE, repel = TRUE, pt.size = 1, split.by = "case", label.size = 2,
+        ncol = 1) + NoLegend()
+```
+
+
+```{r}
+DimPlot(AllMB, label = TRUE, repel = TRUE, pt.size = 1,reduction = 'umap')
+```
+
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("RIMS1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+RIMS1Vln <- VlnPlot(AllMB, features = c("RIMS1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(RIMS1Vln, filename = "RIMS1_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+
+```
+
+```{R}
+VlnPlot(AllMB, features = c("RIMS2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+RIMS2Vln <- VlnPlot(AllMB, features = c("RIMS2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+ggsave(RIMS2Vln, filename = "RIMS2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("BIN1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+BIN1Vln <- VlnPlot(AllMB, features = c("BIN1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(BIN1Vln, filename = "BIN1_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+VlnPlot(AllMB, features = c("BIN2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+BIN2Vln <- VlnPlot(AllMB, features = c("BIN2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(BIN2Vln, filename = "BIN2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("BIN3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+BIN3Vln <- VlnPlot(AllMB, features = c("BIN3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(BIN3Vln, filename = "BIN3_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+```{R}
+VlnPlot(AllMB, features = c("TH"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+THVln <- VlnPlot(AllMB, features = c("TH"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(THVln, filename = "TH_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+SLC6A3, 
+
+```{R}
+VlnPlot(AllMB, features = c("SLC6A3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+SLC6A3Vln <- VlnPlot(AllMB, features = c("SLC6A3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(SLC6A3Vln, filename = "SLC6A3_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+VlnPlot(AllMB, features = c("SLC18A2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+SLC18A2Vln <- VlnPlot(AllMB, features = c("SLC18A2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(SLC18A2Vln, filename = "SLC18A2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+```{R}
+VlnPlot(AllMB, features = c("DGKQ"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+#SLC18A2Vln <- VlnPlot(AllMB, features = c("DGKQ"),pt.size = 0) +
+#        theme(axis.text = element_text(size=8),
+#              axis.title = element_text(size = 12),
+#              legend.text = element_text(size = 8),
+#              title = element_text(size = 12),
+#              legend.key.size = unit(0.4,"cm"))
+
+#ggsave(SLC18A2Vln, filename = "SLC18A2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("SH3GL2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+SH3GL2Vln <- VlnPlot(AllMB, features = c("SH3GL2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+##################################################################
+
+Differentiating betweening dopaminergic neuron subtypes
+
+#################################################################
+
+```{r}
+VlnPlot(AllMB, features = c("SOX6"),pt.size = 0)
+```
+
+
+```{r}
+VlnPlot(AllMB, features = c("NDNF"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(AllMB, features = c("ALDH1A1"),pt.size = 0)
+```
+
+
+```{r}
+VlnPlot(AllMB, features = c("CALB1"),pt.size = 0)
+```
+GIRK2
+
+```{r}
+VlnPlot(AllMB, features = c("KCNJ6"),pt.size = 0)
+```
+
+
+
+```{r}
+#VlnPlot(AllMB, features = c("KCNJ3"),pt.size = 0)
+```
+
+
+```{r}
+VlnPlot(AllMB, features = c("OTX2"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(AllMB, features = c("ADCYAP1"),pt.size = 0)
+```
+
+
+
+
+
+```{r}
+VlnPlot(AllMB, features = c("VIP"),pt.size = 0)
+```
+
+
+vglut
+
+```{r}
+VlnPlot(AllMB, features = c("SLC17A6"),pt.size = 0)
+```
+
+
+vgat
+
+```{r}
+VlnPlot(AllMB, features = c("SLC32A1"),pt.size = 0)
+```
+
+
+
+
+```{r}
+VlnPlot(AllMB, features = c("CCK"),pt.size = 0)
+```
+
+```{r}
+DANeuronSubtypesCellMarkerVlnPlot <- VlnPlot(AllMB, features = c("ALDH1A1","SOX6","CALB1","KCNJ6","SLC17A6"),pt.size = 0, ncol = 1) 
+
+ggsave(DANeuronSubtypesCellMarkerVlnPlot,filename = "DANeuronSubtypesCellMarkerVlnPlot.pdf", width = 20, height = 20)            
+
+
+```
+
+
+
+#####################################################################
+
+
+Markers DE between SN and VA DA neurons according to Aguila et al. paper
+
+```{R}
+VlnPlot(AllMB, features = c("ZCCHC12"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+cluster 12: CALB1~+, SOX6+, GIRK2+ (more than 18)
+
+cluster 18: Vglut+, GIRK2+ (although less than 12), ALDH1A1+ 
+
+
+```{R}
+VlnPlot(AllMB, features = c("CDH13"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+```{R}
+VlnPlot(AllMB, features = c("SERPINE2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+```{R}
+VlnPlot(AllMB, features = c("SLIT1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+VlnPlot(AllMB, features = c("GSG1L"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("SEZ6"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("ATP2A3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("SLC17A6"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("RGS16"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("PCP4"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+```{R}
+VlnPlot(AllMB, features = c("CADM1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+```{R}
+VlnPlot(AllMB, features = c("TIMP2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+VlnPlot(AllMB, features = c("NECAB1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+VlnPlot(AllMB, features = c("PCP4"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+VlnPlot(AllMB, features = c("PCP4"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("PCP4"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("PCP4"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+```{R}
+VlnPlot(AllMB, features = c("PCP4"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+#ggsave(SH3GL2Vln, filename = "SH3GL2_Vln_scRNA_seq_Batch4.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+
+

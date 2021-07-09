@@ -32,7 +32,7 @@ Batch4.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_an
 Batch5.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-seq_042721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
 Batch6.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_043021/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
 Batch7.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
-Batch1to8.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch1to8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
+Batch8.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/")
 
 ```
 
@@ -45,7 +45,7 @@ batch4samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_
 batch5samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-seq_042721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 batch6samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_043021/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 batch7samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
-Batch1to8samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch1to8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+batch8samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 ```
 
 
@@ -62,6 +62,10 @@ createmetadata <- function(batch) {
   samptable <- paste("batch",str_extract(batch,"[[:digit:]]"),"samples",sep="")
   tempcellcodes$samples <- as.vector(get(paste("batch",str_extract(batch,"[[:digit:]]"),"samples",sep=""))$library_id[tempcellcodes$libcodes])
   tempcellcodes$case <- as.vector(get(paste("batch",str_extract(batch,"[[:digit:]]"),"samples",sep=""))$case[tempcellcodes$libcodes])
+  tempcellcodes$sex <- as.vector(get(paste("batch",str_extract(batch,"[[:digit:]]"),"samples",sep=""))$sex[tempcellcodes$libcodes])
+  tempcellcodes$RIN <- as.vector(get(paste("batch",str_extract(batch,"[[:digit:]]"),"samples",sep=""))$RIN[tempcellcodes$libcodes])
+  tempcellcodes$PMI <- as.vector(get(paste("batch",str_extract(batch,"[[:digit:]]"),"samples",sep=""))$PMI[tempcellcodes$libcodes])
+  tempcellcodes$age <- as.vector(get(paste("batch",str_extract(batch,"[[:digit:]]"),"samples",sep=""))$age[tempcellcodes$libcodes])
   tempcellcodes$batch <- str_extract(batch,"Batch[[:digit:]]")
   return(tempcellcodes)
 }
@@ -84,7 +88,14 @@ Batch1to8_MTG <- CreateSeuratObject(counts = do.call(cbind,lapply(Batches,get)),
 Batch1to8_MTG@meta.data$sample_id <- metadata$samples
 Batch1to8_MTG@meta.data$case <- metadata$case
 Batch1to8_MTG@meta.data$batch <- metadata$batch
-
+Batch1to8_MTG@meta.data$sex <- metadata$sex
+Batch1to8_MTG@meta.data$RIN <- metadata$RIN
+Batch1to8_MTG@meta.data$PMI <- metadata$PMI
+Batch1to8_MTG@meta.data$age <- metadata$age
+age_bracket <- cut(Batch1to8_MTG@meta.data$age, c(60,70,80,90,100))
+age_bracket <- gsub("\\(|]","",age_bracket)
+age_bracket <- gsub(",","-",age_bracket)
+Batch1to8_MTG@meta.data$age_bracket <- age_bracket
 ```
 
 
