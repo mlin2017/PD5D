@@ -17,6 +17,8 @@ library(harmony)
 library(DOSE)
 library(GOSemSim)
 library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
 ```
 
 
@@ -151,9 +153,20 @@ VlnPlot(Batch5_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), nc
  25381 features across 6549 samples within 1 assay 
  Active assay: RNA (25381 features)
 
+
+```{R}
+library(stats)
+nfeature_RNA <- Batch5_MTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch5_MTG@meta.data$nFeature_RNA)
+
+```
+
+
 Filtering low quality cells:
 ```{r}
-Batch5_MTG <- subset(Batch5_MTG, subset = nFeature_RNA > 200 & percent.mt < 5)
+Batch5_MTG <- subset(Batch5_MTG, subset = nFeature_RNA > 200 & nfeature_RNA < threeMAD | percent.mt < 5)
 ```
 
 Now let's recheck the cell the counts for each group:
@@ -211,18 +224,18 @@ Determining "Dimensionality" of the dataset
 
 finding the top 30 principal components for cells
 ```{r}
-Batch5_MTG <- RunPCA(Batch5_MTG, npcs = 30, verbose = FALSE)
+Batch5_MTG <- RunGLMPCA(Batch5_MTG, features=Batch5_MTG@assays$RNA@var.features, L = 30)
 ```
 
 see contribution of genes to construct each of these principal components.
 ```{r}
-VizDimLoadings(Batch5_MTG, dims = 1:2, reduction = "pca")
+VizDimLoadings(Batch5_MTG, dims = 1:2, reduction = "glmpca")
 ```
 
 
 plot cells in the first two principal components colored by case: 
 ```{r}
-DimPlot(object = Batch5_MTG, reduction = "pca", pt.size = .1, group.by = "case")
+DimPlot(object = Batch5_MTG, reduction = "glmpca", pt.size = .1, group.by = "case")
 ```
 
 Coordinate of cells in PC 1 characterized by case: 
@@ -232,7 +245,7 @@ VlnPlot(object = Batch5_MTG, features = "PC_1", group.by = "case",  pt.size = .1
 
 Run Harmony
 ```{r}
-Batch5_MTG <- RunHarmony(Batch5_MTG, group.by.vars = "case", plot_convergence = TRUE)
+Batch5_MTG <- RunHarmony(Batch5_MTG, group.by.vars = c("sample_ID","case"), reduction = "glmpca", plot_convergence = TRUE, theta = c(1,1))
 ```
 
 
@@ -268,28 +281,24 @@ JackStrawPlot(Batch5_MTG, dims = 1:20)
 ```
 
 ```{R}
-ElbowPlot(Batch5_MTG)
+ElbowPlot(Batch5_MTG, reduction = "harmony")
 
 ```
 10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
 
 Finding Clusters of cells:
 ```{r}
-Batch5_MTG <- FindNeighbors(Batch5_MTG, reduction = "harmony", dims = 1:9)
-Batch5_MTG <- FindClusters(Batch5_MTG, resolution = 0.5)
+Batch5_MTG <- FindNeighbors(Batch5_MTG, reduction = "harmony", dims = 1:14)
+Batch5_MTG <- FindClusters(Batch5_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch5_MTG <- RunUMAP(Batch5_MTG, reduction = "harmony", dims = 1:9)
+Batch5_MTG <- RunUMAP(Batch5_MTG, reduction = "harmony", dims = 1:14)
 ```
 
 run tsne based on top 10 harmony axis: 
-
-```{r}
-Batch5_MTG <- RunTSNE(Batch5_MTG, reduction = "harmony", dims = 1:9)
-```
 
 plot umap: 
 ```{r}
@@ -300,13 +309,30 @@ DimPlot(Batch5_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
 DimPlot(Batch5_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
 ```
 
+
 ```{r}
-DimPlot(Batch5_MTG, reduction = "umap", group.by = "experiment",pt.size = 0.1)
+DimPlot(Batch5_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Batch5_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_UMAPclusters_scRNA_seq_Batch5_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
 
-TSNE Plot cells colored by clusters and grouped by case. 
-```{r}
-DimPlot(Batch5_MTG, reduction = "tsne", split.by = "case", label = TRUE, ncol = 1)
+
+```{R}
+UMAPclusters <- DimPlot(Batch5_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Split_GLMPCA_UMAPclusters_scRNA_seq_Batch5_MTG.pdf", device = "pdf", width = 12, height = 4, units = "in")
 ```
 
 Find markers for every cluster compared to all remaining cells, report only the positive ones

@@ -17,6 +17,8 @@ library(harmony)
 library(DOSE)
 library(GOSemSim)
 library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
 ```
 
 
@@ -185,7 +187,7 @@ Determining "Dimensionality" of the dataset
 
 finding the top 30 principal components for cells
 ```{r}
-Batch6_MTG <- RunPCA(Batch6_MTG, npcs = 30, verbose = FALSE)
+Batch6_MTG <- RunGLMPCA(Batch6_MTG, features=Batch6_MTG@assays$RNA@var.features, L = 30)
 ```
 
 see contribution of genes to construct each of these principal components.
@@ -206,7 +208,7 @@ VlnPlot(object = Batch6_MTG, features = "PC_1", group.by = "case",  pt.size = .1
 
 Run Harmony
 ```{r}
-Batch6_MTG <- RunHarmony(Batch6_MTG, group.by.vars = "case", plot_convergence = TRUE)
+Batch6_MTG <- RunHarmony(Batch6_MTG, group.by.vars = c("case","sample_ID"), reduction = "glmpca", plot_convergence = TRUE, theta = c(1,1))
 ```
 
 
@@ -242,21 +244,21 @@ Determing the dimensionality of the dataset
 ```
 
 ```{R}
-ElbowPlot(Batch6_MTG)
+ElbowPlot(Batch6_MTG, reduction = "harmony")
 
 ```
 10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
 
 Finding Clusters of cells:
 ```{r}
-Batch6_MTG <- FindNeighbors(Batch6_MTG, reduction = "harmony", dims = 1:11)
-Batch6_MTG <- FindClusters(Batch6_MTG, resolution = 0.5)
+Batch6_MTG <- FindNeighbors(Batch6_MTG, reduction = "harmony", dims = 1:16)
+Batch6_MTG <- FindClusters(Batch6_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch6_MTG <- RunUMAP(Batch6_MTG, reduction = "harmony", dims = 1:11)
+Batch6_MTG <- RunUMAP(Batch6_MTG, reduction = "harmony", dims = 1:16)
 ```
 
 run tsne based on top 10 harmony axis: 
@@ -265,42 +267,38 @@ run tsne based on top 10 harmony axis:
 #Batch6_MTG <- RunTSNE(Batch6_MTG, reduction = "harmony", dims = 1:17)
 ```
 
-plot umap: 
-```{r}
-DimPlot(Batch6_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
-```
 
 ```{r}
-DimPlot(Batch6_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
-```
-TSNE Plot cells colored by clusters and grouped by case. 
-```{r}
-DimPlot(Batch6_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
-```
+DimPlot(Batch6_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
 
-```{r}
-Batch6_MTG_Case_UMAP <- DimPlot(Batch6_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
+UMAPclusters <- DimPlot(Batch6_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
         theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(Batch6_MTG_Case_UMAP, filename = "Figures/Batch6_MTG_Case_UMAP.pdf", device = "pdf", width = 6, height = 8, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_UMAPclusters_scRNA_seq_Batch6_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
 
 
-TSNE Plot cells colored by clusters and grouped by case. 
-```{r}
-#Batch6_MTG_Case_tsne <- DimPlot(Batch6_MTG, reduction = "tsne", split.by = "case", label = TRUE, ncol = 1) + 
+```{R}
+UMAPclusters <- DimPlot(Batch6_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
         theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-#ggsave(Batch6_MTG_Case_tsne, filename = "Figures/Batch6_MTG_Case_tsne.pdf", device = "pdf", width = 6, height = 8, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Split_GLMPCA_UMAPclusters_scRNA_seq_Batch6_MTG.pdf", device = "pdf", width = 12, height = 4, units = "in")
 ```
+
+
+Find markers for every cluster compared to all remaining cells, report only the positive ones
+```{r}
+Batch5_MTG.markers <- FindAllMarkers(Batch5_MTG, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
 
 Find markers for every cluster compared to all remaining cells, report only the positive ones
 ```{r}

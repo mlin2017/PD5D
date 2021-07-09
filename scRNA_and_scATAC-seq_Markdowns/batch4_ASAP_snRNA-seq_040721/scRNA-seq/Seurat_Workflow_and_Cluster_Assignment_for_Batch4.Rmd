@@ -17,6 +17,8 @@ library(harmony)
 library(DOSE)
 library(GOSemSim)
 library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
 ```
 
 
@@ -185,7 +187,7 @@ Determining "Dimensionality" of the dataset
 
 finding the top 30 principal components for cells
 ```{r}
-Batch4_MTG <- RunPCA(Batch4_MTG, npcs = 30, verbose = FALSE)
+Batch4_MTG <- RunGLMPCA(Batch4_MTG, features=Batch4_MTG@assays$RNA@var.features, L = 30)
 ```
 
 see contribution of genes to construct each of these principal components.
@@ -206,7 +208,7 @@ VlnPlot(object = Batch4_MTG, features = "PC_1", group.by = "case",  pt.size = .1
 
 Run Harmony
 ```{r}
-Batch4_MTG <- RunHarmony(Batch4_MTG, group.by.vars = "case", plot_convergence = TRUE)
+Batch4_MTG <- RunHarmony(Batch4_MTG, group.by.vars = c("case","sample_ID"), reduction = "glmpca", plot_convergence = TRUE, theta = c(1,1))
 ```
 
 
@@ -240,66 +242,50 @@ Determing the dimensionality of the dataset
 
 
 ```
+
 ```{R}
-ElbowPlot(Batch4_MTG)
+ElbowPlot(Batch4_MTG, reduction = "harmony")
 
 ```
 10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
 
 Finding Clusters of cells:
 ```{r}
-Batch4_MTG <- FindNeighbors(Batch4_MTG, reduction = "harmony", dims = 1:12)
-Batch4_MTG <- FindClusters(Batch4_MTG, resolution = 0.5)
+Batch4_MTG <- FindNeighbors(Batch4_MTG, reduction = "harmony", dims = 1:16)
+Batch4_MTG <- FindClusters(Batch4_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch4_MTG <- RunUMAP(Batch4_MTG, reduction = "harmony", dims = 1:12)
-```
-
-run tsne based on top 10 harmony axis: 
-
-```{r}
-Batch4_MTG <- RunTSNE(Batch4_MTG, reduction = "harmony", dims = 1:12)
-```
-
-plot umap: 
-```{r}
-DimPlot(Batch4_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
+Batch4_MTG <- RunUMAP(Batch4_MTG, reduction = "harmony", dims = 1:16)
 ```
 
 ```{r}
-DimPlot(Batch4_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
-```
-TSNE Plot cells colored by clusters and grouped by case. 
-```{r}
-DimPlot(Batch4_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
-```
+DimPlot(Batch4_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
 
-```{r}
-Batch4_MTG_Case_UMAP <- DimPlot(Batch4_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
+UMAPclusters <- DimPlot(Batch4_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
         theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(Batch4_MTG_Case_UMAP, filename = "Figures/Batch4_MTG_Case_UMAP.pdf", device = "pdf", width = 6, height = 8, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_UMAPclusters_scRNA_seq_Batch4_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
 
 
-TSNE Plot cells colored by clusters and grouped by case. 
-```{r}
-Batch4_MTG_Case_tsne <- DimPlot(Batch4_MTG, reduction = "tsne", split.by = "case", label = TRUE, ncol = 1) + 
+```{R}
+UMAPclusters <- DimPlot(Batch4_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
         theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(Batch4_MTG_Case_tsne, filename = "Figures/Batch4_MTG_Case_tsne.pdf", device = "pdf", width = 6, height = 8, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Split_GLMPCA_UMAPclusters_scRNA_seq_Batch4_MTG.pdf", device = "pdf", width = 12, height = 4, units = "in")
 ```
+
 
 Find markers for every cluster compared to all remaining cells, report only the positive ones
 ```{r}

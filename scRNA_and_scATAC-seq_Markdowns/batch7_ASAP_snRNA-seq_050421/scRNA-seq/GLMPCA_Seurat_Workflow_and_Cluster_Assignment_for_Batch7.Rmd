@@ -273,7 +273,8 @@ run tsne based on top 10 harmony axis:
 #Batch7_MTG <- RunTSNE(Batch7_MTG, reduction = "harmony", dims = 1:17)
 ```
 
-plot umap: 
+plot umap:
+
 ```{r}
 DimPlot(Batch7_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
 ```
@@ -287,14 +288,28 @@ DimPlot(Batch7_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 
 ```
 
 ```{r}
-Batch7_MTG_Case_UMAP <- DimPlot(Batch7_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
         theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(Batch7_MTG_Case_UMAP, filename = "Figures/GLMPCA_Batch7_MTG_Case_UMAP.pdf", device = "pdf", width = 6, height = 8, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_UMAPclusters_scRNA_seq_Batch7_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+UMAPclusters <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Split_GLMPCA_UMAPclusters_scRNA_seq_Batch7_MTG.pdf", device = "pdf", width = 12, height = 4, units = "in")
 ```
 
 
