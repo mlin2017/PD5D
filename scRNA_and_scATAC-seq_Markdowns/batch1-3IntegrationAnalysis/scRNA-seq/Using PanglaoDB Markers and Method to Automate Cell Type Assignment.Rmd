@@ -1,0 +1,98 @@
+---
+title: "Using PanglaoDB Markers and Method to Automate Cell Type Assignment"
+output: html_document
+---
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+
+```{R}
+Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
+Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
+```
+
+
+```{r}
+DimPlot(Batch567_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5)
+```
+Try with both all markers and brain markers only
+
+First with Brain Markers
+
+Creating vector of median expression per gene for each cluster (common to both analyses)
+
+```{R}
+
+t <- subset(Batch567_MTG, idents = 20)
+
+function(identity, SeuObj) {
+  
+}
+
+
+```
+
+```{R}
+PanglaoDB <- read.delim("~/Documents/Projects/Misc. Files/PanglaoDB_markers_27_Mar_2020.tsv", stringsAsFactors = FALSE)
+
+
+
+PanglaoDBBrain <- PanglaoDB[PanglaoDB$organ %in% "Brain",]
+
+PanglaoDBBrain <- PanglaoDBBrain[!PanglaoDBBrain$species %in% "Mm",]
+
+PanglaoDBBrain <- PanglaoDBBrain[PanglaoDBBrain$canonical.marker %in% 1,]
+
+PanglaoDBBrain <- PanglaoDBBrain[PanglaoDBBrain$official.gene.symbol %in% rownames(Batch7_MTG@assays$RNA@counts),]
+
+PanglaoDBBrain$ubiquitousness.index[PanglaoDBBrain$ubiquitousness.index == 0] <- NA
+
+PanglaoDBBrain <- PanglaoDBBrain %>% group_by(cell.type) %>% arrange(cell.type, ubiquitousness.index)
+```
+
+Let's see how many unique cell types for the brain the database contains
+
+```{R}
+unique(PanglaoDBBrain$cell.type)
+
+sum(is.na(PanglaoDBBrain$cell.type))
+```
+
+```{R}
+
+
+
+
+
+```
+
+
+
+
+```{R}
+
+
+
+
+
+```
+
+
+

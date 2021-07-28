@@ -1,0 +1,56 @@
+---
+title: "Testing fGSEA in R for GSEA"
+output: html_document
+---
+
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(ReductionWrappers)
+library(monocle3)
+library(leidenbase)
+library(fgsea)
+```
+
+
+
+```{R}
+
+test1 <- data(exampleRanks)
+
+test2 <- data(examplePathways)
+
+```
+
+
+
+```{R}
+
+
+
+
+```
+
+
+
+```{R}
+
+
+
+
+```
