@@ -3,34 +3,8 @@
 .RData
 .Ruserdata
 .DS_Store
-scRNA_and_scATAC-seq_Markdowns/Pilot_2/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/Pilot_2/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/Pilot_2/scATAC-seq/Files
-scRNA_and_scATAC-seq_Markdowns/Pilot_2/scATAC-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch1_ASAP_snRNA-Seq_021721/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch2_ASAP_snRNA-Seq_021721/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch2_ASAP_snRNA-seq_031621/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch2_ASAP_snRNA-seq_031621/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch3_ASAP_snRNA-seq_031821/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch3_ASAP_snRNA-seq_031821/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch1-3IntegrationAnalysis/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch1-3IntegrationAnalysis/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch4_ASAP_snRNA-seq_040721/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch4_ASAP_snRNA-seq_040721/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-seq_042721/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-seq_042721/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_043021/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_043021/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch8_ASAP_snRNA-seq_050521/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/Midbrain_and_MTG_Integration_1/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/Midbrain_and_MTG_Integration_1/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch1-8IntegrationAnalyses/scRNA-seq/Files
-scRNA_and_scATAC-seq_Markdowns/batch1-8IntegrationAnalyses/scRNA-seq/Figures
-scRNA_and_scATAC-seq_Markdowns/batch1-8IntegrationAnalyses/scRNA-seq/logs
+scRNA_and_scATAC-seq_Markdowns/**/scRNA-seq/**/
+scRNA_and_scATAC-seq_Markdowns/**/scATAC-seq/**/
+
 
 
