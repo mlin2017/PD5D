@@ -195,7 +195,7 @@ VlnPlot(object = Pilot1and2_MB, features = "PC_1", group.by = "case",  pt.size =
 
 Run Harmony
 ```{r}
-Pilot1and2_MB <- RunHarmony(Pilot1and2_MB, group.by.vars = c("sample_ID","case"), plot_convergence = TRUE, reduction = "glmpca", theta = c(1,1))
+Pilot1and2_MB <- RunHarmony(Pilot1and2_MB, group.by.vars = c("sample_ID","case","batch"), plot_convergence = TRUE, reduction = "glmpca", theta = c(0.66,0.66,0.66))
 ```
 
 
@@ -242,7 +242,7 @@ Pilot1and2_MB <- FindClusters(Pilot1and2_MB, resolution = 0.5, algorithm = 4)
 run Umap based on top 20 harmony axis: 
 
 ```{r}
-Pilot1and2_MB <- RunUMAP(Pilot1and2_MB, reduction = "harmony", dims = 1:21)
+Pilot1and2_MB <- RunUMAP(Pilot1and2_MB, reduction = "harmony", dims = 1:20)
 ```
 
 run tsne based on top 20 harmony axis: 
@@ -292,6 +292,7 @@ ggsave(UMAPclusters, filename = "Pilot1_and2_Integration_Figures/Unassigned_Spli
 ```
 
 Find markers for every cluster compared to all remaining cells, report only the positive ones
+
 ```{r}
 AllMB.markers <- FindAllMarkers(AllMB, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
 ```
@@ -505,7 +506,7 @@ VlnPlot(Pilot1and2_MB, features = c("RBFOX3"),pt.size = 0)
 VlnPlot(Pilot1and2_MB, features = c("SLC17A6"),pt.size = 0)
 ```
 ```{R}
-VlnPlot(Pilot1and2_MB, features = c("SLC17A7"),pt.size = 0)
+VlnPlot(Pilot1and2_MB, features = c("SLC17A7"),pt.size = 1)
 ```
 
 GLU 4,8,10,18
@@ -680,30 +681,31 @@ RidgePlot(AllMB, features=c("GAD2"))
  Glu_GABA Neurons = 17
  Dop_Neurons subgroup 1 = 12
  Dop_Neurons subgroup 2 = 18
- Astrocytes = 3,8
- oligo = 0,1,2,7
+ Astrocytes = 2
+ oligo = 1,3,11
  OPCs=4
  Microglia = 6
  Endothelial= 9,11, 15
  novel = 13, 14, 16
 
-GLU 4,8,10,18
-GABA - 4,12,17
-DA Neurons - 8? 13
+GLU 10,12,18
+GABA - 4,6,12,17
+DA Neurons - 8, 13
 Astrocyte - 2
 oligo 1,3,11
 OPCs - 6
 Microglia - 5
 Endothelial - 7,9
-novel=11,14
+novel=14,16
+T-cells=15
 
 Assigning cell type identity to clusters: 
 
 ```{r}
 Pilot1and2_MB <- RenameIdents(Pilot1and2_MB, `1` = "Oligodendrocytes", `2` = "Astrocytes",
-                      `3` = "Oligodendrocytes", `4` = "GLU_GABA_Neurons", `5` = "Microglia",
+                      `3` = "Oligodendrocytes", `4` = "GABA_Neurons", `5` = "Microglia",
                       `6` = "OPCs", `7` = "Endothelial", `8` = "DA Neurons 1",`9` = "Endothelial",
-                      `10` = "GLU Neurons", `11` = "Oligodendrocytes",`12` = "GABA Neurons",
+                      `10` = "GLU Neurons", `11` = "Oligodendrocytes",`12` = "GLU Neurons",
                       `13` = "DA Neurons 2",`14` = "Novel Cluster 14",
                       `15` = "CD8+ T Cells", `16`="Novel Cluster 16", `17`="GABA Neurons", `18`="GLU Neurons")
 ```
@@ -714,7 +716,7 @@ AllMB_group_assigned <- RenameIdents(AllMB, `0` = "Oligodendrocytes", `1` = "Oli
 
 
 ```{R}
-saveRDS(AllMB_group_assigned,"AllMB_Group_Assigned.rds")
+saveRDS(Pilot1and2_MB,"Pilot1and2_MB_Group_Assigned.rds")
 #AllMB=readRDS("AllMB.rds")
 ```
 
@@ -763,6 +765,7 @@ ggsave(UMAPclusters, filename = "Pilot1_and2_Integration_Files/Split_UMAPcluster
 ```
 
 
+
 ```{r}
 DimPlot(AllMB, label = TRUE, repel = TRUE, pt.size = 1, split.by = "case", label.size = 2,
         ncol = 1) + NoLegend()
@@ -773,7 +776,16 @@ DimPlot(AllMB, label = TRUE, repel = TRUE, pt.size = 1, split.by = "case", label
 DimPlot(AllMB, label = TRUE, repel = TRUE, pt.size = 1,reduction = 'umap')
 ```
 
+```{R}
 
+colnames(Pilot1and2_MB@assays$RNA@counts)[Pilot1and2_MB@active.ident]
+
+CellTypeAssignment <- as.data.frame(cbind(names(Pilot1and2_MB@active.ident),as.vector(Pilot1and2_MB@active.ident)))
+
+colnames(CellTypeAssignment) <- c("Barcode","Cell_Type")
+
+write.table(CellTypeAssignment,file = "Files/CellTypeAssignment.tsv", quote = FALSE, row.names = FALSE, col.names = TRUE, sep = "\t")
+```
 
 
 ```{R}

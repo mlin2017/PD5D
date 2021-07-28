@@ -988,5 +988,22 @@ DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 1,reduction = 'umap')
 ```
 
 
+#########################################################################################################################
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("GRM5","TH","P2RY12","GRM4","BCAN"),pt.size = 0,stack = TRUE, flip = TRUE)
+```
+
+
+
+```{R}
+
+
+
+```
+
+
+
 
 

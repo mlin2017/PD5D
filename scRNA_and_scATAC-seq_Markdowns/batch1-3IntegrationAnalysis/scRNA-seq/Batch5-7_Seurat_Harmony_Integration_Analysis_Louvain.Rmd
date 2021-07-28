@@ -380,7 +380,7 @@ ElbowPlot(Batch567_MTG, reduction = "glmpca")
 Finding Clusters of cells:
 ```{r}
 Batch567_MTG <- FindNeighbors(Batch567_MTG, reduction = "harmony", dims = 1:15)
-Batch567_MTG <- FindClusters(Batch567_MTG, resolution = 0.5, algorithm = 4, method = "igraph")
+Batch567_MTG <- FindClusters(Batch567_MTG, resolution = 0.5)
 ```
 
 run Umap based on top 12 harmony axis: 
@@ -454,7 +454,7 @@ UMAPclusters <- DimPlot(Batch567_MTG, label = TRUE, repel = TRUE, pt.size = 0, l
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(UMAPclusters, filename = "Figures/Unassigned_BatchCaseSampleSexAgeHarmony_GLMAPCA_UMAPclusters_scRNA_seq_Batch123_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Louvain_FullCorrectionHarmony_GLMAPCA_UMAPclusters_scRNA_seq_Batch123_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
 
 
@@ -466,7 +466,7 @@ UMAPclusters <- DimPlot(Batch567_MTG, label = TRUE, repel = TRUE, pt.size = 0, l
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(UMAPclusters, filename = "Figures/Unassigned_BatchCaseSampleSexAgeHarmony_CaseSplit_GLMPCA_UMAPclusters_scRNA_seq_Batch123_MTG.pdf", device = "pdf", width = 6, height = 10, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Louvain_FullCorrectionHarmony_CaseSplit_GLMPCA_UMAPclusters_scRNA_seq_Batch123_MTG.pdf", device = "pdf", width = 6, height = 10, units = "in")
 ```
 
 
@@ -478,7 +478,7 @@ UMAPclusters <- DimPlot(Batch567_MTG, label = FALSE, repel = TRUE, pt.size = 0, 
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(UMAPclusters, filename = "Figures/Unassigned_BatchCaseSampleSexAgeHarmony_CaseGroup_GLMPCA_UMAPclusters_scRNA_seq_Batch123_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Louvain_FullCorrectionHarmony_CaseGroup_GLMPCA_UMAPclusters_scRNA_seq_Batch123_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
 
 ```{R}
@@ -539,15 +539,6 @@ Neuron  = ENO2, RBFOX3
  overlapping = 7
  novel = 2,3,10,11,12 - all likely neurons/neuron related
  
-
-```{R}
-
-saveRDS(Batch567_MTG, "Files/Batch567_Unassigned.rds")
-
-```
-
-
-
 ```{R}
 Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
 Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
@@ -570,13 +561,13 @@ VlnPlot(Batch567_MTG, features = c("RBFOX3"),pt.size = 0)
 Glutamatergic neuron markers
 
 ```{R}
-VlnPlot(Batch567_MTG, features = c("SLC17A6"),pt.size = 0)
+VlnPlot(Batch567_MTG, features = c("SLC17A6"),pt.size = 1)
 ```
 
 ```{R}
 VlnPlot(Batch567_MTG, features = c("SLC17A7"),pt.size = 0)
 ```
-2,3,4,8,9,10,12,15,16,20,21,22 - Glu?
+1,2,3,6,8,10,11,12,17 - Glu?
 
 GABAergic markers
 
@@ -591,9 +582,9 @@ VlnPlot(Batch567_MTG, features = c("GAD1"),pt.size = 0)
 ```{R}
 VlnPlot(Batch567_MTG, features = c("GAD2"),pt.size = 0)
 ```
-5,7,14,19,23 - GABA?
+4,5,9,(16),21,22 - GABA?
 
-
+weaker evidence for 10
 
 Astrocyte markers
 ```{R}
@@ -602,13 +593,7 @@ VlnPlot(Batch567_MTG, features = c("AQP4"),pt.size = 0)
 ```{R}
 VlnPlot(Batch567_MTG, features = c("GFAP"),pt.size = 0)
 ```
-
-```{R}
-VlnPlot(Batch567_MTG, features = c("ALDH1L1"),pt.size = 0)
-```
-
-
-5,12 - Astrocytes
+7,14,(18,19) - Astrocytes
 
 Oligodendrocyte markers
 
@@ -625,7 +610,7 @@ VlnPlot(Batch567_MTG, features = c("MBP"),pt.size = 0)
 VlnPlot(Batch567_MTG, features = c("MOG"),pt.size = 0)
 ```
 
-1 - oligodendrocytes - strong
+0,(15),20 - oligodendrocytes - strong
 
 
 
@@ -638,7 +623,7 @@ VlnPlot(Batch567_MTG, features = c("VCAN"),pt.size = 0)
 VlnPlot(Batch567_MTG, features = c("BCAN"),pt.size = 0)
 ```
 
-13 - OPCs
+7,16 - OPCs
 
 Microglia
 
@@ -649,7 +634,7 @@ VlnPlot(Batch567_MTG, features = c("CX3CR1"),pt.size = 0)
 VlnPlot(Batch567_MTG, features = c("P2RY12"),pt.size = 0)
 ```
 
-11 - Microglia
+13 - Microglia
 
 Endothelial Cells
 
@@ -661,7 +646,7 @@ VlnPlot(Batch567_MTG, features = c("FLT1"),pt.size = 0)
 ```{R}
 VlnPlot(Batch567_MTG, features = c("CLDN5"),pt.size = 0)
 ```
-17,18 - Endothelial cells
+18,19 - Endothelial cells
 
 
 ```{R}
@@ -671,32 +656,6 @@ VlnPlot(Batch567_MTG, features = c("CD69"),pt.size = 0)
 ```{R}
 VlnPlot(Batch567_MTG, features = c("CD8A"),pt.size = 0)
 ```
-
-
-Cajal-Retzius cell markers
-
-```{R}
-VlnPlot(Batch567_MTG, features = c("RELN"),pt.size = 0)
-```
-
-```{R}
-VlnPlot(Batch567_MTG, features = c("CALB2"),pt.size = 0)
-```
-
-
-```{R}
-VlnPlot(Batch567_MTG, features = c("NR2F2"),pt.size = 0)
-```
-
-```{R}
-VlnPlot(Batch567_MTG, features = c("CNR1"),pt.size = 0)
-```
-
-
-```{R}
-VlnPlot(Batch567_MTG, features = c("PAFAH1B1"),pt.size = 0)
-```
-7 - Cajal-retzius cells
 
 ```{R}
 StandardCellMarkerVlnPlot1 <- VlnPlot(Batch567_MTG, features = c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP"),pt.size = 0, ncol = 1)
@@ -743,15 +702,15 @@ Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.dat
 DimPlot(Batch567_MTG, reduction = "umap", split.by = "case",pt.size = 0.1)
 ```
 
-2,3,4,8,9,10,12,15,16,20,21,22 - Glu?
-6,7,14,19,23 - GABA?
-5,12 - Astrocytes
-1 - oligodendrocytes - strong
-13 - OPCs
-11 - Microglia
-17,18 - Endothelial cells
-7 - Cajal-retzius cells
- novel = 6,- all likely neurons/neuron related
+ Glu_Neurons = 1,6,8,17
+ GABA_Neurons = 4,5,9,(16),21,22
+ Astrocytes = 7,14
+ oligo = 0,(15),20
+ OPCs= (7),16
+ Microglia = 13
+ Endothelial = 18,19
+ overlapping = 7
+ novel = 2,3,10,11,12 - all likely neurons/neuron related
  
  
 ```{R}
@@ -759,16 +718,24 @@ case_clusters <- paste(Batch567_MTG$case,Batch567_MTG$seurat_clusters,sep = "_")
 
 table(case_clusters)
 
+
 ```
+ 
+Batch567_MTG <- RenameIdents(Batch567_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
+                      `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
+                      `6` = "GLU Neurons", `7` = "Astrocytes 2", `8` = "GLU Neurons",`9` = "GABA Neurons",
+                      `10` = "Novel Cluster 10", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
+                      `13` = "Microglia",`14` = "Astrocytes 1",
+                      `15` = "Oligodendrocytes", `16`="GABA Neurons", `17`="GLU Neurons", `18`="Endothelial",`19`="Endothelial",`20`="Oligodendrocytes",`21`="GABA Neurons",`22`="GABA Neurons")
  
 
 ```{R}
-Batch567_MTG <- RenameIdents(Batch567_MTG, `1` = "Oligodendrocytes", `2` = "GLU_Neurons", `3` = "GLU_Neurons",
-                      `4` = "GLU_Neurons",`5` = "Astrocytes",
-                      `6` = "GABA_Neurons", `7` = "Cajal_Retzius_Cells", `8` = "GLU_Neurons",`9` = "GLU_Neurons",
-                      `10` = "GLU_Neurons", `11` = "Microglia",`12` = "Astrocytes",
-                      `13` = "OPCs",`14` = "GABA_Neurons",
-                      `15` = "GLU_Neurons", `16`="GLU_Neurons", `17`="Endothelial", `18`="Endothelial",`19`="GABA_Neurons",`20`="GLU_Neurons",`21`="GLU_Neurons",`22`="GLU_Neurons",`23`="GABA_Neurons")
+Batch567_MTG <- RenameIdents(Batch567_MTG, `0` = "Oligodendrocytes", `1` = "GLU Neurons", `2` = "Novel Cluster 2",
+                      `3` = "Novel Cluster 3", `4` = "GABA Neurons", `5` = "GABA Neurons",
+                      `6` = "GLU Neurons", `7` = "Astrocytes", `8` = "GLU Neurons",`9` = "GABA Neurons",
+                      `10` = "Novel Cluster 10", `11` = "Novel Cluster 11",`12` = "Novel Cluster 12",
+                      `13` = "Microglia",`14` = "Astrocytes",
+                      `15` = "Oligodendrocytes", `16`="GABA Neurons", `17`="GLU Neurons", `18`="Endothelial",`19`="Endothelial",`20`="Oligodendrocytes",`21`="GABA Neurons",`22`="GABA Neurons")
 ```
 
 
@@ -785,7 +752,7 @@ UMAPclusters <- DimPlot(Batch567_MTG, label = TRUE, repel = TRUE, pt.size = 0, l
               title = element_text(size = 12),
               legend.key.size = unit(0.4,"cm"))
 
-ggsave(UMAPclusters, filename = "Files/Assigned_GLMPCA_Leiden_UMAPclusters_scRNA_seq_Batch567.pdf", device = "pdf", width = 6, height = 4, units = "in")
+ggsave(UMAPclusters, filename = "Files/UMAPclusters_scRNA_seq_Batch567.pdf", device = "pdf", width = 6, height = 4, units = "in")
 ```
 
 Neuron  = ENO2, RBFOX3
@@ -821,23 +788,6 @@ saveRDS(Batch567_MTG_Counts, "Files/Batch_MTG_Counts.rds")
 
 saveRDS(testing, "Files/Batch_MTG_Counts_matrix.rds")
 ```
-
-
-
-Extracting cell barcode to cell type assignment to a text file
-
-```{R}
-
-colnames(Batch567_MTG@assays$RNA@counts)[Batch567_MTG@active.ident]
-
-CellTypeAssignment <- as.data.frame(cbind(names(Batch567_MTG@active.ident),as.vector(Batch567_MTG@active.ident)))
-
-colnames(CellTypeAssignment) <- c("Barcode","Cell_Type")
-
-write.table(CellTypeAssignment,file = "Files/CellTypeAssignment.tsv", quote = FALSE, row.names = FALSE, col.names = TRUE, sep = "\t")
-```
-
-
 
 ################################################################################
 
