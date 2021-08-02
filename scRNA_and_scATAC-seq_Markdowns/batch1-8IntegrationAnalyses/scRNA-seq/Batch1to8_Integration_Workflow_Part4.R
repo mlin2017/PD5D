@@ -53,6 +53,28 @@ Ident_Object <- Ident_Object[apply(Ident_Object@assays$RNA@counts,1,mkfilter) >=
 Ident_Object@meta.data$DetRate <- as.vector(scale(colSums(Ident_Object@assays$RNA@counts)))
 Idents(Ident_Object) <- "case"
 
+rm(SeuratObject)
+
+ClusterfGSEA <- function(ClusterIdent, IdentObj, ident1, ident2){ 
+  IdentObj <- IdentObj[apply(IdentObj@assays$RNA@counts,1,mkfilter) >= 20,]
+  IdentObj@meta.data$DetRate <- as.vector(scale(colSums(IdentObj@assays$RNA@counts > 0)))
+  Idents(IdentObj) <- "case"
+  IdentObj.Markers <- FindMarkers(IdentObj, ident.1 = ident1, ident.2 = ident2, verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate","batch","age","PMI","RIN"), logfc.threshold = 0, min.pct = 0)
+  IdentObj.Markers$gene <- rownames(IdentObj.Markers)
+  generanks <- -log10(IdentObj.Markers$p_val)*sign(IdentObj.Markers$avg_log2FC)
+  generanks <- gsub(Inf,.Machine$double.xmin,generanks)
+  generanks <- as.numeric(generanks)
+  names(generanks) <- rownames(IdentObj.Markers)
+  generanks <- generanks[order(generanks, decreasing = TRUE)]
+  fgseaRes = fgsea(C2_Gene_Sets, stats=generanks, minSize=10, maxSize=Inf, nPermSimple=10000)
+  fgseaResFilter <- fgseaRes[fgseaRes$padj <= 0.05,]
+  fgseaResFilter$leadingEdge = vapply(fgseaResFilter$leadingEdge, paste, collapse = ", ", character(1L))
+  if (nrow(fgseaResFilter) > 0) {
+  write.table(fgseaResFilter, file = paste("Files/GSEA/",ClusterIdent,"_",ident1,"_vs_",ident2,"_GSEA_Sig_Genesets.tsv",sep = ""), quote = FALSE, col.names = TRUE, row.names = FALSE, sep = "\t")
+  return(fgseaResFilter)
+  }
+}
+
 #PD vs HC
 Ident.PDvsHC_Prog.Markers <- FindMarkers(Ident_Object, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST", latent.vars = c("batch","RIN","PMI","age","sex","DetRate"))
 Ident.PDvsHC_Prog.Markers$gene <- rownames(Ident.PDvsHC_Prog.Markers)
@@ -74,7 +96,7 @@ if (length(Ident.PDvsHC_Prog.Markers$gene) != 0) {
         write.csv(Ident.PDvsHC_Prog.Markers,file = paste("Files/DE_Genes/All_SigGenes_",Cluster_Ident,"_Markers_HC_vs_PD.csv",sep = ""), quote = FALSE)
 }
 
-
+ClusterfGSEA(Cluster_Ident,Ident_Object,"PD","HC")
 
 # ILB vs HC
 
@@ -98,6 +120,8 @@ if (length(Ident.ILBvsHC_Prog.Markers$gene) != 0){
         write.csv(Ident.ILBvsHC_Prog.Markers,file = paste("Files/DE_Genes/All_SigGenes_",Cluster_Ident,"_Markers_HC_vs_ILB.csv",sep = ""), quote = FALSE)
 }
 
+ClusterfGSEA(Cluster_Ident,Ident_Object,"ILB","HC")
+
 # PD vs ILB
 
 Ident.PDvsILB_Prog.Markers <- FindMarkers(Ident_Object, ident.1 = "PD", ident.2 = "ILB", verbose = FALSE, test.use = "MAST", latent.vars = c("batch","RIN","PMI","age","sex","DetRate"))
@@ -119,6 +143,8 @@ if (length(Ident.PDvsILB_Prog.Markers$gene) != 0) {
         
         write.csv(Ident.PDvsILB_Prog.Markers,file = paste("Files/DE_Genes/All_SigGenes_",Cluster_Ident,"_Markers_ILB_vs_PD.csv",sep = ""), quote = FALSE)
 }
+
+ClusterfGSEA(Cluster_Ident,Ident_Object,"PD","ILB")
 
 
 Idents(Ident_Object) <- "grouped_case"
@@ -142,5 +168,8 @@ if (length(Ident.PD_and_ILBvsHC_Prog.Markers$gene) != 0){
 
         write.csv(Ident.PD_and_ILBvsHC_Prog.Markers,file = paste("Files/DE_Genes/All_SigGenes_",Cluster_Ident,"_Markers_HC_vs_PD_and_ILB.csv",sep = ""), quote = FALSE)
 }
+
+ClusterfGSEA(Cluster_Ident,Ident_Object,"PD_and_ILB","HC")
+
 
 
