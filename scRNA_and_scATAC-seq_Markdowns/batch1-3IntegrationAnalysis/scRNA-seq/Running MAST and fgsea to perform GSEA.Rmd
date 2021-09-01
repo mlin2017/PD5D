@@ -23,8 +23,497 @@ library(enrichplot)
 library(sciplot)
 library(reshape2)
 library(MAST)
-library(DESeq2)
-library(Matrix.utils)
+library(fgsea)
+library(SeuratWrappers)
+
+```
+
+```{r}
+#DimPlot(Batch567_MTG, reduction = "umap", split.by = "case",pt.size = 0.1)
+```
+
+```{R}
+Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
+Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
+```
+
+
+
+```{R}
+#Batch567_MTG$case <- gsub("ILB","PD",Batch567_MTG$case)
+case_clusters <- paste(Batch567_MTG$case,Batch567_MTG$seurat_clusters,sep = "_")
+```
+
+
+
+```{R}
+Batch567_MTG <- RenameIdents(Batch567_MTG, `1` = "Oligodendrocytes", `2` = "GLU_Neurons", `3` = "GLU_Neurons",
+                      `4` = "GLU_Neurons",`5` = "Astrocytes",
+                      `6` = "GABA_Neurons", `7` = "Cajal_Retzius_Cells", `8` = "GLU_Neurons",`9` = "GLU_Neurons",
+                      `10` = "GLU_Neurons", `11` = "Microglia",`12` = "Astrocytes",
+                      `13` = "OPCs",`14` = "GABA_Neurons",
+                      `15` = "GLU_Neurons", `16`="GLU_Neurons", `17`="Endothelial", `18`="Endothelial",`19`="GABA_Neurons",`20`="GLU_Neurons",`21`="GLU_Neurons",`22`="GLU_Neurons",`23`="GABA_Neurons")
+```
+
+
+```{R}
+
+DimPlot(Batch567_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+```
+
+```{R}
+
+sum(Batch567_MTG@active.ident == "Oligodendrocytes")
+
+sum(Batch567_MTG@active.ident == "Microglia")
+
+sum(Batch567_MTG@active.ident == "GABA_Neurons")
+
+sum(Batch567_MTG@active.ident == "GLU_Neurons")
+
+```
+
+Add in additional metadata 
+
+
+```{R}
+ID_Order <- unique(Batch567_MTG@meta.data$sample_ID)
+
+ID_Order
+
+sex <- c("M","M","M","M","M","F","M","F","M","M","F")
+
+RIN <- c(8.9,8.7,8.8,7.4,8.5,8.9,9.1,8.3,7.7,9.8,9)
+
+PMI <- c(4,2.8,2.5,2.7,4.5,3.5,3,1.8,2.7,2.5,2.7)
+
+age <- c(64,86,89,89,79,95,90,90,84,79,86)
+
+#Batch567_MTG@meta.data <- Batch567_MTG@meta.data %>% group_by(sample_ID) %>% mutate(sex = rep(sex[match(unique(sample_ID), ID_Order)], length(sample_ID)))
+
+#Batch567_MTG@meta.data$DetRate <- as.vector(scale(colSums(Batch567_MTG@assays$RNA@counts)))
+
+Batch567_MTG@meta.data$RIN <- Batch567_MTG@meta.data %>% group_by(sample_ID) %>% mutate(RIN = rep(RIN[match(unique(sample_ID), ID_Order)], length(sample_ID))) %>% .$RIN
+
+Batch567_MTG@meta.data$PMI <- Batch567_MTG@meta.data %>% group_by(sample_ID) %>% mutate(PMI = rep(PMI[match(unique(sample_ID), ID_Order)], length(sample_ID))) %>% .$PMI
+
+Batch567_MTG@meta.data$age <- Batch567_MTG@meta.data %>% group_by(sample_ID) %>% mutate(age = rep(age[match(unique(sample_ID), ID_Order)], length(sample_ID))) %>% .$age
+```
+
+
+Astrocytes
+
+```{R}
+
+Astrocytes <- subset(Batch567_MTG, idents = "Astrocytes")
+
+#mkfilter <- function(cmatrix) {
+#        sum(cmatrix[1,] > 0)/ncol(cmatrix)*100
+#} 
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+} 
+
+Astrocytefilter <- Astrocytes[apply(Astrocytes@assays$RNA@counts,1,mkfilter) >= 20,]
+
+#Astrocytes_Filter <- Astrocytes[rowSums(Astrocytes@assays$RNA@counts) >= 10, ]
+
+
+Astrocytefilter@meta.data$DetRate <- as.vector(scale(colSums(Astrocytefilter@assays$RNA@counts > 0)))
+
+```
+
+
+The LogFCs in the resulting tables are with respect to ident.1 e.g. if ident.1 = "PD" and ident.2 = "HC", a gene with a negative logFC will be downregulated in the PD set and genes with a positive logFC are upregulated in PD set.
+
+```{R}
+Idents(Astrocytefilter) <- "case"
+Astrocytes.PD_Prog.Markers <- FindMarkers(Astrocytefilter, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate","batch","age","PMI","RIN"), logfc.threshold = 0, min.pct = 0)
+Astrocytes.PD_Prog.Markers$gene <- rownames(Astrocytes.PD_Prog.Markers)
+
+#top_pos_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = avg_log2FC)
+#top_neg_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = -avg_log2FC)
+```
+
+Now performing fgsea analysis
+
+```{R}
+
+generanks <- -log10(Astrocytes.PD_Prog.Markers$p_val)*sign(Astrocytes.PD_Prog.Markers$avg_log2FC)
+
+names(generanks) <- rownames(Astrocytes.PD_Prog.Markers)
+
+```
+
+generanks <- gsub(Inf,.Machine$double.xmin,generanks)
+as.numeric(generanks)
+names(generanks) <- rownames(IdentObj.Markers)
+generanks <- generanks[order(generanks, decreasing = TRUE)]
+
+
+```{R}
+
+generanks <- generanks[order(generanks, decreasing = TRUE)]
+
+```
+
+
+```{R}
+
+C2_Gene_Sets <- gmtPathways("~/Documents/Projects/Database_Cache/GSEA_Analysis_Tables/GMT_Tables/c2.all.v7.4.symbols.gmt")
+
+```
+
+
+```{R}
+
+fgseaRes = fgsea(C2_Gene_Sets, stats=generanks, minSize=10, maxSize=Inf, nPermSimple=10000)
+
+```
+
+
+```{R}
+fgseaResFilter <- fgseaRes[fgseaRes$padj <= 0.05,]
+fgseaResFilter$leadingEdge = vapply(fgseaResFilter$leadingEdge, paste, collapse = ", ", character(1L))
+if (nrow(fgseaResFilter) > 0) {
+  for(x in fgseaResFilter$pathway) {p=plotEnrichment(C2_Gene_Sets[[x]], stats=generanks) + labs(title=paste("Astrocytes_",x)); print(p);}
+}
+
+
+```
+
+
+```{R}
+
+fgseaResFilter <- fgseaRes[fgseaRes$padj <= 0.05,]
+
+fgseaResFilter <- fgseaRes[fgseaRes$padj <= 0.05,]
+
+```
+
+
+```{R}
+plotEnrichment(C2_Gene_Sets[["KEGG_OXIDATIVE_PHOSPHORYLATION"]],generanks) + labs(title="KEGG_OXIDATIVE_PHOSPHORYLATION")
+
+
+
+
+
+```
+
+```{R}
+
+plotEnrichment(C2_Gene_Sets[["KEGG_OXIDATIVE_PHOSPHORYLATION"]],generanks) + labs(title="KEGG_OXIDATIVE_PHOSPHORYLATION")
+
+```
+
+
+```{R}
+
+plotEnrichment(C2_Gene_Sets[["REACTOME_RESPIRATORY_ELECTRON_TRANSPORT"]],generanks) + labs(title="REACTOME_RESPIRATORY_ELECTRON_TRANSPORT")
+
+```
+
+
+```{R}
+
+plotEnrichment(C2_Gene_Sets[["REACTOME_RESPIRATORY_ELECTRON_TRANSPORT_ATP_SYNTHESIS_BY_CHEMIOSMOTIC_COUPLING_AND_HEAT_PRODUCTION_BY_UNCOUPLING_PROTEINS"]],generanks) + labs(title="REACTOME_RESPIRATORY_ELECTRON_TRANSPORT_ATP_SYNTHESIS_BY_CHEMIOSMOTIC_COUPLING_AND_HEAT_PRODUCTION_BY_UNCOUPLING_PROTEINS")
+
+```
+
+```{R}
+
+plotEnrichment(C2_Gene_Sets[["REACTOME_THE_CITRIC_ACID_TCA_CYCLE_AND_RESPIRATORY_ELECTRON_TRANSPORT"]],generanks) + labs(title="REACTOME_THE_CITRIC_ACID_TCA_CYCLE_AND_RESPIRATORY_ELECTRON_TRANSPORT")
+
+```
+Checking directionality of logFC
+
+```{R}
+
+generanks[names(generanks) %in% fgseaResFilter$leadingEdge[[4]]]
+
+
+Astrocytes.PD_Prog.MarkersLE <- Astrocytes.PD_Prog.Markers[rownames(Astrocytes.PD_Prog.Markers) %in% fgseaResFilter$leadingEdge[[4]],]
+```
+
+
+```{R}
+
+AstrocytefilterPD <- subset(Astrocytefilter, subset = case %in% "PD")
+
+AstrocytefilterHC <- subset(Astrocytefilter, subset = case %in% "HC")
+
+```
+
+
+```{R}
+
+PDLEGeneMeans <- rowMeans(AstrocytefilterPD@assays$RNA@data[rownames(AstrocytefilterPD@assays$RNA@data) %in% fgseaResFilter$leadingEdge[[4]],])
+
+HCLEGeneMeans <- rowMeans(AstrocytefilterHC@assays$RNA@data[rownames(AstrocytefilterHC@assays$RNA@data) %in% fgseaResFilter$leadingEdge[[4]],])
+
+```
+
+
+```{R}
+
+PDLEGeneMeans
+
+```
+
+
+```{R}
+
+HCLEGeneMeans
+```
+
+
+```{R}
+Astrocytes.PD_Prog.MarkersFilter <- Astrocytes.PD_Prog.Markers[Astrocytes.PD_Prog.Markers$p_val_adj < 0.05,]
+Astrocytes.PD_Prog.MarkersFilter <- Astrocytes.PD_Prog.MarkersFilter[order(Astrocytes.PD_Prog.MarkersFilter$avg_log2FC),]
+
+```
+
+
+```{R}
+
+PDnegLFCGeneMeans <- rowMeans(AstrocytefilterPD@assays$RNA@data[rownames(AstrocytefilterPD@assays$RNA@data) %in% rownames(Astrocytes.PD_Prog.MarkersFilter)[1:10],])
+
+HCnegLFCGeneMeans <- rowMeans(AstrocytefilterHC@assays$RNA@data[rownames(AstrocytefilterHC@assays$RNA@data) %in% rownames(Astrocytes.PD_Prog.MarkersFilter)[1:10],])
+
+```
+
+
+```{R}
+
+PDnegLFCGeneMeans
+
+```
+
+```{R}
+
+HCnegLFCGeneMeans
+
+```
+
+```{R}
+
+Astrocytes.PD_Prog.MarkersFilterPos <- Astrocytes.PD_Prog.MarkersFilter[order(Astrocytes.PD_Prog.MarkersFilter$avg_log2FC, decreasing = TRUE),]
+
+```
+
+
+```{R}
+
+PDposLFCGeneMeans <- rowMeans(AstrocytefilterPD@assays$RNA@data[rownames(AstrocytefilterPD@assays$RNA@data) %in% rownames(Astrocytes.PD_Prog.MarkersFilterPos)[1:10],])
+
+HCposLFCGeneMeans <- rowMeans(AstrocytefilterHC@assays$RNA@data[rownames(AstrocytefilterHC@assays$RNA@data) %in% rownames(Astrocytes.PD_Prog.MarkersFilterPos)[1:10],])
+
+```
+
+
+```{R}
+
+PDposLFCGeneMeans
+
+```
+
+
+```{R}
+
+HCposLFCGeneMeans
+
+```
+
+```{R}
+
+C2_Gene_Sets <- gmtPathways("~/Documents/Projects/Database_Cache/GSEA_Analysis_Tables/GMT_Tables/c2.all.v7.4.symbols.gmt")
+
+```
+
+
+Automating the process for each cluster
+
+```{R}
+ClusterfGSEA <- function(ClusterIdent, SeuObj, ident1, ident2){
+  IdentObj <- subset(Batch567_MTG, idents = ClusterIdent)
+  mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+  } 
+  IdentObj <- IdentObj[apply(IdentObj@assays$RNA@counts,1,mkfilter) >= 20,]
+  IdentObj@meta.data$DetRate <- as.vector(scale(colSums(IdentObj@assays$RNA@counts > 0)))
+  Idents(IdentObj) <- "case"
+  IdentObj.Markers <- FindMarkers(IdentObj, ident.1 = ident1, ident.2 = ident2, verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate","batch","age","PMI","RIN"), logfc.threshold = 0, min.pct = 0)
+  IdentObj.Markers$gene <- rownames(IdentObj.Markers)
+  generanks <- -log10(IdentObj.Markers$p_val)*sign(IdentObj.Markers$avg_log2FC)
+  generanks <- gsub(Inf,.Machine$double.xmin,generanks)
+  generanks <- as.numeric(generanks)
+  names(generanks) <- rownames(IdentObj.Markers)
+  generanks <- generanks[order(generanks, decreasing = TRUE)]
+  fgseaRes = fgsea(C2_Gene_Sets, stats=generanks, minSize=10, maxSize=Inf, nPermSimple=10000)
+  fgseaResFilter <- fgseaRes[fgseaRes$padj <= 0.05,]
+  fgseaResFilter$leadingEdge = vapply(fgseaResFilter$leadingEdge, paste, collapse = ", ", character(1L))
+  if (nrow(fgseaResFilter) > 0) {
+  for(x in fgseaResFilter$pathway) {p=plotEnrichment(C2_Gene_Sets[[x]], stats=generanks) + labs(title=paste(ClusterIdent,"_",x)); print(p);}
+  write.table(fgseaResFilter, file = paste("Files/",ClusterIdent,"_",ident1,"_vs_",ident2,"_GSEA_Sig_Genesets.tsv",sep = ""), quote = FALSE, col.names = TRUE, row.names = FALSE, sep = "\t")
+  return(fgseaResFilter)
+  }
+}
+```
+
+
+```{R}
+
+unique(Batch567_MTG@active.ident)
+
+```
+
+  if (nrow(fgseaResFilter) > 0){
+    write.table(fgseaResFilter, file = paste("Files/",ClusterIdent,"_",ident1,"_vs_",ident2,"_GSEA_Sig_Genesets.tsv",sep = ""), quote = FALSE, col.names = TRUE, row.names = FALSE, sep = "\t")
+  }
+  
+```{R}
+
+test <- ClusterfGSEA("Cajal_Retzius_Cells",Batch567_MTG,"PD","HC")
+
+```
+
+```{R}
+
+OPCs <- subset(Batch567_MTG, idents = "OPCs")
+
+```
+
+
+```{R}
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+} 
+
+OPCsfilter <- OPCs[apply(OPCs@assays$RNA@counts,1,mkfilter) >= 20,]
+
+#Astrocytes_Filter <- Astrocytes[rowSums(Astrocytes@assays$RNA@counts) >= 10, ]
+
+
+OPCsfilter@meta.data$DetRate <- as.vector(scale(colSums(OPCsfilter@assays$RNA@counts > 0)))
+
+OPCsfilterPD <- subset(OPCsfilter, subset = case %in% "PD")
+
+OPCsfilterHC <- subset(OPCsfilter, subset = case %in% "HC")
+
+strsplit(test$leadingEdge[[11]], split = ", ")
+
+PDposLFCGeneMeans <- rowMeans(OPCsfilterPD@assays$RNA@data[rownames(OPCsfilterPD@assays$RNA@data) %in% unlist(strsplit(test$leadingEdge[[11]], split = ", ")),])
+
+HCposLFCGeneMeans <- rowMeans(OPCsfilterHC@assays$RNA@data[rownames(OPCsfilterHC@assays$RNA@data) %in% unlist(strsplit(test$leadingEdge[[11]], split = ", ")),])
+
+```
+
+```{R}
+
+PDposLFCGeneMeans
+
+HCposLFCGeneMeans
+
+```
+
+```{R}
+
+Oligodendrocytes <- subset(Batch567_MTG, idents = "Oligodendrocytes")
+
+#mkfilter <- function(cmatrix) {
+#        sum(cmatrix[1,] > 0)/ncol(cmatrix)*100
+#} 
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+} 
+
+Oligodendrocytesfilter <- Oligodendrocytes[apply(Oligodendrocytes@assays$RNA@counts,1,mkfilter) >= 20,]
+
+#Astrocytes_Filter <- Astrocytes[rowSums(Astrocytes@assays$RNA@counts) >= 10, ]
+
+
+Oligodendrocytesfilter@meta.data$DetRate <- as.vector(scale(colSums(Oligodendrocytesfilter@assays$RNA@counts > 0)))
+
+```
+
+
+```{R}
+Idents(Oligodendrocytesfilter) <- "case"
+Oligodendrocytes.PD_Prog.Markers <- FindMarkers(Oligodendrocytesfilter, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate","batch","age","PMI","RIN"), logfc.threshold = 0, min.pct = 0)
+Oligodendrocytes.PD_Prog.Markers$gene <- rownames(Oligodendrocytes.PD_Prog.Markers)
+
+#top_pos_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = avg_log2FC)
+#top_neg_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered %>% top_n(n = 50, wt = -avg_log2FC)
+```
+Now performing fgsea analysis
+
+Checking format of ranked list and categories
+
+```{R}
+test <- data(examplePathways)
+
+test1 <- data(exampleRanks)
+
+```
+
+```{R}
+
+generanks <- -log10(Oligodendrocytes.PD_Prog.Markers$p_val)*sign(Oligodendrocytes.PD_Prog.Markers$avg_log2FC)
+
+names(generanks) <- rownames(Oligodendrocytes.PD_Prog.Markers)
+
+sign(Oligodendrocytes.PD_Prog.Markers$avg_log2FC)
+
+generanks
+
+```
+
+
+
+
+```{R}
+
+generanks <- generanks[order(generanks, decreasing = TRUE)]
+
+testranks <- generanks
+
+testranks
+
+```
+
+
+```{R}
+
+C2_Gene_Sets <- gmtPathways("~/Documents/Projects/Database_Cache/GSEA_Analysis_Tables/GMT_Tables/c2.all.v7.4.symbols.gmt")
+
+```
+
+
+```{R}
+
+hqwd <- gsub(Inf,.Machine$double.xmin,testranks)
+hqwd <- as.numeric(hqwd)
+names(hqwd) <- rownames(Oligodendrocytes.PD_Prog.Markers)
+hqwd <- hqwd[order(hqwd, decreasing = TRUE)]
+
+hqwd
+
+
+
+fgseaRes = fgsea(C2_Gene_Sets, stats=hqwd, minSize=10, maxSize=Inf, nPermSimple=10000)
+
+```
+
+
+```{R}
+
+fgseaResFilter <- fgseaRes[fgseaRes$padj <= 0.05,]
+
 ```
 
 

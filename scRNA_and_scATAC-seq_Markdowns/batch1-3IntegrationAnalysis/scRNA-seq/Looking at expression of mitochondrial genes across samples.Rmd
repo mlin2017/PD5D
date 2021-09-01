@@ -1,0 +1,80 @@
+---
+title: "Looking at expression of mitochondrial genes across samples"
+output: html_document
+---
+
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(fgsea)
+library(SeuratWrappers)
+```
+
+
+```{R}
+Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
+Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
+```
+
+
+```{R}
+
+case_clusters <- paste(Batch567_MTG$case,Batch567_MTG$seurat_clusters,sep = "_")
+
+```
+
+
+```{R}
+Batch567_MTG <- RenameIdents(Batch567_MTG, `1` = "Oligodendrocytes", `2` = "GLU_Neurons_1", `3` = "GLU_Neurons_2",
+                      `4` = "GLU_Neurons_3",`5` = "Astrocytes_1",
+                      `6` = "GABA_Neurons_1", `7` = "Cajal_Retzius_Cells", `8` = "GLU_Neurons_4",`9` = "GLU_Neurons_5",
+                      `10` = "GLU_Neurons_6", `11` = "Microglia",`12` = "Astrocytes_2",
+                      `13` = "OPCs",`14` = "GABA_Neurons_2",
+                      `15` = "GLU_Neurons_7", `16`="GLU_Neurons_8", `17`="Endothelial_1", `18`="Endothelial_2",`19`="GABA_Neurons_3",`20`="GLU_Neurons_9",`21`="GLU_Neurons_10",`22`="GLU_Neurons_11",`23`="GABA_Neurons_4")
+```
+
+
+
+```{R}
+
+test <- melt(t(AverageExpression(Batch567_MTG, features = c("MT-ND4","MT-CO1","MT-CO2","MT-CO3","MT-ND1","MT-ND2","MT-ND3","MT-ND4","MT-ND5","MT-ATP6","MT-CYB"), group.by = c("sample_ID","case"))$RNA))
+
+PD <- as.vector(test$Var1[grep("PD",unique(test$Var1))])
+
+test$status <- "Non-PD"
+test$status[test$Var1 %in% PD] <- "PD"
+test$Gene <- "Gene"
+```
+
+
+
+```{R}
+
+ggplot(test, aes(x=Gene, y=value, color = status)) +
+  geom_jitter() +
+  facet_grid(~Var2) +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 65, hjust=1))
+
+
+
+```
+
+
+
+

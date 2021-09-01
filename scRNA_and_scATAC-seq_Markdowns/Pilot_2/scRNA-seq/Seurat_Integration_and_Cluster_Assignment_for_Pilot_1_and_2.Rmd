@@ -378,7 +378,7 @@ saveRDS(Pilot1and2_MB,"Pilot1_and2_Integration_Files/Case_Corrected_Pilot1and2_M
  #########################################################
  
 ```{R}
-Pilot1and2_MB=readRDS("Pilot1_and2_Integration_Files/Pilot1and2_MB_Unassigned.rds")
+Pilot1and2_MB=readRDS("Pilot1_and2_Integration_Files/Case_Corrected_Pilot1and2_MB_Unassigned.rds")
 ```
 
 
@@ -398,6 +398,15 @@ Testing T-cell/immune cell markers
 
 
 
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("CD247"),pt.size = 0)
+```
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("CD3G"),pt.size = 0)
+```
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("CD3E"),pt.size = 0)
+```
 
 ```{r}
 VlnPlot(Pilot1and2_MB, features = c("CD96"),pt.size = 0)
@@ -408,6 +417,66 @@ NK Cell Markers
 VlnPlot(Pilot1and2_MB, features = c("IL7R"),pt.size = 0)
 ```
 
+CD8+ TEMRA Cells - CD45RA+ CCR7- CD28- CD27-
+
+CD45RA
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("PTPRC"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("CD27"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("CD28"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("CCR7"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("EOMES"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("TBX21"),pt.size = 0)
+```
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("PRDM1"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("PRDM1"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("IFNG"),pt.size = 0)
+```
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("PRF1"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("GZMB"),pt.size = 0)
+```
+
+
+```{r}
+VlnPlot(Pilot1and2_MB, features = c("CD38"),pt.size = 0)
+```
+
+Saving image of TEMRA Suite of genez
+
+```{R}
+TEMRA_Cell_Markers <- VlnPlot(Pilot1and2_MB, features = c("PTPRC","CD27","CCR7","CD28","CD8A","CD247","CD3E","PRF1"),pt.size = 0, ncol = 2)
+ggsave(TEMRA_Cell_Markers, filename = "Figures/TEMRA_Cell_Markers.pdf", units = "in", width = 8, height = 16, device = "pdf")
+
+
+
+```
 
 CD16
 
@@ -432,6 +501,7 @@ NKG2A
 ```{r}
 VlnPlot(Pilot1and2_MB, features = c("KLRC1"),pt.size = 0)
 ```
+
 ```{r}
 VlnPlot(Pilot1and2_MB, features = c("CD244"),pt.size = 0)
 ```
@@ -1320,5 +1390,20 @@ VlnPlot(AllMB, features = c("PCP4"),pt.size = 0) +
 ```
 
 
+```{R}
+table(Idents(Pilot1and2_MB), Pilot1and2_MB$case)
+
+```
+HC: H1009, H0321, BRI319, BRI321
+PD: B0085, H1118, BRI318, BRI320
+```{R}
+
+table(Idents(Pilot1and2_MB), Pilot1and2_MB$sample_ID)
+
+```
+
+```{R}
+prop.table(table(Idents(Pilot1and2_MB), Pilot1and2_MB$case), margin = 2)
+```
 
 

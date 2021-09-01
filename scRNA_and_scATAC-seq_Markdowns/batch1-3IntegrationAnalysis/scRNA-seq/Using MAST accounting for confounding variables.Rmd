@@ -61,6 +61,8 @@ write.table(data.frame(as.vector(unique(Batch567_MTG@active.ident))), "Files/Clu
 Batch567_MTG@project.name
 
 unique(Batch567_MTG@meta.data$sample_ID)
+
+
 ```
 
 
@@ -105,12 +107,14 @@ Astrocytefilter <- Astrocytes[apply(Astrocytes@assays$RNA@counts,1,mkfilter) >= 
 
 Astrocytefilter@meta.data$DetRate <- as.vector(scale(colSums(Astrocytefilter@assays$RNA@counts > 0)))
 
+
+Astrocytefilter@meta.data$
 ```
 
 
 ```{R}
 Idents(Astrocytefilter) <- "case"
-Astrocytes.PD_Prog.Markers <- FindMarkers(Astrocytefilter, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate"))
+Astrocytes.PD_Prog.Markers <- FindMarkers(Astrocytefilter, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate","batch"))
 Astrocytes.PD_Prog.Markers$gene <- rownames(Astrocytes.PD_Prog.Markers)
 Astrocytes.PD_Prog.Markers_Filtered <- Astrocytes.PD_Prog.Markers[Astrocytes.PD_Prog.Markers$p_val_adj <= 0.05,]
 top_Astrocytes.PD_Prog.Markers <- Astrocytes.PD_Prog.Markers_Filtered[1:50,]

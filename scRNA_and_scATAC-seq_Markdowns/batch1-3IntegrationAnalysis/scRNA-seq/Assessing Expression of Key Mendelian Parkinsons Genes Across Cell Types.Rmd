@@ -1,0 +1,143 @@
+---
+title: "Assessing Expression of Key Mendelian Parkinsons Genes Across Cell Types"
+output: html_document
+---
+
+
+Using top genes DE for each subcluster
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(fgsea)
+library(SeuratWrappers)
+library(purrr)
+```
+
+
+```{R}
+Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
+Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
+```
+
+
+
+```{R}
+case_clusters <- paste(Batch567_MTG$case,Batch567_MTG$seurat_clusters,sep = "_")
+
+
+Batch567_MTG <- RenameIdents(Batch567_MTG, `1` = "Oligodendrocytes", `2` = "GLU_Neurons", `3` = "GLU_Neurons",
+                      `4` = "GLU_Neurons",`5` = "Astrocytes",
+                      `6` = "GABA_Neurons", `7` = "Cajal_Retzius_Cells", `8` = "GLU_Neurons",`9` = "GLU_Neurons",
+                      `10` = "GLU_Neurons", `11` = "Microglia",`12` = "Astrocytes",
+                      `13` = "OPCs",`14` = "GABA_Neurons",
+                      `15` = "GLU_Neurons", `16`="GLU_Neurons", `17`="Endothelial", `18`="Endothelial",`19`="GABA_Neurons",`20`="GLU_Neurons",`21`="GLU_Neurons",`22`="GLU_Neurons",`23`="GABA_Neurons")
+```
+
+
+
+```{R}
+library(reshape2)
+library(sciplot)
+library(ggplot2)
+
+MarkerParkinsonsGenes <- c("SNCA", "PRKN", "UCHL1", "PINK1", "PARK7", "LRRK2", "ATP13A2", "GIGYF2", "HTRA2", "PLA2G6", "FBXO7", "VPS35", "EIF4G1", "DNAJC6", "SYNJ1", "DNAJC13", "CHCHD2", "VPS13C", "GBA")
+
+#data_barplot <- FetchData(Batch567_MTG, vars = c("ident",rownames(Batch567_MTG@assays$RNA@counts)), slot = "counts")
+
+#data_barplot_1 <- data_barplot[1:10,]
+
+#rowSums(data_barplot_1[2:length(colnames(data_barplot_1))])
+
+#1e6/rowSums(data_barplot_1[2:length(colnames(data_barplot_1))])
+
+#scaledrowSums <- 1e6/rowSums(data_barplot[2:length(colnames(data_barplot))])
+
+#swpt_barplot <- sweep(data_barplot[,2:length(colnames(data_barplot))],1,scaledrowSums,FUN = "*")
+
+data_barplot <- FetchData(Batch567_MTG, vars = c("ident",MarkerParkinsonsGenes), slot = "counts")
+
+#swpt_data_barplot_markers <- swpt_barplot[,which(colnames(swpt_barplot) %in% MarkerGenes)]
+
+#swpt_data_barplot_markers$ident <- as.vector(data_barplot$ident)
+
+data_barplot_melt <- melt(data_barplot)
+
+data_barplot_melt$ident <- as.vector(data_barplot_melt$ident)
+data_barplot_melt$variable <- as.vector(data_barplot_melt$variable)
+data_barplot_melt$value <- as.numeric(as.vector(data_barplot_melt$value))
+
+data_barplot_melt_sum <- group_by(data_barplot_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(MarkerParkinsonsGenes))
+
+ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1, width = 0.3, position = position_dodge(width=0.1)) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.15, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0),
+              aspect.ratio = 0.25) + NoLegend()
+
+Batch567_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1, width = 0.5, position = position_dodge(width=0.1)) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.15, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0),
+              aspect.ratio = 0.4) + NoLegend()
+
+
+
+
+Batch567_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+ggsave(Batch567_barchart,filename = "Files/Batch1-3_Marker_Barchart", device = "pdf", width = 12, height = 12, units = "in")
+```
+
+
+
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(MarkerParkinsonsGenes))
+
+write.table(data_barplot_melt_sum, file = paste("Files/Genes_for_Monika_BarChartTable.tsv",sep = ""), quote = FALSE, col.names = TRUE, row.names = FALSE, sep = "\t")
+
+
+
+
+
+
+

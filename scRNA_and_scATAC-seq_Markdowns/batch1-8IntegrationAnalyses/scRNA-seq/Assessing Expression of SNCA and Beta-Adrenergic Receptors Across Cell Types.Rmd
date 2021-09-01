@@ -1,0 +1,258 @@
+---
+title: "Assessing Expression of Key Mendelian Parkinsons Genes Across Cell Types"
+output: html_document
+---
+
+
+Using top genes DE for each subcluster
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(fgsea)
+library(SeuratWrappers)
+library(purrr)
+library(reshape2)
+library(sciplot)
+library(ggplot2)
+```
+
+
+
+
+```{R}
+
+MarkerGenes <- c("SNCA", "ADRB1", "ADRB2", "ADRB3")
+
+data_barplot_melt_sum <- read.table("Files/Genes_for_Monika_BarChartTable.tsv", header = TRUE)
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(MarkerGenes))
+
+```
+
+ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1, width = 0.3, position = position_dodge(width=0.1)) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.15, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+Batch567_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1, width = 0.5, position = position_dodge(width=0.1)) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.15, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0),
+              aspect.ratio = 0.4) + NoLegend()
+
+
+
+
+Batch567_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+
+
+
+```{R}
+MarkerGeneBarChartGrid <- ggplot(data_barplot_melt_sum, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of SNCA and the β-Adrenergic Receptors") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+
+ggsave(MarkerGeneBarChartGrid,filename = "Files/Batch1-8_ADRB_Genes_BarchartGrid.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+```
+
+
+####################################################################################
+
+Removing last two clusters and adjusting scales
+
+
+```{R}
+
+data_barplot_melt_sum_subset <- data_barplot_melt_sum[!data_barplot_melt_sum$ident %in% c("CD8+_T_Cells","Unknown_Cluster_30"),]
+
+
+
+```
+
+
+
+```{R}
+MarkerGeneBarChartGrid <- ggplot(data_barplot_melt_sum_subset, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of SNCA and the β-Adrenergic Receptors") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        ggplot2::facet_grid(rows = vars(factor(variable, levels = unique(variable))), scales = "free_y", switch = "y") +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+ggsave(MarkerGeneBarChartGrid,filename = "Files/Batch1-8_ADRB_Genes_BarchartGrid_RescaledFull.pdf", device = "pdf", width = 12, height = 6, units = "in")
+```
+
+Doing for individual genes to put together later
+
+```{R}
+
+data_barplot_melt_sum_subset_SNCA <- data_barplot_melt_sum_subset[data_barplot_melt_sum_subset$variable %in% "SNCA",]
+
+MarkerGeneBarChartGridSNCA <- ggplot(data_barplot_melt_sum_subset_SNCA, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of SNCA and the β-Adrenergic Receptors") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+ggsave(MarkerGeneBarChartGridSNCA,filename = "Files/Batch1-8_ADRB_Genes_BarchartGrid_RescaledSNCA.pdf", device = "pdf", width = 10, height = 3, units = "in")
+
+```
+
+
+
+
+```{R}
+
+data_barplot_melt_sum_subset_ADRB1 <- data_barplot_melt_sum_subset[data_barplot_melt_sum_subset$variable %in% "ADRB1",]
+
+MarkerGeneBarChartGridADRB1 <- ggplot(data_barplot_melt_sum_subset_ADRB1, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of SNCA and the β-Adrenergic Receptors") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+ggsave(MarkerGeneBarChartGridADRB1,filename = "Files/Batch1-8_ADRB_Genes_BarchartGrid_RescaledADRB1.pdf", device = "pdf", width = 10, height = 3, units = "in")
+
+```
+
+
+```{R}
+
+data_barplot_melt_sum_subset_ADRB2 <- data_barplot_melt_sum_subset[data_barplot_melt_sum_subset$variable %in% "ADRB2",]
+
+MarkerGeneBarChartGridADRB2 <- ggplot(data_barplot_melt_sum_subset_ADRB2, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of SNCA and the β-Adrenergic Receptors") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend() +
+        ylim(0,0.2)
+
+ggsave(MarkerGeneBarChartGridADRB2,filename = "Files/Batch1-8_ADRB_Genes_BarchartGrid_RescaledADRB2.pdf", device = "pdf", width = 10, height = 3, units = "in")
+
+```
+
+
+
+
+```{R}
+
+data_barplot_melt_sum_subset_ADRB3 <- data_barplot_melt_sum_subset[data_barplot_melt_sum_subset$variable %in% "ADRB3",]
+
+MarkerGeneBarChartGridADRB3 <- ggplot(data_barplot_melt_sum_subset_ADRB3, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of SNCA and the β-Adrenergic Receptors") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+ggsave(MarkerGeneBarChartGridADRB3,filename = "Files/Batch1-8_ADRB_Genes_BarchartGrid_RescaledADRB3.pdf", device = "pdf", width = 10, height = 3, units = "in")
+
+```
+
+
+
+
