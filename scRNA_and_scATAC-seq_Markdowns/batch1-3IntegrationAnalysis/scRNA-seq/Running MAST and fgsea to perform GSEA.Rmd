@@ -1,0 +1,31 @@
+---
+title: "Running MAST and fgsea to perform GSEA"
+output: html_document
+---
+
+Just running for Astrocytes for now, will work out how to automate for each cell type later
+
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(DESeq2)
+library(Matrix.utils)
+```
+
+
+

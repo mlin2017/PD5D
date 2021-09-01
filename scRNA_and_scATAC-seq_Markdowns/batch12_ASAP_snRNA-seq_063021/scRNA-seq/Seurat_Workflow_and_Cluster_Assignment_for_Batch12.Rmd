@@ -19,6 +19,9 @@ library(GOSemSim)
 library(enrichplot)
 library(glmpca)
 library(SeuratWrappers)
+library(ReductionWrappers)
+library(monocle3)
+library(leidenbase)
 ```
 
 
@@ -237,6 +240,7 @@ ggsave2("Figures/glmpcaDimPlot_postHarmony.pdf", glmpcaDimPlot_postHarmony, devi
 ```
 
 cells in harmony 1 axis
+
 ```{r}
 VlnPlot(object = Batch12_MTG, features = "harmony_1", group.by = "case",  pt.size = .1)
 ```
@@ -335,8 +339,64 @@ Batch12_MTG.markers <- FindAllMarkers(Batch12_MTG, only.pos = TRUE, min.pct = 0.
 
 Save single-cell elements. 
 ```{r}
-#saveRDS(AllMB,"AllMB.rds")
+saveRDS(Batch12_MTG,"Files/Batch12_MTG_Unassigned.rds")
 ```
+
+```{r}
+Batch12_MTG=readRDS("Files/Batch12_MTG_Unassigned.rds")
+```
+
+
+
+
+
+```{R}
+
+paga <- PAGA(Batch12_MTG, reduction_name = "harmony", neighbors_use_rep = "harmony")
+
+```
+
+
+```{R}
+PAGAplot(paga)
+
+
+```
+
+
+```{R}
+
+cds <- as.cell_data_set(Batch12_MTG)
+cds <- cluster_cells(cds)
+```
+
+
+
+```{R}
+DimPlot(Batch12_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+```{R}
+plot_cells(cds, show_trajectory_graph = FALSE)
+```
+
+```{R}
+
+plot_cells(cds, color_cells_by = "partition", show_trajectory_graph = FALSE)
+
+```
+
+
+
+
+
 
 ```{r}
 #AllMB=readRDS("AllMB.rds")

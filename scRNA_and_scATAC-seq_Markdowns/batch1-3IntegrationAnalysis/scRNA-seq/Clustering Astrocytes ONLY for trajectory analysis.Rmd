@@ -1,0 +1,254 @@
+---
+title: "Clustering Astrocytes ONLY for trajectory analysis"
+output: html_document
+---
+
+
+
+Reading in the three different batches and assigning metadata
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+
+```{R}
+
+Batch567_MTG_Astrocytes <- readRDS("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch1-3integrationAnalysis/scRNA-seq/Files/Batch567_MTG_Astrocytes")
+
+```
+
+```{r}
+Batch567_MTG_Astrocytes[["percent.mt"]] <- PercentageFeatureSet(Batch567_MTG_Astrocytes, pattern = "^MT-")
+
+VlnPlot(Batch567_MTG_Astrocytes, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size=0)
+```
+
+average nfeature_RNA
+
+```{R}
+library(stats)
+nfeature_RNA <- Batch567_MTG_Astrocytes@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch567_MTG_Astrocytes@meta.data$nFeature_RNA)
+
+```
+
+
+
+Filtering low quality cells:
+```{r}
+Batch567_MTG_Astrocytes <- subset(Batch567_MTG_Astrocytes, subset = nFeature_RNA > 200 & nfeature_RNA < threeMAD | percent.mt < 5)
+```
+
+
+
+Log Normalizing data: 
+```{r}
+Batch567_MTG_Astrocytes <- NormalizeData(Batch567_MTG_Astrocytes, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+Finding and plotting 2000 most variable features
+
+```{R}
+Batch567_MTG_Astrocytes <- FindVariableFeatures(Batch567_MTG_Astrocytes, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(Batch567_MTG_Astrocytes), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(Batch567_MTG_Astrocytes)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+```
+
+```{R}
+plot1
+```
+
+```{R}
+plot2
+```
+
+Run the standard workflow for visualization and clustering :
+
+save list of all genes
+```{r}
+all.genes <- rownames(Batch567_MTG_Astrocytes)
+```
+
+center and scale data
+```{r}
+Batch567_MTG_Astrocytes <- ScaleData(Batch567_MTG_Astrocytes, features = all.genes, verbose = FALSE)
+```
+
+
+finding the top 30 principal components for cells
+```{r}
+Batch567_MTG_Astrocytes <- RunGLMPCA(Batch567_MTG_Astrocytes, features=Batch567_MTG_Astrocytes@assays$RNA@var.features, L = 30)
+```
+
+
+```{R}
+Batch567_MTG_Astrocytes@meta.data$sex <- c(rep("M", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0009")),
+                          rep("M", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0339")),
+                          rep("M", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0341")),
+                          rep("M", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0415")),
+                          rep("M", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0329")),
+                          rep("F", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0347")),
+                          rep("M", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0348")),
+                          rep("F", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0464")),
+                          rep("M", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0602")),
+                          rep("M", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0644")),
+                          rep("F", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN1855"))
+                          )
+```
+
+
+```{R}
+
+Batch567_MTG_Astrocytes@meta.data$age_bracket <- c(rep("61-70", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0009")),
+                          rep("81-90", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0339")),
+                          rep("81-90", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0341")),
+                          rep("81-90", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0415")),
+                          rep("71-80", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0329")),
+                          rep("91-100", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0347")),
+                          rep("81-90", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0348")),
+                          rep("81-90", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0464")),
+                          rep("81-90", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0602")),
+                          rep("71-80", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN0644")),
+                          rep("81-90", sum(Batch567_MTG_Astrocytes@meta.data$sample_ID == "BN1855"))
+                          )
+```
+
+
+
+
+
+
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(Batch567_MTG_Astrocytes, dims = 1:2, reduction = "pca")
+```
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = Batch567_MTG_Astrocytes, reduction = "pca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = Batch567_MTG_Astrocytes, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+
+
+
+
+Run Harmony
+```{r}
+Batch567_MTG_Astrocytes <- RunHarmony(Batch567_MTG_Astrocytes, group.by.vars = c("batch","sex","age_bracket"), reduction = "glmpca", plot_convergence = TRUE, theta = c(0.66,066,0.66))
+```
+
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(Batch567_MTG_Astrocytes, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+
+```{r}
+DimPlot(object = Batch567_MTG_Astrocytes, reduction = "harmony", pt.size = .1, group.by = "batch")
+```
+
+
+```{r}
+DimPlot(object = Batch567_MTG_Astrocytes, reduction = "harmony", pt.size = .1, group.by = "case")
+```
+
+
+
+```{R}
+
+ElbowPlot(Batch567_MTG_Astrocytes, reduction = "harmony")
+
+```
+```{R}
+
+ElbowPlot(Batch567_MTG_Astrocytes, reduction = "glmpca")
+
+```
+12 looks like a suitable cutoff based on the elbow plot
+
+Finding Clusters of cells:
+```{r}
+Batch567_MTG_Astrocytes <- FindNeighbors(Batch567_MTG_Astrocytes, reduction = "harmony", dims = 1:8)
+Batch567_MTG_Astrocytes <- FindClusters(Batch567_MTG_Astrocytes, resolution = 0.5, algorithm = 4, method = "igraph")
+```
+run Umap based on top 12 harmony axis: 
+
+```{r}
+Batch567_MTG_Astrocytes <- RunUMAP(Batch567_MTG_Astrocytes, reduction = "harmony", dims = 1:8)
+```
+
+
+```{r}
+#Batch7_MTG <- RunTSNE(Batch7_MTG, reduction = "harmony", dims = 1:17)
+```
+
+plot umap:
+
+```{r}
+DimPlot(Batch567_MTG_Astrocytes, reduction = "umap", label = TRUE,pt.size = 0.01)
+```
+
+```{r}
+DimPlot(Batch567_MTG_Astrocytes, reduction = "umap", group.by = "case",pt.size = 0.1)
+```
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+DimPlot(Batch567_MTG_Astrocytes, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
+```
+
+```{r}
+DimPlot(Batch567_MTG_Astrocytes, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Batch567_MTG_Astrocytes, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_UMAPclusters_scRNA_seq_Batch567_MTG_Astrocytes.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+
+```{R}
+UMAPclusters <- DimPlot(Batch567_MTG_Astrocytes, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Split_GLMPCA_UMAPclusters_scRNA_seq_Batch567_MTG_Astrocytes.pdf", device = "pdf", width = 12, height = 4, units = "in")
+```
+
+
+
+
