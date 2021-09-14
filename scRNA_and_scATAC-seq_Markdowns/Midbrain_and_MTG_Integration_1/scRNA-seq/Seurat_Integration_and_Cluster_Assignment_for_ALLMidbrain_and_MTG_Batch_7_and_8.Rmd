@@ -17,257 +17,85 @@ library(harmony)
 library(DOSE)
 library(GOSemSim)
 library(enrichplot)
+library(SeuratWrappers)
+library(glmpca)
+library(stringr)
 ```
 
 
 
-Loading in the single cell data
+
 
 ```{r}
+Pilot_1.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Pilot_2.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
 Batch8.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
-
 Batch7.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
 ```
 
 
+
 ```{R}
 
-batch7samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Pilot_1samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Pilot_2samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Batch7samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 Batch8samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 
 ```
 
 
-checking dimensions to check all samples have the same set of genes
-
-```{r}
-
-dim(Batch8.data)
-
-```
-
-
-```{r}
-#MTGandMidbrainIntegration <- CreateSeuratObject(counts = cbind(Batch8.data),
-#                            project = "MTGandMidbrainIntegration",
-#                            min.cells = 3)
-```
-
-
 ```{R}
+Batches <- ls()[grep("[[:digit:]].data",ls())]
 
-cellcodes <- as.data.frame(Batch8.data@Dimnames[[2]])
-colnames(cellcodes) <- "barcodes"
-rownames(cellcodes) <- cellcodes$barcodes
+createmetadata <- function(batch) {
+  batchdf <- get(batch)
+  tempcellcodes <- as.data.frame(batchdf@Dimnames[[2]])
+  colnames(tempcellcodes) <- "barcodes"
+  tempcellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", tempcellcodes$barcodes))
+  prefix <- str_extract(batch,"Pilot_|Batch")
+  samptable <- paste(prefix,str_extract(batch,"[[:digit:]]"),"samples",sep="")
+  tempcellcodes$samples <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]"),"samples",sep=""))$library_id[tempcellcodes$libcodes])
+  tempcellcodes$case <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]"),"samples",sep=""))$case[tempcellcodes$libcodes])
+  tempcellcodes$batch <- str_extract(batch,"Batch[[:digit:]]|Pilot_[[:digit:]]")
+  return(tempcellcodes)
+}
 
-cellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", cellcodes$barcodes))
-cellcodes$samples <- as.vector(Batch8samples$library_id[cellcodes$libcodes])
+metadata <- bind_rows(lapply(Batches,createmetadata), .id = "column_label")
 
+metadata$region <- "Midbrain"
 
-```
+metadata$region[metadata$batch %in% c("Batch7","Batch8")] <- "MTG"
 
-
-```{R}
-Batch8samples$case <- c("HC","PD","ILBD","ILBD")
-
-cellcodes$case <- as.vector(Batch8samples$case[cellcodes$libcodes])
-
-```
-
-
-```{R}
-
-cellcodes$batch <- "Batch_8"
-
-cellcodes$region <- "MTG"
-
-batch8metadata <- cellcodes[,3:6]
-
-```
-
-
-```{R}
-
-cellcodes <- as.data.frame(Batch7.data@Dimnames[[2]])
-colnames(cellcodes) <- "barcodes"
-rownames(cellcodes) <- cellcodes$barcodes
-
-cellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", cellcodes$barcodes))
-cellcodes$samples <- as.vector(batch7samples$library_id[cellcodes$libcodes])
-
-```
-
-
-```{R}
-batch7samples$case <- c("HC","PD","ILBD","ILBD")
-
-cellcodes$case <- as.vector(batch7samples$case[cellcodes$libcodes])
-
-
-```
-
-
-```{R}
-
-cellcodes$batch <- "Batch_7"
-
-cellcodes$region <- "MTG"
-
-batch7metadata <- cellcodes[,3:6]
-
-```
-
-Loading in the single cell data
-
-```{r}
-BRI318.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI318")
-BRI319.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI319")
-BRI320.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI320")
-BRI321.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project//Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/BRI321")
-B0085.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/B0085")
-H0321.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/H0321")
-H1009.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/H1009")
-H1118.data <- Read10X(data.dir = "~/Documents/Projects/PD5D Project/Mohsen PD5D git clone/PD5D-main/PD5D-main/Notebooks/scRNAseq/H1118")
 ```
 
 
 ```{r}
-Pilot_2_MB <- CreateSeuratObject(counts = cbind(BRI318.data,
-                                           BRI319.data,
-                                           BRI320.data,
-                                           BRI321.data,
-                                           B0085.data,
-                                           H0321.data,
-                                           H1009.data,
-                                           H1118.data),
-                            project = "Pilot_2_MB",
+
+BatchMB_MTG <- CreateSeuratObject(counts = do.call(cbind,lapply(Batches,get)),
+                            project = "BatchMB_MTG",
                             min.cells = 3)
 ```
 
 
-Let's now annotate columns (cells) with meta data :
-
-1) sample ID
-
 ```{R}
-MB_sample <- c(rep("BRI318", ncol(BRI318.data)),
-                               rep("BRI319", ncol(BRI319.data)),
-                               rep("BRI320", ncol(BRI320.data)),
-                               rep("BRI321", ncol(BRI321.data)),
-                               rep("B0085", ncol(B0085.data)),
-                               rep("H0321", ncol(H0321.data)),
-                               rep("H1009", ncol(H1009.data)),
-                               rep("H1118", ncol(H1118.data)))
-```
 
-
-#Pilot_2_MB@meta.data$sample_ID <- c(rep("BRI318", ncol(BRI318.data)),
-                               rep("BRI319", ncol(BRI319.data)),
-                               rep("BRI320", ncol(BRI320.data)),
-                               rep("BRI321", ncol(BRI321.data)),
-                               rep("B0085", ncol(B0085.data)),
-                               rep("H0321", ncol(H0321.data)),
-                               rep("H1009", ncol(H1009.data)),
-                               rep("H1118", ncol(H1118.data))
-)
-
-
-2) case : Healthy Control (HC) or Parkinson Disease (PD)
-
-```{R}
-MB_case <- c(rep("PD", ncol(BRI318.data)),
-                          rep("HC", ncol(BRI319.data)),
-                          rep("PD", ncol(BRI320.data)),
-                          rep("HC", ncol(BRI321.data)),
-                          rep("PD", ncol(B0085.data)),
-                          rep("HC", ncol(H0321.data)),
-                          rep("HC", ncol(H1009.data)),
-                          rep("PD", ncol(H1118.data)))
-```
-
-#Pilot_2_MB@meta.data$case <- c(rep("PD", ncol(BRI318.data)),
-                          rep("HC", ncol(BRI319.data)),
-                          rep("PD", ncol(BRI320.data)),
-                          rep("HC", ncol(BRI321.data)),
-                          rep("PD", ncol(B0085.data)),
-                          rep("HC", ncol(H0321.data)),
-                          rep("HC", ncol(H1009.data)),
-                          rep("PD", ncol(H1118.data))
-)
-
-```{R}
-MB_batch <- c(rep("Pilot_1", ncol(BRI318.data)),
-                          rep("Pilot_1", ncol(BRI319.data)),
-                          rep("Pilot_1", ncol(BRI320.data)),
-                          rep("Pilot_1", ncol(BRI321.data)),
-                          rep("Pilot_2", ncol(B0085.data)),
-                          rep("Pilot_2", ncol(H0321.data)),
-                          rep("Pilot_2", ncol(H1009.data)),
-                          rep("Pilot_2", ncol(H1118.data)))
-```
-
-
-```{R}
-MB_metadata <- data.frame(cbind(MB_sample,MB_case,MB_batch))
-
-MB_metadata$region <- "Midbrain"
-
-colnames(MB_metadata) <- colnames(batch7metadata)
-
-integration_metadata <- rbind(MB_metadata,batch7metadata,batch8metadata)
+BatchMB_MTG@meta.data$sample_id <- metadata$samples
+BatchMB_MTG@meta.data$case <- metadata$case
+BatchMB_MTG@meta.data$batch <- metadata$batch
 
 ```
 
 
-```{R}
-genes1<-rownames(BRI318.data)
-genes2<-rownames(Batch7.data)
-genes_common<-intersect(genes1,genes2)
-genes_notcommon<- genes1[!genes1 %in% genes2]
-genes_notcommon2 <- genes2[!genes2 %in% genes1]
-gene_nc <- unique(c(genes_notcommon,genes_notcommon2))
-BRI318.data<-BRI318.data[rownames(BRI318.data)%in%genes_common,]
-BRI319.data<-BRI319.data[rownames(BRI319.data)%in%genes_common,]
-BRI320.data<-BRI320.data[rownames(BRI320.data)%in%genes_common,]
-BRI321.data<-BRI321.data[rownames(BRI321.data)%in%genes_common,]
-B0085.data<-B0085.data[rownames(B0085.data)%in%genes_common,]
-H0321.data<-H0321.data[rownames(H0321.data)%in%genes_common,]
-H1009.data<-H1009.data[rownames(H1009.data)%in%genes_common,]
-H1118.data<-H1118.data[rownames(H1118.data)%in%genes_common,]
 
-
-
-```
-
-```{R}
-
-MTGandMidbrainIntegration <- CreateSeuratObject(counts = cbind(BRI318.data,
-                                           BRI319.data,
-                                           BRI320.data,
-                                           BRI321.data,
-                                           B0085.data,
-                                           H0321.data,
-                                           H1009.data,
-                                           H1118.data,
-                                           Batch7.data,
-                                           Batch8.data),
-                            project = "MTG_MB_Integration",
-                            min.cells = 3)
-
-```
-
-```{R}
-
-
-```
 
 Now let's see the cell the counts for each group:
 ```{r}
-table(MTGandMidbrainIntegration$sample_ID)
+table(BatchMB_MTG$sample_id)
 ```
 
 ```{R}
-table(MTGandMidbrainIntegration$case)
+table(BatchMB_MTG$case)
 ```
 
 
@@ -285,9 +113,9 @@ table(MTGandMidbrainIntegration$case)
  We use the set of all genes starting with MT- as a set of mitochondrial genes
 
 ```{r}
-MTGandMidbrainIntegration[["percent.mt"]] <- PercentageFeatureSet(MTGandMidbrainIntegration, pattern = "^MT-")
+BatchMB_MTG[["percent.mt"]] <- PercentageFeatureSet(BatchMB_MTG, pattern = "^MT-")
 
-VlnPlot(MTGandMidbrainIntegration, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(BatchMB_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 ```
 
  An object of class Seurat 
@@ -300,36 +128,36 @@ average nfeature_RNA
 ```{R}
 
 library(stats)
-nfeature_RNA <- MTGandMidbrainIntegration@meta.data$nFeature_RNA
+nfeature_RNA <- BatchMB_MTG@meta.data$nFeature_RNA
 mean(nfeature_RNA)
 MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
-threeMAD <- (MAD*3)+median(MTGandMidbrainIntegration@meta.data$nFeature_RNA)
+threeMAD <- (MAD*3)+median(BatchMB_MTG@meta.data$nFeature_RNA)
 
 ```
 
 
 Filtering low quality cells:
 ```{r}
-MTGandMidbrainIntegration <- subset(MTGandMidbrainIntegration, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
+BatchMB_MTG <- subset(BatchMB_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
 ```
 
 
 Log Normalizing data: 
 ```{r}
-MTGandMidbrainIntegration <- NormalizeData(MTGandMidbrainIntegration, normalization.method = "LogNormalize", scale.factor = 10000)
+BatchMB_MTG <- NormalizeData(BatchMB_MTG, normalization.method = "LogNormalize", scale.factor = 10000)
 ```
 
 
 Finding and plotting 2000 most variable features
 
 ```{R}
-MTGandMidbrainIntegration <- FindVariableFeatures(MTGandMidbrainIntegration, selection.method = "vst", nfeatures = 2000)
+BatchMB_MTG <- FindVariableFeatures(BatchMB_MTG, selection.method = "vst", nfeatures = 2000)
 
 # Identify the 10 most highly variable genes
-top10 <- head(VariableFeatures(MTGandMidbrainIntegration), 10)
+top10 <- head(VariableFeatures(BatchMB_MTG), 10)
 
 # plot variable features with and without labels
-plot1 <- VariableFeaturePlot(MTGandMidbrainIntegration)
+plot1 <- VariableFeaturePlot(BatchMB_MTG)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
 ```
 
@@ -345,12 +173,12 @@ Run the standard workflow for visualization and clustering :
 
 save list of all genes
 ```{r}
-all.genes <- rownames(MTGandMidbrainIntegration)
+all.genes <- rownames(BatchMB_MTG)
 ```
 
 center and scale data
 ```{r}
-MTGandMidbrainIntegration <- ScaleData(MTGandMidbrainIntegration, features = all.genes, verbose = FALSE)
+BatchMB_MTG <- ScaleData(BatchMB_MTG, features = all.genes, verbose = FALSE)
 ```
 
 Determining "Dimensionality" of the dataset
@@ -361,12 +189,12 @@ Determining "Dimensionality" of the dataset
 
 finding the top 30 principal components for cells
 ```{r}
-MTGandMidbrainIntegration <- RunPCA(MTGandMidbrainIntegration, npcs = 30, verbose = FALSE)
+BatchMB_MTG <- RunGLMPCA(BatchMB_MTG, features=BatchMB_MTG@assays$RNA@var.features, L = 30)
 ```
 
 see contribution of genes to construct each of these principal components.
 ```{r}
-VizDimLoadings(MTGandMidbrainIntegration, dims = 1:2, reduction = "pca")
+VizDimLoadings(BatchMB_MTG, dims = 1:2, reduction = "pca")
 ```
 
 
@@ -382,24 +210,25 @@ VlnPlot(object = MTGandMidbrainIntegration, features = "PC_1", group.by = "case"
 #MTGandMidbrainIntegration <- RunHarmony(MTGandMidbrainIntegration, group.by.vars = c("case","region"), plot_convergence = TRUE)
 
 Run Harmony
+
 ```{r}
-MTGandMidbrainIntegration <- RunHarmony(MTGandMidbrainIntegration, group.by.vars = "case", plot_convergence = TRUE)
+BatchMB_MTG <- RunHarmony(BatchMB_MTG, group.by.vars = c("sample_id","case"), plot_convergence = TRUE, reduction = "glmpca", theta = c(1,1))
 ```
 
 
 cells in harmony axis
 ```{r}
-harmony_embeddings <- Embeddings(MTGandMidbrainIntegration, 'harmony')
+harmony_embeddings <- Embeddings(BatchMB_MTG, 'harmony')
 harmony_embeddings[1:5, 1:5]
 ```
 
 cells in harmony axis
 ```{r}
-DimPlot(object = MTGandMidbrainIntegration, reduction = "harmony", pt.size = .1, group.by = "case")
+DimPlot(object = BatchMB_MTG,  reduction = "harmony", pt.size = .1, group.by = "case")
 ```
 cells in harmony 1 axis
 ```{r}
-VlnPlot(object = MTGandMidbrainIntegration, features = "harmony_1", group.by = "case",  pt.size = .1)
+VlnPlot(object = BatchMB_MTG, features = "harmony_1", group.by = "case",  pt.size = .1)
 ```
 
  An object of class Seurat 
@@ -419,28 +248,35 @@ Determing the dimensionality of the dataset
 ```
 
 ```{R}
-ElbowPlot(MTGandMidbrainIntegration)
+
+ElbowPlot(BatchMB_MTG, reduction = "glmpca")
 
 ```
 
 ```{R}
-saveRDS(MTGandMidbrainIntegration,"Files/MTGandFullMidbrainIntegration_precluster.rds")
 
-MTGandMidbrainIntegration <- readRDS("Files/MTGandFullMidbrainIntegration_precluster.rds")
+ElbowPlot(BatchMB_MTG, reduction = "harmony")
+
+```
+
+```{R}
+saveRDS(BatchMB_MTG,"Files/MTGandFullMidbrainIntegration_precluster.rds")
+
+BatchMB_MTG <- readRDS("Files/MTGandFullMidbrainIntegration_precluster.rds")
 ```
 
 10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
 
 Finding Clusters of cells:
 ```{r}
-MTGandMidbrainIntegration <- FindNeighbors(MTGandMidbrainIntegration, reduction = "harmony", dims = 1:20)
-MTGandMidbrainIntegration <- FindClusters(MTGandMidbrainIntegration, resolution = 0.5)
+BatchMB_MTG <- FindNeighbors(BatchMB_MTG, reduction = "harmony", dims = 1:13)
+BatchMB_MTG <- FindClusters(BatchMB_MTG, resolution = 0.5, algorithm = 4, method = "igraph")
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-MTGandMidbrainIntegration <- RunUMAP(MTGandMidbrainIntegration, reduction = "harmony", dims = 1:20)
+BatchMB_MTG <- RunUMAP(BatchMB_MTG, reduction = "harmony", dims = 1:13)
 ```
 
 run tsne based on top 10 harmony axis: 
@@ -451,31 +287,37 @@ run tsne based on top 10 harmony axis:
 
 plot umap: 
 ```{r}
-DimPlot(MTGandMidbrainIntegration, reduction = "umap", label = TRUE,pt.size = 0.01)
+DimPlot(BatchMB_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
 ```
 
 ```{r}
-DimPlot(MTGandMidbrainIntegration, reduction = "umap", group.by = "case",pt.size = 0.1)
+DimPlot(BatchMB_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
 ```
 
 ```{r}
-DimPlot(MTGandMidbrainIntegration, reduction = "umap", group.by = "region",pt.size = 0.1)
+
+BatchMB_MTG@meta.data$region <- "Midbrain"
+
+BatchMB_MTG@meta.data$region[BatchMB_MTG@meta.data$batch %in% c("Batch7","Batch8")] <- "MTG"
+
+DimPlot(BatchMB_MTG, reduction = "umap", group.by = "region",pt.size = 0.1)
+
 ```
 
 
 TSNE Plot cells colored by clusters and grouped by case. 
 ```{r}
-DimPlot(MTGandMidbrainIntegration, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
+DimPlot(BatchMB_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
 ```
 
 ```{r}
-DimPlot(MTGandMidbrainIntegration, reduction = "umap", split.by = "region", label = TRUE, ncol = 1)
+DimPlot(BatchMB_MTG, reduction = "umap", split.by = "region", label = TRUE, ncol = 1)
 ```
 
 
 ```{R}
 
-MTGandMidbrainIntegration_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", label = TRUE, pt.size = 0.01) + 
+MTGandMidbrainIntegration_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", label = TRUE, pt.size = 0.01) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -484,7 +326,7 @@ MTGandMidbrainIntegration_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, re
 
 ggsave(MTGandMidbrainIntegration_UMAP_Clusters, filename = "Figures/MTGandMidbrainIntegration_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
 
-MTGandMidbrainIntegration_Case_Group_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", group.by = "case",pt.size = 0.1) + 
+MTGandMidbrainIntegration_Case_Group_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", group.by = "case",pt.size = 0.1) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -493,7 +335,7 @@ MTGandMidbrainIntegration_Case_Group_UMAP_Clusters <- DimPlot(MTGandMidbrainInte
 
 ggsave(MTGandMidbrainIntegration_Case_Group_UMAP_Clusters, filename = "Figures/MTGandMidbrainIntegration_Case_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
 
-MTGandMidbrainIntegration_Region_Group_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", group.by = "region",pt.size = 0.1) + 
+MTGandMidbrainIntegration_Region_Group_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", group.by = "region",pt.size = 0.1) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -502,7 +344,7 @@ MTGandMidbrainIntegration_Region_Group_UMAP_Clusters <- DimPlot(MTGandMidbrainIn
 
 ggsave(MTGandMidbrainIntegration_Region_Group_UMAP_Clusters, filename = "Figures/MTGandMidbrainIntegration_Region_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
 
-MTGandMidbrainIntegration_Case_Split_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
+MTGandMidbrainIntegration_Case_Split_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -511,7 +353,7 @@ MTGandMidbrainIntegration_Case_Split_UMAP_Clusters <- DimPlot(MTGandMidbrainInte
 
 ggsave(MTGandMidbrainIntegration_Case_Split_UMAP_Clusters, filename = "Figures/MTGandMidbrainIntegration_Case_Split_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 8, units = "in")
 
-MTGandMidbrainIntegration_Region_Split_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", split.by = "region", label = TRUE, ncol = 1) + 
+MTGandMidbrainIntegration_Region_Split_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", split.by = "region", label = TRUE, ncol = 1) + 
   theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
@@ -736,15 +578,17 @@ VlnPlot(MTGandMidbrainIntegration, features = c("RBFOX3"),pt.size = 0)
 Dopaminergic neuron markers
 
 ```{R}
-VlnPlot(MTGandMidbrainIntegration, features = c("SLC6A3"),pt.size = 1, split.by = "region")
+VlnPlot(BatchMB_MTG, features = c("SLC6A3"),pt.size = 1, split.by = "region")
 ```
 
 ```{R}
-VlnPlot(MTGandMidbrainIntegration, features = c("SLC18A2"),pt.size = 1)
+VlnPlot(BatchMB_MTG, features = c("SLC18A2"),pt.size = 1)
 ```
 
 ```{R}
-VlnPlot(MTGandMidbrainIntegration, features = c("TH"),pt.size = 1, split.by = "region")
+VlnPlot(BatchMB_MTG, features = c("TH"),pt.size = 1)
+
+VlnPlot(BatchMB_MTG, features = c("TH"),pt.size = 1, split.by = "region")
 ```
 
 DA neurons 12, (14)
@@ -752,10 +596,10 @@ DA neurons 12, (14)
 Glutamatergic neuron markers
 
 ```{R}
-VlnPlot(MTGandMidbrainIntegration, features = c("SLC17A6"),pt.size = 1)
+VlnPlot(BatchMB_MTG, features = c("SLC17A6"),pt.size = 1, split.by = "region")
 ```
 ```{R}
-VlnPlot(MTGandMidbrainIntegration, features = c("SLC17A7"),pt.size = 1)
+VlnPlot(BatchMB_MTG, features = c("SLC17A7"),pt.size = 1)
 ```
 0,1,2,6,10,(14),19,21,22,23,26 - Glu?
 

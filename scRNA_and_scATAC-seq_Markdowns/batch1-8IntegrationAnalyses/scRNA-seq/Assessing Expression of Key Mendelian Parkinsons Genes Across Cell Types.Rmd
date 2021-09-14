@@ -38,7 +38,7 @@ library(ggplot2)
 
 MarkerParkinsonsGenes <- c("SNCA", "PRKN", "UCHL1", "PINK1", "PARK7", "LRRK2", "ATP13A2", "GIGYF2", "HTRA2", "PLA2G6", "FBXO7", "VPS35", "EIF4G1", "DNAJC6", "SYNJ1", "DNAJC13", "CHCHD2", "VPS13C", "GBA")
 
-data_barplot_melt_sum <- read.table("Files/Parkisons_Mendelian_Genes_BarChartTable.tsv", header = TRUE)
+data_barplot_melt_sum <- read.table("Files/Misc Gene Expression Tables/Parkisons_Mendelian_Genes_BarChartTable.tsv", header = TRUE)
 
 data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
 
@@ -104,7 +104,7 @@ axis.ticks = element_blank(), panel.background = element_blank(),
 
 
 
-ggsave(ParkinsonsGeneBarChartGrid,filename = "Files/Batch1-8_ParkinsonsGenes_BarchartGrid.pdf", device = "pdf", width = 12, height = 12, units = "in")
+ggsave(ParkinsonsGeneBarChartGrid,filename = "Figures/Misc Gene Expression/Batch1-8_ParkinsonsGenes_BarchartGrid.pdf", device = "pdf", width = 12, height = 12, units = "in")
 
 ```
 

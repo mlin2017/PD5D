@@ -330,6 +330,7 @@ library(reshape2)
 library(MAST)
 library(fgsea)
 library(SeuratWrappers)
+library(ggrepel)
 ```
 
 Reading in table for all samples and looking specifically at Glu Neurons 3
@@ -459,4 +460,291 @@ ggsave("Figures/MtGenesGluNeuronGrid_Samples1to3NoSplitBarplot.pdf",MtGenesTable
 
 ```
 
+Sublcuster Scatterplot
 
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(fgsea)
+library(SeuratWrappers)
+library(ggrepel)
+```
+
+
+```{R, message=FALSE}
+
+MtGenesTable <- read.table("Files/Mitochondrial_Gene_Expression_Tables/MTGenesAverageSubClusterTable.tsv", header = TRUE)
+
+MtGenesTable <- MtGenesTable[-grep("ILB",MtGenesTable$Var1),]
+
+#Batches1to3Samples <- c("BN0009","BN0339","BN0341","BN0415","BN0329","BN0347","BN0348","BN0464","BN0602","BN0644","BN1855")
+
+#SampleGrep <- as.vector(MtGenesTable$Var1[grep(paste(Batches1to3Samples,collapse = "|"),unique(MtGenesTable$Var1))])
+#MtGenesTable$sample <- "4-8"
+#MtGenesTable$sample[MtGenesTable$Var1 %in% SampleGrep] <- "1-3"
+
+PD <- as.vector(MtGenesTable$Var1[grep("PD",unique(MtGenesTable$Var1))])
+MtGenesTable$status <- "Non-PD"
+MtGenesTable$status[MtGenesTable$Var1 %in% PD] <- "PD"
+MtGenesTable$Gene <- "Gene"
+```
+
+```{R}
+MtGenesTableGlu_1 <- MtGenesTable[grep("GLU_Neurons_1$",MtGenesTable$Var1),]
+
+MtGenesScatter_Glu1 <- ggplot(MtGenesTableGlu_1, aes(x=Gene, y=value, color = status)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size =0.5) +
+  facet_wrap(~Var2, ncol = 3) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank())
+
+
+ggsave("Figures/Mitochondrial_Gene_Expression/MtGenesScatter_Glu1.pdf",MtGenesScatter_Glu1, width = 4, height = 8, units = "in", device = "pdf")
+
+```
+
+
+```{R}
+MtGenesTableGlu_3 <- MtGenesTable[grep("GLU_Neurons_3",MtGenesTable$Var1),]
+
+MtGenesScatter_Glu3 <- ggplot(MtGenesTableGlu_3, aes(x=Gene, y=value, color = status)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size =0.5) +
+  facet_wrap(~Var2, ncol = 3) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank())
+
+
+ggsave("Figures/Mitochondrial_Gene_Expression/MtGenesScatter_Glu3.pdf",MtGenesScatter_Glu3, width = 4, height = 8, units = "in", device = "pdf")
+
+```
+
+
+
+```{R}
+MtGenesTableTCells <- MtGenesTable[grep("T_Cells",MtGenesTable$Var1),]
+
+MtGenesScatter_TCells <- ggplot(MtGenesTableTCells, aes(x=Gene, y=value, color = status)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size =0.5) +
+  facet_wrap(~Var2, ncol = 3) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank())
+
+
+ggsave("Figures/Mitochondrial_Gene_Expression/MtGenesScatter_TCells.pdf",MtGenesScatter_TCells, width = 4, height = 8, units = "in", device = "pdf")
+
+```
+
+
+```{R}
+MtGenesTableGlu_1 <- MtGenesTable[grep("GLU_Neurons_1$",MtGenesTable$Var1),]
+
+MtGenesTableGlu_1$sample <- gsub("_PD.*|_HC.*","",MtGenesTableGlu_1$Var1)
+
+MtGenesScatter_Glu_1SampAnno <- ggplot(MtGenesTableGlu_1, aes(x=Gene, y=value, color = status, label = sample)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size =0.5) +
+  facet_wrap(~Var2, ncol = 3) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank()) +
+  geom_text_repel(size = 1, max.overlaps = 20)
+
+
+ggsave("Figures/Mitochondrial_Gene_Expression/MtGenesScatter_Glu_1_SampleAnnotated.pdf",MtGenesScatter_Glu_1SampAnno, width = 4, height = 8, units = "in", device = "pdf")
+
+```
+
+
+
+
+
+
+
+```{R}
+MtGenesTableGlu_3 <- MtGenesTable[grep("GLU_Neurons_3$",MtGenesTable$Var1),]
+
+MtGenesTableGlu_3$sample <- gsub("_PD.*|_HC.*","",MtGenesTableGlu_3$Var1)
+
+MtGenesScatter_Glu_3SampAnno <- ggplot(MtGenesTableGlu_3, aes(x=Gene, y=value, color = status, label = sample)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size =0.5) +
+  facet_wrap(~Var2, ncol = 3) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank()) +
+  geom_text_repel(size = 1, max.overlaps = 20, segment.size = 0.4, min.segment.length = 0.25 )
+
+
+ggsave("Figures/Mitochondrial_Gene_Expression/MtGenesScatter_Glu_3_SampleAnnotated.pdf",MtGenesScatter_Glu_3SampAnno, width = 4, height = 8, units = "in", device = "pdf")
+
+```
+
+
+
+```{R}
+MtGenesTableTCells <- MtGenesTable[grep("T_Cells",MtGenesTable$Var1),]
+
+MtGenesTableTCells$sample <- gsub("_PD.*|_HC.*","",MtGenesTableTCells$Var1)
+
+MtGenesScatter_TCellsSampAnno <- ggplot(MtGenesTableTCells, aes(x=Gene, y=value, color = status, label = sample)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size =0.5) +
+  facet_wrap(~Var2, ncol = 3) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank()) +
+  geom_text_repel(size = 1, max.overlaps = 20, segment.size = 0.4, min.segment.length = 0.25 )
+
+
+ggsave("Figures/Mitochondrial_Gene_Expression/MtGenesScatter_TCells_SampleAnnotated.pdf",MtGenesScatter_TCellsSampAnno, width = 4, height = 8, units = "in", device = "pdf")
+
+```
+
+
+Based on the scatter plots for the GLU_1 and GLU_3 annotated scatter plots we identify three PD outlier samples: BN0009, BN0329, BN1504
+
+
+```{R}
+batch1samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch1_ASAP_snRNA-Seq_021721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+batch2samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch2_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+batch3samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch3_ASAP_snRNA-seq_031821/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+batch4samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4_ASAP_snRNA-seq_040721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+batch5samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch5_ASAP_snRNA-seq_042721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+batch6samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch6_ASAP_snRNA-seq_043021/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+batch7samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+batch8samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+```
+
+
+```{R}
+batches1to8metadata <- rbind(batch1samples,batch2samples,batch3samples,batch4samples,batch5samples,batch6samples,batch7samples,batch8samples)
+
+```
+
+
+
+```{R}
+outliersamples <- batches1to8metadata[batches1to8metadata$library_id %in% c("BN0009", "BN0329", "BN1504"),]
+
+nonoutliersamples <- batches1to8metadata[!batches1to8metadata$library_id %in% c("BN0009", "BN0329", "BN1504"),]
+
+mean(outliersamples$RIN)
+
+mean(nonoutliersamples$RIN)
+```
+
+
+The outlier samples have a mean RIN of 8.4 and the non-outlier samples have a mean RIN of 9.0 (rounded up)
+
+Annotating the outlier samples in the scatter plots 
+
+
+```{R}
+MtGenesTable$sample <- gsub("_PD.*|_HC.*","",MtGenesTable$Var1)
+
+MtGenesTable$outlier <- "Non-Outlier"
+
+MtGenesTable$outlier[MtGenesTable$sample %in% c("BN0009","BN0329","BN1504")] <- "Outlier"
+
+MtGenesTable$outlier <- factor(MtGenesTable$outlier, levels = c("Outlier","Non-Outlier"))
+ 
+```
+
+
+```{R}
+MtGenesTableGlu_1 <- MtGenesTable[grep("GLU_Neurons_1$",MtGenesTable$Var1),]
+
+MtGenesTableGlu_1$sample <- gsub("_PD.*|_HC.*","",MtGenesTableGlu_1$Var1)
+
+MtGenesScatter_Glu_1SampAnno_OutliersLabelled <- ggplot(MtGenesTableGlu_1, aes(x=Gene, y=value, color = outlier)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size =0.5) +
+  facet_wrap(~Var2, ncol = 3) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank())
+
+#geom_text_repel(size = 1, max.overlaps = 20, data = subset(MtGenesTableGlu_1, sample %in% c("BN0009","BN0329","BN1504")), segment.size = 0.1, segment.color = "black", min.segment.length = 0.5, point.padding = 0)
+
+
+ggsave("Figures/Mitochondrial_Gene_Expression/MtGenesScatter_Glu_1SampAnno_OutliersLabelled.pdf",MtGenesScatter_Glu_1SampAnno_OutliersLabelled, width = 4, height = 8, units = "in", device = "pdf")
+
+```
+
+
+
+
+
+
+
+```{R}
+MtGenesTableGlu_3 <- MtGenesTable[grep("GLU_Neurons_3$",MtGenesTable$Var1),]
+
+MtGenesTableGlu_3$sample <- gsub("_PD.*|_HC.*","",MtGenesTableGlu_3$Var1)
+
+MtGenesScatter_Glu_3SampAnno_OutliersLabelled <- ggplot(MtGenesTableGlu_3, aes(x=Gene, y=value, color = outlier)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size =0.5) +
+  facet_wrap(~Var2, ncol = 3) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank())
+  
+#geom_text_repel(size = 1, max.overlaps = 20, data = subset(MtGenesTableGlu_1, sample %in% c("BN0009","BN0329","BN1504")), segment.size = 0.1, segment.color = "black", min.segment.length = 0.5, point.padding = 0)
+
+
+ggsave("Figures/Mitochondrial_Gene_Expression/MtGenesScatter_Glu_3_SampleAnnotated_OutliersLablled.pdf",MtGenesScatter_Glu_3SampAnno_OutliersLabelled, width = 4, height = 8, units = "in", device = "pdf")
+
+```
+
+
+
+```{R}
+MtGenesTableTCells <- MtGenesTable[grep("T_Cells",MtGenesTable$Var1),]
+
+MtGenesTableTCells$sample <- gsub("_PD.*|_HC.*","",MtGenesTableTCells$Var1)
+
+MtGenesScatter_TCellsSampAnno_OutlierLabelled <- ggplot(MtGenesTableTCells, aes(x=Gene, y=value, color = outlier)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0.1), size =0.5) +
+  facet_wrap(~Var2, ncol = 3) +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank(),
+        strip.background = element_blank())
+
+#geom_text_repel(size = 1, max.overlaps = 20, data = subset(MtGenesTableGlu_1, sample %in% c("BN0009","BN0329","BN1504")), segment.size = 0.1, segment.color = "black", min.segment.length = 0.5, point.padding = 0)
+
+
+ggsave("Figures/Mitochondrial_Gene_Expression/MtGenesScatter_TCells_SampleAnnotated_OutlierLabelled.pdf",MtGenesScatter_TCellsSampAnno_OutlierLabelled, width = 4, height = 8, units = "in", device = "pdf")
+
+```

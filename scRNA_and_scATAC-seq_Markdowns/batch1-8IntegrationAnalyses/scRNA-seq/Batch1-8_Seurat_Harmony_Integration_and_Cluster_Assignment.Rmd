@@ -98,11 +98,30 @@ age_bracket <- gsub(",","-",age_bracket)
 Batch1to8_MTG@meta.data$age_bracket <- age_bracket
 ```
 
+```{R}
+Batch1to8_MTG@meta.data$outlier <- "Non-Outlier"
+Batch1to8_MTG@meta.data$outlier[Batch1to8_MTG@meta.data$sample_id %in% c("BN0009","BN0329","BN1504")] <- "Outlier"
+
+```
 
 ```{r}
 Batch1to8_MTG[["percent.mt"]] <- PercentageFeatureSet(Batch1to8_MTG, pattern = "^MT-")
+```
 
-VlnPlot(Batch1to8_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size=0,split.by = "sample")
+
+```{R}
+QC_Metrics_for_MtExpression_Outliers_Legend <- VlnPlot(Batch1to8_MTG, features = c("nFeature_RNA", "nCount_RNA","percent.mt"), ncol = 3, pt.size=0,split.by = "outlier", stack = TRUE, flip = TRUE)
+
+ggsave2("Figures/Mitochondrial_Gene_Expression/QC_Metrics_for_MtExpression_Outliers_with_legend.pdf", QC_Metrics_for_MtExpression_Outliers_Legend, device = "pdf", width = 8, height = 4, units = "in")
+
+QC_Metrics_for_MtExpression_Outliers <- VlnPlot(Batch1to8_MTG, features = c("nFeature_RNA", "nCount_RNA","percent.mt"), ncol = 3, pt.size=0,split.by = "outlier")
+
+ggsave2("Figures/Mitochondrial_Gene_Expression/QC_Metrics_for_MtExpression_Outliers.pdf", QC_Metrics_for_MtExpression_Outliers, device = "pdf", width = 8, height = 4, units = "in")
+```
+
+
+```{R}
+VlnPlot(Batch1to8_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size=0,split.by = "sample_id")
 ```
 
 
@@ -138,7 +157,15 @@ Filtering low quality cells:
 Batch1to8_MTG <- subset(Batch1to8_MTG, subset = nFeature_RNA > 200 & nfeature_RNA < threeMAD & percent.mt < 5)
 ```
 
+```{R}
+QC_Metrics_for_MtExpression_Outliers_Legend_PostFiltering <- VlnPlot(Batch1to8_MTG, features = c("nFeature_RNA", "nCount_RNA","percent.mt"), ncol = 3, pt.size=0,split.by = "outlier", stack = TRUE, flip = TRUE)
 
+ggsave2("Figures/Mitochondrial_Gene_Expression/QC_Metrics_for_MtExpression_Outliers_Legend_PostFiltering.pdf", QC_Metrics_for_MtExpression_Outliers_Legend_PostFiltering, device = "pdf", width = 8, height = 4, units = "in")
+
+QC_Metrics_for_MtExpression_Outliers_PostFiltering <- VlnPlot(Batch1to8_MTG, features = c("nFeature_RNA", "nCount_RNA","percent.mt"), ncol = 3, pt.size=0,split.by = "outlier")
+
+ggsave2("Figures/Mitochondrial_Gene_Expression/QC_Metrics_for_MtExpression_Outliers_PostFiltering.pdf", QC_Metrics_for_MtExpression_Outliers_PostFiltering, device = "pdf", width = 8, height = 4, units = "in")
+```
 
 Log Normalizing data: 
 ```{r}
