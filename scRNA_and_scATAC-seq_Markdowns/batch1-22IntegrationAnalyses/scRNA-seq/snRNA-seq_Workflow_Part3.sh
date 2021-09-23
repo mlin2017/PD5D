@@ -5,4 +5,4 @@
 #SBATCH -e logs/Rscript-%J.log
 module load conda2/4.2.13
 source activate /home/jap0606/.conda/envs/condamamba/envs/r4-base
-Rscript Batch1to8_Integration_Workflow_Part3.R
+Rscript snRNA-seq_Workflow_Part3.R

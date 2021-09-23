@@ -72,6 +72,8 @@ threeMAD <- (MAD*3)+median(SeuratObject@meta.data$nFeature_RNA)
 
 SeuratObject <- subset(SeuratObject, subset = nFeature_RNA > 200 & nfeature_RNA < threeMAD & percent.mt < 5)
 
+##########################################################################################################################
+
 SeuratObject <- NormalizeData(SeuratObject, normalization.method = "LogNormalize", scale.factor = 10000)
 
 SeuratObject <- FindVariableFeatures(SeuratObject, selection.method = "vst", nfeatures = 2000)
