@@ -129,7 +129,7 @@ threeMAD <- (MAD*3)+median(Batch22_MTG@meta.data$nFeature_RNA)
 
 Filtering low quality cells:
 ```{r}
-Batch22_MTG <- subset(Batch22_MTG, subset = nFeature_RNA > 200 & nFeature_RNA > threeMAD | percent.mt < 5)
+Batch22_MTG <- subset(Batch22_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
 ```
 
 Now let's recheck the cell the counts for each group:
@@ -285,14 +285,14 @@ ElbowPlot(Batch22_MTG, reduction = "harmony")
 
 Finding Clusters of cells:
 ```{r}
-Batch22_MTG <- FindNeighbors(Batch22_MTG, reduction = "harmony", dims = 1:11)
+Batch22_MTG <- FindNeighbors(Batch22_MTG, reduction = "harmony", dims = 1:18)
 Batch22_MTG <- FindClusters(Batch22_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch22_MTG <- RunUMAP(Batch22_MTG, reduction = "harmony", dims = 1:11)
+Batch22_MTG <- RunUMAP(Batch22_MTG, reduction = "harmony", dims = 1:18)
 ```
 
 run tsne based on top 10 harmony axis: 

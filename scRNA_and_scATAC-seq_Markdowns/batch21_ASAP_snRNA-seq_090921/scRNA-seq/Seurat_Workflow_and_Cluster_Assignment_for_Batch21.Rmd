@@ -1,5 +1,5 @@
 ---
-title: "Seurat Workflow and Cluster Assignment for Batch 19"
+title: "Seurat Workflow and Cluster Assignment for Batch 21"
 output: html_document
 ---
 
@@ -54,7 +54,7 @@ Batch21_MTG <- CreateSeuratObject(counts = cbind(Batch21.data),
 
 
 ```{R}
-samples <- read.csv(file.path("Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+samples <- read.csv(file.path("Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F, colClasses = c("sex"="character"))
 
 cellcodes <- as.data.frame(Batch21_MTG@assays$RNA@data@Dimnames[[2]])
 colnames(cellcodes) <- "barcodes"
@@ -75,6 +75,7 @@ Batch21_MTG@meta.data$sample_ID <- cellcodes$samples
 cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
 
 Batch21_MTG@meta.data$case <- cellcodes$case
+
 
 ```
 
@@ -129,7 +130,7 @@ threeMAD <- (MAD*3)+median(Batch21_MTG@meta.data$nFeature_RNA)
 
 Filtering low quality cells:
 ```{r}
-Batch21_MTG <- subset(Batch21_MTG, subset = nFeature_RNA > 200 & nFeature_RNA > threeMAD | percent.mt < 5)
+Batch21_MTG <- subset(Batch21_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
 ```
 
 Now let's recheck the cell the counts for each group:
@@ -140,6 +141,8 @@ table(Batch21_MTG$sample_ID)
 ```{R}
 table(Batch21_MTG$case)
 ```
+
+
 
 
 Log Normalizing data: 
@@ -285,14 +288,14 @@ ElbowPlot(Batch21_MTG, reduction = "harmony")
 
 Finding Clusters of cells:
 ```{r}
-Batch21_MTG <- FindNeighbors(Batch21_MTG, reduction = "harmony", dims = 1:11)
+Batch21_MTG <- FindNeighbors(Batch21_MTG, reduction = "harmony", dims = 1:20)
 Batch21_MTG <- FindClusters(Batch21_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch21_MTG <- RunUMAP(Batch21_MTG, reduction = "harmony", dims = 1:11)
+Batch21_MTG <- RunUMAP(Batch21_MTG, reduction = "harmony", dims = 1:20)
 ```
 
 run tsne based on top 10 harmony axis: 

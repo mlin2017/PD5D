@@ -121,7 +121,7 @@ ggsave2("Figures/Mitochondrial_Gene_Expression/QC_Metrics_for_MtExpression_Outli
 
 
 ```{R}
-VlnPlot(Batch1to8_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size=0,split.by = "sample_id")
+VlnPlot(Batch1to8_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size=0)
 ```
 
 
@@ -179,6 +179,7 @@ Batch1to8_MTG <- FindVariableFeatures(Batch1to8_MTG, selection.method = "vst", n
 ```
 
 ```{R}
+
 saveRDS(Batch1to8_MTG,"Files/Batch1to8_MTG_preclustering.rds")
 
 ```
