@@ -83,13 +83,13 @@ all.genes <- rownames(SeuratObject)
 SeuratObject <- ScaleData(SeuratObject, features = all.genes, verbose = FALSE)
 
 #finding the top 30 principal components for cells
-SeuratObject <- RunGLMPCA(SeuratObject, features=SeuratObject@assays$RNA@var.features, L = 30)
+SeuratObject <- RunGLMPCA(SeuratObject, features=SeuratObject@assays$RNA@var.features, L = 75)
 
 SeuratObject <- RunHarmony(SeuratObject, group.by.vars = c("sample_id","case","batch","sex","age_bracket"), plot_convergence = TRUE, reduction = "glmpca", theta = c(0.4,0.4,0.4,0.4,0.4))
 
 harmony_embeddings <- Embeddings(SeuratObject, 'harmony')
 
-SeuratObject_ElbowPlot <- ElbowPlot(SeuratObject, reduction = "harmony", ndims = 30)
+SeuratObject_ElbowPlot <- ElbowPlot(SeuratObject, reduction = "harmony", ndims = 75)
 
 ggsave2("Figures/SeuratObject_ElbowPlot.pdf", SeuratObject_ElbowPlot, device = "pdf", width = 4, height = 4, units = "in")
 

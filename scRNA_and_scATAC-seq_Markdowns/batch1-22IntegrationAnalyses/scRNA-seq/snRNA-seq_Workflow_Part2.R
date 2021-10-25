@@ -20,11 +20,11 @@ library(sciplot)
 
 SeuratObject <- readRDS("/n/scratch3/users/j/jap0606/batch1-22/Batch1-22_MTG_Part1.rds")
 
-SeuratObject <- FindNeighbors(SeuratObject, reduction = "harmony", dims = 1:20)
+SeuratObject <- FindNeighbors(SeuratObject, reduction = "harmony", dims = 1:60)
 SeuratObject <- FindClusters(SeuratObject, resolution = 0.5, algorithm = 4, method = "igraph")
-SeuratObject <- RunUMAP(SeuratObject, reduction = "harmony", dims = 1:20)
+SeuratObject <- RunUMAP(SeuratObject, reduction = "harmony", dims = 1:60)
 
-saveRDS(SeuratObject,"/n/scratch3/users/j/jap0606/batch1-22/Batch1to22_Part2.rds")
+saveRDS(SeuratObject,"/n/scratch3/users/j/jap0606/batch1-22/Batch1-22_MTG_Part2.rds")
 
 SeuratObject_UMAP_Clusters <- DimPlot(SeuratObject, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
   theme(axis.text = element_text(size=8),
