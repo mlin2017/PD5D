@@ -20,8 +20,31 @@ library(sciplot)
 
 SeuratObject <- readRDS("/n/scratch3/users/j/jap0606/batch1-22/Batch1-22_MTG_Part2.rds")
 
-SeuratObject <- RenameIdents(SeuratObject, `1` = "GLU_Neurons", `2` = "GLU_Neurons", `3` = "Oligodendrocytes", `4` = "GLU_Neurons", `5` = "Astrocytes", `6` = "GLU_Neurons", `7` = "GLU_Neurons", `8` = "GABA_Neurons",`9` = "GABA_Neurons",`10` = "GLU_Neurons", `11` = "Microglia",`12` = "GABA_Neurons",`13` = "Unknown_Cluster_13",`14` = "OPCs",`15` = "GLU_Neurons", `16`= "Cajal_Retzius_Cells", `17`="GLU_GABA_Neurons", `18`="GABA_Neurons", `19`="GABA_Neurons",  `20`="Endothelial", `21` = "Endothelial", `22` = "Unknown_Cluster_22", `23` = "GLU_Neurons", `24` = "GLU_Neurons", `25` = "GLU_Neurons", `26` = "GLU_Neurons",`27` = "GABA_Neurons",`28` = "Unknown_Cluster_28",`29` = "CD8+_T_Cells",`30` = "Unknown_Cluster_30")
+SeuratObject <- subset(SeuratObject, idents = as.character(seq(1,33,1)))
+
+SeuratObject <- RenameIdents(SeuratObject, `1` = "GLU_Neurons", `2` = "GLU_Neurons", `3` = "Oligodendrocytes", `4` = "GLU_Neurons", `5` = "GLU_Neurons", `6` = "Astrocyte", `7` = "GLU_Neurons", `8` = "GABA_Neurons",`9` = "GABA_Neurons",`10` = "GLU_Neurons", `11` = "GLU_GABA_Neurons",`12` = "GLU_Neurons",`13` = "Microglia",`14` = "GLU_Neurons",`15` = "GABA_Neurons", `16`= "OPCs", `17`="Endothelial_Cells", `18`="Cajal_Retzius_Cells", `19`="GABA_Neurons",  `20`="GABA_Neurons", `21` = "Endothelial", `22` = "GABA_Neurons", `23` = "Oligo_GLU_Neurons", `24` = "GLU_Neurons", `25` = "GLU_Neurons", `26` = "Astro_GLU_Neurons",`27` = "GLU_Neurons",`28` = "GLU_Neurons",`29` = "GABA_Neurons",`30` = "Cajal_Retzius_Cells", `31` = "GLU_Neurons", `32` = "Oligo_Microglia", `33` = "GLU_Neurons")
                    
+cells_per_cluster_table <- as.data.frame(table(SeuratObject@active.ident))
+
+colnames(cells_per_cluster_table) <- c("Cell_Type","Number of Cells")
+
+write.table(cells_per_cluster_table, file = "Files/Cells_Per_Cell_Type_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+CellType_SplitCase_ProportionTable <- as.data.frame(prop.table(table(Idents(SeuratObject), SeuratObject$case), margin = 2))
+
+write.table(CellType_SplitCase_ProportionTable, file = "Files/CellType_SplitCase_ProportionTable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+CellType_SplitSample_ProportionTable <- as.data.frame(prop.table(table(Idents(SeuratObject), SeuratObject$sample_ID), margin = 2))
+
+write.table(CellType_SplitSample_ProportionTable, file = "Files/CellType_SplitSample_ProportionTable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+CellType_SplitCase_NumbersTable <- as.data.frame(table(Idents(SeuratObject), SeuratObject$case))
+
+write.table(CellType_SplitCase_NumbersTable, file = "Files/CellType_SplitCase_NumbersTable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+CellType_SplitSample_NumbersTable <- as.data.frame(table(Idents(SeuratObject), SeuratObject$sample_ID))
+
+write.table(CellType_SplitSample_NumbersTable, file = "Files/CellType_SplitSample_NumbersTable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
 
 SeuratObject_UMAP_Clusters <- DimPlot(SeuratObject, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
   theme(axis.text = element_text(size=8),
