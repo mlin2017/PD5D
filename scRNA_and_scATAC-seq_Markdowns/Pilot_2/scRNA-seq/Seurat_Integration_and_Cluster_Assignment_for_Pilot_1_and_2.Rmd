@@ -391,7 +391,12 @@ UMAPclusters <- DimPlot(Pilot1and2_MB, label = TRUE, repel = TRUE, pt.size = 0, 
               legend.key.size = unit(0.4,"cm"))
 
 ggsave(UMAPclusters, filename = "Pilot1_and2_Integration_Files/Unassigned_UMAPclusters_scRNA_seq_Pilot_1and2.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+Pilot1and2_MB@meta.data$
 ```
+
+
+#Removing specific clusters from dataset: Pilot1and2_MBSub <- subset(Pilot1and2_MB, idents = as.character(seq(1,15,1)))
 
 
 Testing T-cell/immune cell markers

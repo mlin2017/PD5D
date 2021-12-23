@@ -115,19 +115,50 @@ VlnPlot(Batch7_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), nc
 
 average nfeature_RNA
 
+#Deprecated - use per sample filtering method
+
 ```{R}
-library(stats)
-nfeature_RNA <- Batch7_MTG@meta.data$nFeature_RNA
-mean(nfeature_RNA)
-MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
-threeMAD <- (MAD*3)+median(Batch7_MTG@meta.data$nFeature_RNA)
+#library(stats)
+#nfeature_RNA <- Batch7_MTG@meta.data$nFeature_RNA
+#mean(nfeature_RNA)
+#MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+#threeMAD <- (MAD*3)+median(Batch7_MTG@meta.data$nFeature_RNA)
 
 ```
 
+#Testing out per sample filtering
 
-Filtering low quality cells:
+```{R}
+
+library(stats)
+
+metadata <- as.data.frame(Batch7_MTG@meta.data)
+metadata$cell_barcode <- rownames(metadata)
+metadata$nFeature_RNA <- as.numeric(metadata$nFeature_RNA)
+test <- group_by(.data = metadata, sample_ID) %>% mutate(upperlimit = (median(nFeature_RNA) + (mad(nFeature_RNA, center = median(nFeature_RNA))*3)))
+
+Filtered_Metadata <- group_by(.data = test, sample_ID) %>% filter(nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing2 = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 2)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing2 = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+```
+
+Filtering low quality cells
+
+```{R}
+Batch7_MTG@meta.data$cell_barcode <- rownames(Batch7_MTG@meta.data)
+
+Batch7_MTG <- subset(Batch7_MTG, subset = cell_barcode %in% Filtered_Metadata$cell_barcode)
+
+```
+
+#Filtering low quality cells: - Deprecated, use per sample filtering
 ```{r}
-Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA > threeMAD | percent.mt < 5)
+#Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
 ```
 
 Now let's recheck the cell the counts for each group:
@@ -209,6 +240,7 @@ VlnPlot(object = Batch7_MTG, features = "PC_1", group.by = "case",  pt.size = .1
 Run Harmony
 ```{r}
 Batch7_MTG <- RunHarmony(Batch7_MTG, group.by.vars = "case", reduction = "glmpca", plot_convergence = TRUE)
+
 ```
 
 
@@ -244,7 +276,7 @@ Determing the dimensionality of the dataset
 ```
 
 ```{R}
-ElbowPlot(Batch7_MTG, reduction = "harmony")
+ElbowPlot(Batch7_MTG, reduction = "harmony", ndims = 30)
 
 ```
 
@@ -950,6 +982,8 @@ Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons", `2` = "GLU Neurons",
                       `15` = "GLU Neurons", `16`="Endothelial", `17`="GABA Neurons", `18`="GLU Neurons", `19`="OPCs",  `20`="GLU Neurons", `21` = "GLU Neurons", `22` = "GABA Neurons")
 ```
 
+
+
 ```{R}
 #saveRDS(AllMB,"AllMB_Assigned.rds")
 #AllMB=readRDS("AllMB.rds")
@@ -991,17 +1025,247 @@ DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 1,reduction = 'umap')
 #########################################################################################################################
 
 
+
+
 ```{R}
 VlnPlot(Batch7_MTG, features = c("GRM5","TH","P2RY12","GRM4","BCAN"),pt.size = 0,stack = TRUE, flip = TRUE)
 ```
 
 
+###########################################################################
+
+```{R}
+Batch7_MTG=readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+```
 
 ```{R}
 
+library(scDblFinder)
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
 
+
+Batch7_MTG.sce <- as.SingleCellExperiment(Batch7_MTG)
+Batch7_MTG.sce <- scDblFinder(Batch7_MTG.sce, samples = "sample_ID",clusters = "seurat_clusters")
 
 ```
+
+```{R}
+
+barcode_doublet_Table <- as.data.frame(cbind(as.vector(rownames(Batch7_MTG.sce@colData)),as.vector(Batch7_MTG.sce@colData$scDblFinder.class)))
+
+Batch7_MTG@meta.data$class <- barcode_doublet_Table$V2
+
+```
+
+```{R}
+DimPlot(Batch7_MTG, label = FALSE, repel = TRUE, pt.size = 0, label.size = 2.5, group.by = "class") + 
+    theme(axis.text = element_text(size=8),
+          axis.title = element_text(size = 12),
+          legend.text = element_text(size = 8),
+          title = element_text(size = 12),
+          legend.key.size = unit(0.4,"cm"))
+
+```
+
+```{R}
+
+singlet_barcodes <- rownames(Batch7_MTG@meta.data)[as.vector(Batch7_MTG@meta.data$class) %in% "singlet"]
+
+```
+
+
+```{R}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+    theme(axis.text = element_text(size=8),
+          axis.title = element_text(size = 12),
+          legend.text = element_text(size = 8),
+          title = element_text(size = 12),
+          legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+```{R}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, cells = singlet_barcodes) + 
+    theme(axis.text = element_text(size=8),
+          axis.title = element_text(size = 12),
+          legend.text = element_text(size = 8),
+          title = element_text(size = 12),
+          legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+```{R}
+library(dplyr)
+library(reshape)
+library(tidyr)
+
+metadata <- Batch7_MTG@meta.data
+
+#test <- metadata %>% group_by(sample_ID) %>% summarise(doublet_percentage = count(class))
+
+doublet_counts <- metadata %>% count(seurat_clusters, class)
+
+doublet_percentage <- doublet_counts %>% group_by(seurat_clusters) %>% mutate(doublet_percent = n[which(class == "doublet")]/sum(n)*100, total_cells = sum(n))
+
+```
+
+
+
+```{R}
+
+doublet_percentage <- doublet_percentage[doublet_percentage$class == "doublet",]
+
+write.table(doublet_percentage, file = "Files/Doublet_Percentage_Per_Cluster_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+#doublet_percentage[doublet_percentage$]
+
+```
+
+
+```{R}
+
+library(Seurat)
+
+singlet_clusters <- as.numeric(doublet_percentage$seurat_clusters[doublet_percentage$doublet_percent < 60])
+
+singles_Batch7_MTG <- subset(Batch7_MTG, subset = class == "singlet" & seurat_clusters %in% singlet_clusters)
+
+```
+
+
+```{R}
+
+DimPlot(singles_Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+    theme(axis.text = element_text(size=8),
+          axis.title = element_text(size = 12),
+          legend.text = element_text(size = 8),
+          title = element_text(size = 12),
+          legend.key.size = unit(0.4,"cm"))
+
+```
+
+"nFeature_RNA"
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("nCount_RNA"), ncol = 3, split.by = "seurat_clusters")
+
+ncount_per_cluster <- VlnPlot(Batch7_MTG, features = c("nCount_RNA"), split.by = "seurat_clusters")
+
+ggsave(ncount_per_cluster, filename = "Figures/nCount_per_Cluster_ViolinPlot.pdf", device = "pdf", width = 8, height = 6, units = "in")
+```
+
+```{R}
+
+mean_ncounts <- metadata %>% group_by(seurat_clusters) %>% summarise(mean = mean(nCount_RNA), SE = se(nCount_RNA))
+
+median_ncounts <- metadata %>% group_by(seurat_clusters) %>% summarise(median = median(nCount_RNA), SE = se(nCount_RNA))
+
+```
+
+
+
+
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("nFeature_RNA"), ncol = 3, split.by = "seurat_clusters")
+
+nfeature_per_cluster <- VlnPlot(Batch7_MTG, features = c("nFeature_RNA"), split.by = "seurat_clusters")
+
+ggsave(nfeature_per_cluster, filename = "Figures/nFeature_per_Cluster_ViolinPlot.pdf", device = "pdf", width = 8, height = 6, units = "in")
+```
+
+
+#################################################################################
+
+```{R}
+library(scDblFinder)
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(fgsea)
+```
+
+
+```{R}
+Batch7_MTG=readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+```
+
+
+```{R}
+
+C2_Gene_Sets <- gmtPathways("~/Documents/Projects/Database_Cache/GSEA_Analysis_Tables/GMT_Tables/c2.all.v7.4.symbols.gmt")
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+}
+
+```
+
+
+
+```{R}
+
+Ident_Object <- subset(Batch7_MTG, idents = 1)
+Ident_Object <- Ident_Object[apply(Ident_Object@assays$RNA@counts,1,mkfilter) >= 20,]
+Ident_Object@meta.data$DetRate <- as.vector(scale(colSums(Ident_Object@assays$RNA@counts)))
+Idents(Ident_Object) <- "case"
+FilteredGeneCount <- dim(Ident_Object)[1]
+
+```
+
+
+```{R}
+
+IdentObj <- Ident_Object
+IdentObj@meta.data$DetRate <- as.vector(scale(colSums(IdentObj@assays$RNA@counts > 0)))
+
+IdentObj.Markers <- FindMarkers(IdentObj, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate"), logfc.threshold = 0, min.pct = 0)
+
+IdentObj.Markers$gene <- rownames(IdentObj.Markers)
+IdentObj.Avg <- as.data.frame(AverageExpression(IdentObj, verbose = FALSE)$RNA)
+IdentObj.Avg$gene <- rownames(IdentObj.Avg)
+ProgMarkersIdentObj.Avg <- IdentObj.Avg[IdentObj.Avg$gene %in% unique(IdentObj.Markers$gene),]
+
+ProgMarkersIdentObj.Avg <- ProgMarkersIdentObj.Avg[match(IdentObj.Markers$gene,ProgMarkersIdentObj.Avg$gene),]
+generanks <- IdentObj.Markers$avg_log2FC
+names(generanks) <- rownames(IdentObj.Markers)
+generanks <- generanks[order(generanks, decreasing = TRUE)]
+#fgseaRes = fgsea(C2_Gene_Sets, stats=generanks, minSize=10, maxSize=Inf, nPermSimple=10000)
+
+
+fgseaRes = fgsea(C2_Gene_Sets, stats=generanks, minSize=1, maxSize=Inf, nPermSimple=1000)
+```
+
 
 
 

@@ -3,7 +3,7 @@ title: "Using PanglaoDB Markers and Method to Automate Cell Type Assignment"
 output: html_document
 ---
 
-
+```{R}
 library(Seurat)
 library(cowplot)
 library(ggplot2)
@@ -19,6 +19,7 @@ library(GOSemSim)
 library(enrichplot)
 library(glmpca)
 library(SeuratWrappers)
+library(stringr)
 
 SeuratObject=readRDS("Files/GLMPCA_SeuratObject_Unassigned.rds")
 
@@ -61,7 +62,7 @@ GeneWeightsDF <- GeneWeightsDF[GeneWeightsDF$Gene %in% PanglaoDBBrain$official.g
 
 PanglaoDBBrain$GeneWeights <- GeneWeightsDF$Weight[match(PanglaoDBBrain$official.gene.symbol,GeneWeightsDF$Gene)]
 
-PanglaoDBBrain[PanglaoDBBrain$official.gene.symbol == "TH",]
+#PanglaoDBBrain[PanglaoDBBrain$official.gene.symbol == "TH",]
 
 CellTypes <- unique(PanglaoDBBrain$cell.type)
 
@@ -91,4 +92,4 @@ for (i in colnames(ExpVectorPerClusterDF)){
 write.table(as.data.frame(CellClusterAssignment), file = "Files/CellClusterAssignment.tsv", quote = FALSE, row.names = FALSE, col.names = TRUE, sep = "\t")
 
 
-
+```

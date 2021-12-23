@@ -786,10 +786,22 @@ DimPlot(Batch567_MTG, reduction = "umap", split.by = "case",pt.size = 0.1)
 ```{R}
 case_clusters <- paste(Batch567_MTG$case,Batch567_MTG$seurat_clusters,sep = "_")
 
-table(case_clusters)
+cells_per_cluster_table <- as.data.frame(table(Batch567_MTG$seurat_clusters))
 
+colnames(cells_per_cluster_table) <- c("Cluster","Number of Cells")
+
+write.table(cells_per_cluster_table, file = "Files/Cells_Per_Unassigned_Cluster_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
 ```
  
+ 
+```{R}
+samples_per_cluster_table <- group_by(Batch567_MTG@meta.data, seurat_clusters) %>% summarise(Sample_Count = length(unique(sample_ID)))
+
+colnames(samples_per_cluster_table) <- c("Cluster","Number of Samples")
+
+write.table(samples_per_cluster_table, file = "Files/Samples_Per_Unassigned_Cluster_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+```
+
 
 ```{R}
 Batch567_MTG <- RenameIdents(Batch567_MTG, `1` = "Oligodendrocytes", `2` = "GLU_Neurons", `3` = "GLU_Neurons",
