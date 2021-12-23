@@ -20,11 +20,23 @@ library(sciplot)
 
 SeuratObject <- readRDS("/n/scratch3/users/j/jap0606/batch1-22/Batch1-22_MTG_Part1.rds")
 
-SeuratObject <- FindNeighbors(SeuratObject, reduction = "harmony", dims = 1:20)
+SeuratObject <- FindNeighbors(SeuratObject, reduction = "harmony", dims = 1:40)
 SeuratObject <- FindClusters(SeuratObject, resolution = 0.5, algorithm = 4, method = "igraph")
-SeuratObject <- RunUMAP(SeuratObject, reduction = "harmony", dims = 1:20)
+SeuratObject <- RunUMAP(SeuratObject, reduction = "harmony", dims = 1:40)
 
-saveRDS(SeuratObject,"/n/scratch3/users/j/jap0606/batch1-22/Batch1to22_Part2.rds")
+cells_per_cluster_table <- as.data.frame(table(SeuratObject$seurat_clusters))
+
+colnames(cells_per_cluster_table) <- c("Cluster","Number of Cells")
+
+write.table(cells_per_cluster_table, file = "Files/Cells_Per_Unassigned_Cluster_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+samples_per_cluster_table <- group_by(SeuratObject@meta.data, seurat_clusters) %>% summarise(Sample_Count = length(unique(sample_id)))
+
+colnames(samples_per_cluster_table) <- c("Cluster","Number of Samples")
+
+write.table(samples_per_cluster_table, file = "Files/Samples_Per_Unassigned_Cluster_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+saveRDS(SeuratObject,"/n/scratch3/users/j/jap0606/batch1-22/Batch1-22_MTG_Part2.rds")
 
 SeuratObject_UMAP_Clusters <- DimPlot(SeuratObject, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
   theme(axis.text = element_text(size=8),

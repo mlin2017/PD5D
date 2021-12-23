@@ -698,6 +698,35 @@ VlnPlot(Batch567_MTG, features = c("PAFAH1B1"),pt.size = 0)
 ```
 7 - Cajal-retzius cells
 
+
+Neural subtype markers
+
+GABAergic subtypes
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("VIP"),pt.size = 1)
+```
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("IL1RAPL2"),pt.size = 0)
+```
+Il1rapl2
+
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("VIPR2"),pt.size = 0)
+```
+
+```{R}
+VlnPlot(Batch567_MTG, features = c("PVALB"),pt.size = 1)
+```
+GLUtamatergic subtype markers
+
+```{R}
+Nxph4
+VlnPlot(Batch567_MTG, features = c("NXPH4"),pt.size = 1)
+```
+
 ```{R}
 StandardCellMarkerVlnPlot1 <- VlnPlot(Batch567_MTG, features = c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP"),pt.size = 0, ncol = 1)
 

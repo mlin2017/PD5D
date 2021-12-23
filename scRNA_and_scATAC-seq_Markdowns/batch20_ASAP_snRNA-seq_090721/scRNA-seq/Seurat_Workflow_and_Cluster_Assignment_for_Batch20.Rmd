@@ -1,5 +1,5 @@
 ---
-title: "Seurat Workflow and Cluster Assignment for Batch 19"
+title: "Seurat Workflow and Cluster Assignment for Batch 20"
 output: html_document
 ---
 
@@ -107,7 +107,7 @@ table(Batch20_MTG$case)
 ```{r}
 Batch20_MTG[["percent.mt"]] <- PercentageFeatureSet(Batch20_MTG, pattern = "^MT-")
 
-VlnPlot(Batch20_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(Batch20_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, split.by = "case")
 ```
 
  An object of class Seurat 
@@ -129,7 +129,7 @@ threeMAD <- (MAD*3)+median(Batch20_MTG@meta.data$nFeature_RNA)
 
 Filtering low quality cells:
 ```{r}
-Batch20_MTG <- subset(Batch20_MTG, subset = nFeature_RNA > 200 & nFeature_RNA > threeMAD | percent.mt < 5)
+Batch20_MTG <- subset(Batch20_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
 ```
 
 Now let's recheck the cell the counts for each group:
@@ -285,14 +285,14 @@ ElbowPlot(Batch20_MTG, reduction = "harmony")
 
 Finding Clusters of cells:
 ```{r}
-Batch20_MTG <- FindNeighbors(Batch20_MTG, reduction = "harmony", dims = 1:11)
+Batch20_MTG <- FindNeighbors(Batch20_MTG, reduction = "harmony", dims = 1:20)
 Batch20_MTG <- FindClusters(Batch20_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch20_MTG <- RunUMAP(Batch20_MTG, reduction = "harmony", dims = 1:11)
+Batch20_MTG <- RunUMAP(Batch20_MTG, reduction = "harmony", dims = 1:20)
 ```
 
 run tsne based on top 10 harmony axis: 
