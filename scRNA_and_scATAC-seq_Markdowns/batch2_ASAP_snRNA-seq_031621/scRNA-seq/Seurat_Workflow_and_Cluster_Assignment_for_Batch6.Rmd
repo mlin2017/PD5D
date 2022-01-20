@@ -21,7 +21,18 @@ library(glmpca)
 library(SeuratWrappers)
 ```
 
+```{R}
 
+#Batch2.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices_old/filtered_feature_bc_matrix")
+
+```
+
+
+```{R}
+
+#dim(Batch2.data)
+
+```
 
 Loading in the single cell data
 

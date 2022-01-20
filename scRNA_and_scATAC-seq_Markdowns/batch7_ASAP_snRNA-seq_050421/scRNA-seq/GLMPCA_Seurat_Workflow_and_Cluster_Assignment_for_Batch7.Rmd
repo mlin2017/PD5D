@@ -26,7 +26,7 @@ library(SeuratWrappers)
 Loading in the single cell data
 
 ```{r}
-Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices_old/filtered_feature_bc_matrix")
 ```
 
 

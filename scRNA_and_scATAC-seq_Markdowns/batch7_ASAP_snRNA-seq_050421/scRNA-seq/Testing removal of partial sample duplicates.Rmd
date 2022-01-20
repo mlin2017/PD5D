@@ -1,0 +1,89 @@
+---
+title: "Testing removal of partial sample duplicates"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+
+Loading in the single cell data
+
+```{r}
+Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+```
+
+
+
+
+
+
+checking dimensions to check all samples have the same set of genes
+
+```{r}
+dim(Batch7.data)
+
+
+```
+
+
+```{r}
+Batch7_MTG <- CreateSeuratObject(counts = cbind(Batch7.data),
+                            project = "Batch7_MTG",
+                            min.cells = 3)
+```
+
+
+```{R}
+samples <- read.csv(file.path("Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+
+cellcodes <- as.data.frame(Batch7_MTG@assays$RNA@data@Dimnames[[2]])
+colnames(cellcodes) <- "barcodes"
+rownames(cellcodes) <- cellcodes$barcodes
+
+cellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", cellcodes$barcodes))
+cellcodes$samples <- as.vector(samples$library_id[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$sample_ID <- cellcodes$samples
+
+
+
+```
+
+
+```{R}
+samples$case <- c("HC","HC","PD","PD")
+
+cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$case <- cellcodes$case
+
+```
+
+
+
+
+Now let's see the cell the counts for each group:
+```{r}
+table(Batch7_MTG$sample_ID)
+```
+
+```{R}
+table(Batch7_MTG$case)
+```
