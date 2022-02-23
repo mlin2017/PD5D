@@ -1,6 +1,8 @@
 #Workflow up to elbow plot to determine cutoff, and saving intermediate seurat
 #object as .rds file in /n/scratch3/users/j/jap0606/batch1to8
 
+set.seed(100)
+
 library(Seurat)
 library(cowplot)
 library(ggplot2)
@@ -20,7 +22,7 @@ library(sciplot)
 
 Batch1to8_MTG <- readRDS("/n/scratch3/users/j/jap0606/batch1to8/Batch1to8_MTG_Part2.rds")
 
-Batch1to8_MTG <- RenameIdents(Batch1to8_MTG, `1` = "GLU_Neurons", `2` = "GLU_Neurons", `3` = "Oligodendrocytes", `4` = "GLU_Neurons", `5` = "Astrocytes", `6` = "GLU_Neurons", `7` = "GLU_Neurons", `8` = "GABA_Neurons",`9` = "GABA_Neurons",`10` = "GLU_Neurons", `11` = "Microglia",`12` = "GABA_Neurons",`13` = "Unknown_Cluster_13",`14` = "OPCs",`15` = "GLU_Neurons", `16`= "Cajal_Retzius_Cells", `17`="GLU_GABA_Neurons", `18`="GABA_Neurons", `19`="GABA_Neurons",  `20`="Endothelial", `21` = "Endothelial", `22` = "Unknown_Cluster_22", `23` = "GLU_Neurons", `24` = "GLU_Neurons", `25` = "GLU_Neurons", `26` = "GLU_Neurons",`27` = "GABA_Neurons",`28` = "Unknown_Cluster_28",`29` = "CD8+_T_Cells",`30` = "Unknown_Cluster_30")
+Batch1to8_MTG <- RenameIdents(Batch1to8_MTG, `1` = "GLU_Neurons_1", `2` = "Oligodendrocytes", `3` = "GLU_Neurons_2", `4` = "GLU_Neurons_3", `5` = "Astrocytes", `6` = "GABA_Neurons_1", `7` = "GLU_Neurons_4", `8` = "GLU_Neurons_5",`9` = "GABA_Neurons_2",`10` = "Microglia", `11` = "GLU_Neurons_6",`12` = "GLU_Neurons_7",`13` = "GABA_Neurons_3",`14` = "OPCs",`15` = "GLU_Neurons_8", `16`= "GLU_Neurons_9", `17`="GABA_Neurons_4", `18`="GABA_Neurons_5", `19`="Endothelial_Cells_1",  `20`="Endothelial_Cells_2", `21` = "GLU_Neurons_10", `22` = "GLU_Neurons_11", `23` = "GLU_Neurons_12", `24` = "GLU_Neurons_13", `25` = "GLU_Neurons_14", `26` = "GABA_Neurons_6",`27` = "Cajal_Retzius_Cells",`28` = "GLU_Neurons_15",`29` = "Unknown_Cluster_29",`30` = "Unknown_Cluster_30")
                    
 
 Batch1to8_MTG_UMAP_Clusters <- DimPlot(Batch1to8_MTG, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
@@ -59,6 +61,6 @@ ggsave(Batch1to8_MTG_Region_Split_UMAP_Clusters, filename = paste("Figures/Assig
 
 ggsave(Batch1to8_MTG_UMAP_Clusters, filename = paste("Figures/Assigned_",Batch1to8_MTG@project.name,"_MTG_UMAP_Clusters.pdf",sep=""), device = "pdf", width = 6, height = 4, units = "in")
 
-
+saveRDS(Batch1to8_MTG,"/n/scratch3/users/j/jap0606/batch1to8/Batch1to8_MTG_ClustersAssigned.rds")
 
 

@@ -1,6 +1,8 @@
 #Workflow up to elbow plot to determine cutoff, and saving intermediate seurat
 #object as .rds file in /n/scratch3/users/j/jap0606/batch1to8
 
+#set.seed(100)
+
 library(Seurat)
 library(cowplot)
 library(ggplot2)

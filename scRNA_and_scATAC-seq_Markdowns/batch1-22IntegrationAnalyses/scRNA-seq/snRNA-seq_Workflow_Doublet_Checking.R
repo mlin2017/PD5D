@@ -1,3 +1,5 @@
+set.seed(100)
+
 library(Seurat)
 library(cowplot)
 library(ggplot2)
