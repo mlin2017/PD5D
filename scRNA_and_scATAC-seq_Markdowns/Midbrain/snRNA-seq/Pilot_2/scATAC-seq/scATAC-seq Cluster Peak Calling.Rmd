@@ -1,0 +1,119 @@
+---
+title: "scATAC-seq Cluster Peak Calling"
+output: html_document
+---
+
+```{R}
+ATAC_all_peaks <- read.delim("Files/ATAC_peaks_all.bed", sep = "\t", header = FALSE)
+
+colnames(ATAC_all_peaks) <- c("chromosome","start","end","clusters")
+```
+
+
+
+```{R}
+Astrocyte_Peaks <- read.delim("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scATAC-seq/Files/macs2/Astrocytes_peaks.narrowPeak", stringsAsFactors = FALSE, sep = "\t", header = FALSE)
+
+colnames(Astrocyte_Peaks) <- c("chromosome","start","end","peak_name","score","strand","fold_change","minus_log10_pvalue","minus_log10_qvalue","summit_dist_from_start")
+```
+
+Exploring how to get qvalues from the .narrowpeak file. The MACS2 documentation states that the 9th column is the -log10qvalue at peak summit (e.g. pvalue = 1e-10, then this value should be 10). (although in other places the value in the table is described as -log10qvalue * 10 - however, I have checked my version of MACS2 and the version listed in the documentation and they are the same, indicating that this is the current layout and perhaps the -log10qvalue * 10 calculation comes from an earlier version of MACS2)
+
+```{R}
+
+-log10(1e-10)
+
+10^(-(10))
+
+head(Astrocyte_Peaks$minus_log10_qvalue)
+
+10^(-(13.76852))
+
+10^(-(13.76852/10))
+
+-log10(0.04199021)*10
+
+```
+
+
+```{R}
+Astrocyte_Peaks$qvalue <- 10^(-(Astrocyte_Peaks$minus_log10_qvalue))
+
+Astrocyte_Peaks <- Astrocyte_Peaks[Astrocyte_Peaks$qvalue < 0.05,]
+```
+
+
+```{R}
+write.table(Astrocyte_Peaks,file="Files/processed_macs2_files/Batch4_ATAC_Astrocyte.narrowpeaks.bed",sep = "\t",row.names = FALSE, quote = FALSE)
+```
+
+
+
+```{R}
+Microglia_Peaks <- read.delim("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scATAC-seq/Files/macs2/Microglia_peaks.narrowPeak", stringsAsFactors = FALSE, sep = "\t", header = FALSE)
+
+colnames(Microglia_Peaks) <- c("chromosome","start","end","peak_name","score","strand","fold_change","minus_log10_pvalue","minus_log10_qvalue","summit_dist_from_start")
+```
+
+```{R}
+Microglia_Peaks$qvalue <- 10^(-(Microglia_Peaks$minus_log10_qvalue))
+
+Microglia_Peaks <- Microglia_Peaks[Microglia_Peaks$qvalue < 0.05,]
+```
+
+
+```{R}
+write.table(Microglia_Peaks,file="Files/processed_macs2_files/Batch4_ATAC_Microglia_Peaks.narrowpeaks.bed",sep = "\t",row.names = FALSE, quote = FALSE)
+
+```
+
+
+```{R}
+Oligodendrocyte_Peaks <- read.delim("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scATAC-seq/Files/macs2/Oligodendrocytes_peaks.narrowPeak", stringsAsFactors = FALSE, sep = "\t", header = FALSE)
+
+colnames(Oligodendrocyte_Peaks) <- c("chromosome","start","end","peak_name","score","strand","fold_change","minus_log10_pvalue","minus_log10_qvalue","summit_dist_from_start")
+```
+
+```{R}
+Oligodendrocyte_Peaks$qvalue <- 10^(-(Oligodendrocyte_Peaks$minus_log10_qvalue))
+
+Oligodendrocyte_Peaks <- Oligodendrocyte_Peaks[Oligodendrocyte_Peaks$qvalue < 0.05,]
+```
+
+
+```{R}
+write.table(Oligodendrocyte_Peaks,file="Files/processed_macs2_files/Batch4_ATAC_Oligodendrocyte_Peaks.narrowpeaks.bed",sep = "\t",row.names = FALSE, quote = FALSE)
+
+```
+
+
+```{R}
+Neuron_Peaks <- read.delim("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch4/scATAC-seq/Files/macs2/Neurons_peaks.narrowPeak", stringsAsFactors = FALSE, sep = "\t", header = FALSE)
+
+colnames(Neuron_Peaks) <- c("chromosome","start","end","peak_name","score","strand","fold_change","minus_log10_pvalue","minus_log10_qvalue","summit_dist_from_start")
+```
+
+```{R}
+Neuron_Peaks$qvalue <- 10^(-(Neuron_Peaks$minus_log10_qvalue))
+
+Neuron_Peaks <- Neuron_Peaks[Neuron_Peaks$qvalue < 0.05,]
+```
+
+
+```{R}
+
+write.table(Neuron_Peaks,file="Files/processed_macs2_files/Batch4_ATAC_Neuron_Peaks.narrowpeaks.bed",sep = "\t",row.names = FALSE, quote = FALSE)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

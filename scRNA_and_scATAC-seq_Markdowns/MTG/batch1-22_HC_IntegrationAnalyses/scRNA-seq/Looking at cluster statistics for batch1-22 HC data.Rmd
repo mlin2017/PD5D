@@ -1,0 +1,48 @@
+---
+title: "Looking at cluster statistics for batch1-22 HC data"
+output: html_document
+---
+
+
+```{R}
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(stringr)
+
+Cells_Per_Unassigned_Cluster_Table <- read.delim("Files/Cells_Per_Unassigned_Cluster_Table.tsv")
+
+Samples_Per_Unassigned_Cluster_Table <- read.delim("Files/Samples_Per_Unassigned_Cluster_Table.tsv")
+
+```
+
+
+
+```{R}
+
+ggplot(Cells_Per_Unassigned_Cluster_Table, aes(y=Number.of.Cells, x=Cluster)) + 
+    geom_bar(stat="identity") +
+  ylab("Cell Number") +
+  xlab("Cluster") +
+  scale_fill_discrete(name = "Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
+  scale_x_continuous(breaks = 1:length(Cells_Per_Unassigned_Cluster_Table$Number.of.Cells))
+
+```
+
+
+```{R}
+
+Cells_Per_Unassigned_Cluster_Plot <- ggplot(Cells_Per_Unassigned_Cluster_Table, aes(y=Number.of.Cells, x=Cluster)) + 
+    geom_bar(stat="identity") +
+  ylab("Cell Number") +
+  xlab("Cluster") +
+  scale_fill_discrete(name = "Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
+  scale_x_continuous(breaks = 1:length(Cells_Per_Unassigned_Cluster_Table$Number.of.Cells))
+
+ggsave(Cells_Per_Unassigned_Cluster_Plot, filename = "Figures_30PC/Cells_Per_Unassigned_Cluster_Plot.pdf", device = "pdf", width = 8, height = 8, units = "in")
+
+```
+
+

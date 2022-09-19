@@ -1,0 +1,344 @@
+---
+title: "Characterising Novel Clusters 14 and 16 by Differential Expression Analyses"
+output: html_document
+---
+
+In this markdown we attempt to characterise novel clusters 14 and 16 by looking at genes that are differentially upregulated in these clusters relative to all the other clusters and visualising the results using violin plots
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(MAST)
+```
+
+
+```{R}
+AllMB <- readRDS("Files/AllMB_Assigned.rds")
+```
+
+
+```{R}
+
+NC14vsALLGenes <- FindMarkers(AllMB, ident.1 = "novel_Cluster14", test.use = "MAST")
+
+
+NC14vsALLGenesPvalFilter <- NC14vsALLGenes[NC14vsALLGenes$p_val_adj <= 0.05,]
+
+NC14vsALLGenesPvalFilterGenes <- rownames(NC14vsALLGenesPvalFilter)
+```
+
+```{R}
+head(NC14vsALLGenesPvalFilter,50)
+```
+
+This list of markers of cluster 14 contains some markers of neural stem cells/genes linked to development (ZIC1, BICC1 - embryonic development, FLRT2 - neural and embryonic development,NTRK3 - neural cell differentiation, TBX18 - embryonic development, FOXP1) and a few structural proteins (LAMA2, LAMB1, LAMB2, LAMA4, FBLN, SVIL, COL1A2, COL6A3, PRELP, NID1 - involved in cell interactions with the basement membranes)
+
+The list contains a number of complement proteins
+
+A fair few genes were also noted to be differentially expressed in cancer
+
+Checking a selection of DE and non-DE markers through violin plots
+
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("SOX9"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("CTNNB1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+```{R}
+
+VlnPlot(AllMB, features = c("SLC6A3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+
+VlnPlot(AllMB, features = c("SLC6A20"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("CEMIP"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+Vimentin is a marker of neural stem cells, but also a marker of radial glia
+
+```{R}
+
+VlnPlot(AllMB, features = c("VIM"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("CCDC153"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+
+VlnPlot(AllMB, features = c("CDH2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+Looking at cluster 16
+
+
+```{R}
+
+NC16vsALLGenes <- FindMarkers(AllMB, ident.1 = "novel_Cluster16", test.use = "MAST")
+
+
+NC16vsALLGenesPvalFilter <- NC16vsALLGenes[NC16vsALLGenes$p_val_adj <= 0.05,]
+
+
+NC16vsALLGenesPvalFilterGenes <- rownames(NC16vsALLGenesPvalFilter)
+```
+
+```{R}
+head(NC16vsALLGenesPvalFilter,50)
+```
+A fair few calcium binding/associated proteins (CADPS2, FSTL5, CDH18, CAMK4, CACNA1A) and genes that regulate exocytosis/neurotransmitter uptake/receptors/release (SH3GL2, UNC13C, SNAP25 - regulates neurotransmitter release, GRIK2 - glutamate ionotropic receptor, GABRB2 - GABA receptor component, STXBP5L - inhibits exocytosis and negatively regulates the secretion of insulin, PCLO - scaffold protein that regulated synaptic vesicle cluster organisation, PATJ - facilitates localisation of proteins to the cell membrane, KCND2 - potassium channel, ). 
+
+cell positioning/neural migration  - RELN
+
+microtubule function - RELN, MTCL1, 
+
+cerebellar development??? - FAT2,
+
+lots of genes were linked to cerebellar pathology.....CDR1-AS,
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("FAT2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+
+VlnPlot(AllMB, features = c("FAT2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+
+VlnPlot(AllMB, features = c("STXBP5L"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("GABRB2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+
+VlnPlot(AllMB, features = c("PNMT"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+
+VlnPlot(AllMB, features = c("SPHKAP"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("SRRM4"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("RIMS1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+```{R}
+
+VlnPlot(AllMB, features = c("TIAM1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+Glutamate receptor
+
+```{R}
+
+VlnPlot(AllMB, features = c("GRM4"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+marker of mature neurons
+
+```{R}
+
+VlnPlot(AllMB, features = c("RBFOX3"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+```{R}
+
+VlnPlot(AllMB, features = c("FGF13"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+Acetylcholine receptor
+
+```{R}
+
+VlnPlot(AllMB, features = c("GAD2"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+Acetylcholinesterase
+
+```{R}
+
+VlnPlot(AllMB, features = c("ACHE"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+
+NC16vsALLGenesZeroMinPCT <- FindMarkers(AllMB, ident.1 = "novel_Cluster16", test.use = "MAST", min.pct = 0)
+
+
+NC16vsALLGenesZeroMinPCTPvalFilter <- NC16vsALLGenesZeroMinPCT[NC16vsALLGenesZeroMinPCT$p_val_adj <= 0.05,]
+
+
+NC16vsALLGenesZeroMinPCTPvalFilterGenes <- rownames(NC16vsALLGenesZeroMinPCTPvalFilter)
+```
+
+
+
+
+
+
+
+
+

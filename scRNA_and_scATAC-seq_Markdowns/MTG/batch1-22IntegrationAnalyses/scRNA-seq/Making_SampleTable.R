@@ -1,0 +1,27 @@
+set.seed(100)
+
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(fgsea)
+library(SeuratWrappers)
+library(purrr)
+
+SeuratObject <- readRDS("/n/scratch3/users/j/jap0606/batch1-22/Batch1-22_MTG_Part2.rds")
+
+SampleID_Table <- as.data.frame(unique(SeuratObject@meta.data$sample_ID))
+
+write.table(SampleID_Table, file = paste("Files/SampleID_Table.tsv",sep = ""), quote = FALSE, col.names = TRUE, row.names = FALSE, sep = "\t")

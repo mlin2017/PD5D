@@ -1,0 +1,291 @@
+---
+title: "Assessing Expression of Specialised Treg Markers in T Cell Cluster"
+output: html_document
+---
+
+
+In this markdown we investigate the expression of a host of immune cell markers (suggested by Dan Hu) that characterize a specialised class of Treg cells (see papers "A clonal model for human CD81 regulatory T cells: Unrestricted contact-dependent killing of activated CD41 T cells" and "Identification of Cytolytic CD1612CD56+ Regulatory CD8 T Cells in Human Peripheral Blood")
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+
+```
+
+```{R}
+AllMB <- readRDS("Files/AllMB_Assigned.rds")
+
+```
+
+Making violin plots of previously analysed immune cell markers
+
+```{r}
+VlnPlot(AllMB, features = c("CD96"),pt.size = 0)
+```
+
+NK Cell Markers
+
+```{r}
+VlnPlot(AllMB, features = c("IL7R"),pt.size = 0)
+```
+
+
+CD16
+
+```{r}
+VlnPlot(AllMB, features = c("FCGR3A"),pt.size = 0)
+```
+
+CD56
+
+```{r}
+VlnPlot(AllMB, features = c("NCAM1"),pt.size = 0)
+```
+
+CD94
+
+
+```{r}
+VlnPlot(AllMB, features = c("KLRD1"),pt.size = 0)
+```
+
+CD69
+
+```{r}
+VlnPlot(AllMB, features = c("CD69"),pt.size = 0)
+```
+
+NKG2A
+
+```{r}
+VlnPlot(AllMB, features = c("KLRC1"),pt.size = 0)
+```
+```{r}
+VlnPlot(AllMB, features = c("IL2RA"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(AllMB, features = c("CXCR4"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(AllMB, features = c("CD244"),pt.size = 0)
+```
+
+resting T cell marker?
+
+```{r}
+VlnPlot(AllMB, features = c("CD226"),pt.size = 0)
+```
+CD94
+
+```{r}
+VlnPlot(AllMB, features = c("KLRD1"),pt.size = 0)
+```
+
+
+```{r}
+VlnPlot(AllMB, features = c("CD8A"),pt.size = 0)
+```
+
+CD62L
+
+```{r}
+VlnPlot(AllMB, features = c("SELL"),pt.size = 0)
+```
+```{r}
+VlnPlot(AllMB, features = c("FAS"),pt.size = 0)
+```
+
+```{R}
+TKillerCellMarkerVlnPlot <- VlnPlot(AllMB, features = c("CD8A","CD226","CD244","CD96","IL7R","KLRD1","NCAM1","FCGR3A","KLRC1"),pt.size = 0, ncol = 1) 
+
+ggsave(TKillerCellMarkerVlnPlot,filename = "Figures/TKillerCellMarkerVlnPlot.pdf", width = 20, height = 20)            
+
+
+```
+
+Making violin plots of the suggested genes
+
+```{R}
+VlnPlot(AllMB, features = c("CD3G"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+VlnPlot(AllMB, features = c("CD8B"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+CD161
+
+```{R}
+VlnPlot(AllMB, features = c("KLRB1"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+VlnPlot(AllMB, features = c("CCR7"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+```{R}
+VlnPlot(AllMB, features = c("CD28"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+VlnPlot(AllMB, features = c("CD27"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+CD45
+
+```{R}
+VlnPlot(AllMB, features = c("PTPRC"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+Now let's take stock. One of the paper's listed above says "CD8+ Treg clones expressed CD3 and a variety of TCR Vb chains as well as CD56, CD69, CD62L and CD95 but did not express CD16, CD161, CXCR4 and CCR7" Additionally, the other paper states "The majority of CD8 Treg express CD45RA and CD62L with low or negative expression of CD45RO, CD25, CD27, CD28 and CCR7. The expression of CD94 and NKG2a on CD8 Treg was elevated compared to conventional CD8 T cells"
+
+Let's write out the positive and negative markers and whether they are expressed in our cluster:
+
+Positive markers/expressed by CD8+ Tregs
+CD3 - negative
+CD56 - positive
+CD69 - negative
+CD62L - negative
+CD95 - negative
+CD45A - undetermined
+CD94 - positive
+NKG2a - negative
+
+Negative markers/not expressed by CD8+ Tregs
+CD16 - negative
+CD161 - negative
+CXCR4 - positive
+CCR7 - negative
+CD45RO - undetermined
+CD25 - negative
+CD27 - negative
+CD28 - negative
+
+status of other markers in our T cell cluster:
+CD8A - positive
+CD8B - negative
+CD96 - positive
+IL7R/CD127 - positive
+
+
+Now we assess how many cells are assigned to the T cell cluster across our 8 samples
+
+
+```{R}
+table(Idents(AllMB))
+```
+
+
+```{R}
+prop.table(table(Idents(AllMB)))
+```
+
+Finding the average and range for number of unique genes detected per cell
+
+```{R}
+range(AllMB$nFeature_RNA)
+```
+
+
+```{R}
+mean(AllMB$nFeature_RNA)
+```
+
+The total cell number across our 8 samples is 15038
+
+
+Looking at additional markers suggested by Dan
+
+
+```{R}
+VlnPlot(AllMB, features = c("CD3D"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+VlnPlot(AllMB, features = c("CD3E"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+```{R}
+VlnPlot(AllMB, features = c("CD3G"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+T cell receptor alpha chain
+
+```{R}
+VlnPlot(AllMB, features = c("TRAC"),pt.size = 0) +
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+```
+
+
+
+
+
+
+

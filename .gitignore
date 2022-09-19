@@ -3,8 +3,11 @@
 .RData
 .Ruserdata
 .DS_Store
+slurm*
+core*
 scRNA_and_scATAC-seq_Markdowns/**/scRNA-seq/**/
 scRNA_and_scATAC-seq_Markdowns/**/scATAC-seq/**/
+scRNA_and_scATAC-seq_Markdowns/**/scRNA-seq/*.pdf
 
 
 
