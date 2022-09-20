@@ -1,0 +1,1358 @@
+---
+title: "Seurat Workflow and Cluster Assignment for Batch 7"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+
+Loading in the single cell data
+
+```{r}
+Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+```
+
+
+
+
+
+
+checking dimensions to check all samples have the same set of genes
+
+```{r}
+
+dim(Batch7.data)
+
+```
+
+
+```{r}
+Batch7_MTG <- CreateSeuratObject(counts = cbind(Batch7.data),
+                            project = "Batch7_MTG",
+                            min.cells = 3)
+```
+
+
+```{R}
+samples <- read.csv(file.path("Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+
+cellcodes <- as.data.frame(Batch7_MTG@assays$RNA@data@Dimnames[[2]])
+colnames(cellcodes) <- "barcodes"
+rownames(cellcodes) <- cellcodes$barcodes
+
+cellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", cellcodes$barcodes))
+cellcodes$samples <- as.vector(samples$library_id[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$sample_ID <- cellcodes$samples
+
+
+
+```
+
+
+```{R}
+
+cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$case <- cellcodes$case
+
+```
+
+
+
+
+Now let's see the cell the counts for each group:
+```{r}
+table(Batch7_MTG$sample_ID)
+```
+
+```{R}
+table(Batch7_MTG$case)
+```
+
+
+ Quality Checking : 
+
+ Seurat allows you to easily explore QC metrics and filter cells based on any user-defined criteria.
+ A few QC metrics commonly used by the community include : 
+ The number of unique genes detected in each cell.
+ Low-quality cells or empty droplets will often have very few genes
+ Cell doublets or multiplets may exhibit an aberrantly high gene count
+ Similarly, the total number of molecules detected within a cell (correlates strongly with unique genes)
+ The percentage of reads that map to the mitochondrial genome
+ Low-quality / dying cells often exhibit extensive mitochondrial contamination
+ We calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
+ We use the set of all genes starting with MT- as a set of mitochondrial genes
+
+```{r}
+Batch7_MTG[["percent.mt"]] <- PercentageFeatureSet(Batch7_MTG, pattern = "^MT-")
+
+VlnPlot(Batch7_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+
+
+average nfeature_RNA
+
+#Deprecated - use per sample filtering method
+
+```{R}
+library(stats)
+nfeature_RNA <- Batch7_MTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch7_MTG@meta.data$nFeature_RNA)
+
+```
+
+#Testing out per sample filtering
+
+```{R}
+
+library(stats)
+
+#metadata <- as.data.frame(Batch7_MTG@meta.data)
+#metadata$cell_barcode <- rownames(metadata)
+#metadata$nFeature_RNA <- as.numeric(metadata$nFeature_RNA)
+#test <- group_by(.data = metadata, sample_ID) %>% mutate(upperlimit = (median(nFeature_RNA) + (mad(nFeature_RNA, center = #median(nFeature_RNA))*3)))
+
+#Filtered_Metadata <- group_by(.data = test, sample_ID) %>% filter(nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing2 = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 2)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing2 = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+```
+
+Filtering low quality cells
+
+```{R}
+#Batch7_MTG@meta.data$cell_barcode <- rownames(Batch7_MTG@meta.data)
+
+#Batch7_MTG <- subset(Batch7_MTG, subset = cell_barcode %in% Filtered_Metadata$cell_barcode)
+
+```
+
+#Filtering low quality cells: 
+```{r}
+Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
+```
+
+Now let's recheck the cell the counts for each group:
+```{r}
+table(Batch7_MTG$sample_ID)
+```
+
+```{R}
+table(Batch7_MTG$case)
+```
+
+
+Log Normalizing data: 
+```{r}
+Batch7_MTG <- NormalizeData(Batch7_MTG, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+
+Finding and plotting 2000 most variable features
+
+```{R}
+Batch7_MTG <- FindVariableFeatures(Batch7_MTG, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(Batch7_MTG), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(Batch7_MTG)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+```
+
+```{R}
+plot1
+```
+
+```{R}
+plot2
+```
+
+Run the standard workflow for visualization and clustering :
+
+save list of all genes
+```{r}
+all.genes <- rownames(Batch7_MTG)
+```
+
+center and scale data
+```{r}
+Batch7_MTG <- ScaleData(Batch7_MTG, features = all.genes, verbose = FALSE)
+```
+
+Determining "Dimensionality" of the dataset
+
+
+
+
+
+finding the top 30 principal components for cells
+```{r}
+Batch7_MTG <- RunGLMPCA(Batch7_MTG, features=Batch7_MTG@assays$RNA@var.features, L = 30)
+```
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(Batch7_MTG, dims = 1:2, reduction = "glmpca")
+```
+
+
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = Batch7_MTG, reduction = "glmpca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = Batch7_MTG, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+
+```{R}
+
+head(Batch7_MTG@reductions$glmpca@cell.embeddings)
+
+```
+
+
+
+```{R}
+
+head(Batch7_MTG@reductions$glmpca@cell.embeddings)
+
+```
+
+Run Harmony
+```{r}
+
+Batch7_MTG <- RunHarmony(Batch7_MTG, group.by.vars = "case", reduction = "glmpca", plot_convergence = TRUE)
+
+```
+
+
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(Batch7_MTG, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+```{r}
+DimPlot(object = Batch7_MTG, reduction = "harmony", pt.size = .1, group.by = "case")
+```
+cells in harmony 1 axis
+```{r}
+VlnPlot(object = Batch7_MTG, features = "harmony_1", group.by = "case",  pt.size = .1)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+ 2 dimensional reductions calculated: pca, harmony
+
+Determing the dimensionality of the dataset
+
+```{R}
+#Batch7_MTG <- JackStraw(Batch7_MTG, num.replicate = 100)
+#Batch7_MTG <- ScoreJackStraw(Batch7_MTG, dims = 1:12)
+#JackStrawPlot(Batch7_MTG, dims = 1:20)
+
+
+
+```
+
+```{R}
+ElbowPlot(Batch7_MTG, reduction = "harmony", ndims = 30)
+
+```
+
+```{R}
+ElbowPlot(Batch7_MTG, reduction = "glmpca")
+
+```
+
+10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
+
+Finding Clusters of cells:
+```{r}
+Batch7_MTG <- FindNeighbors(Batch7_MTG, reduction = "harmony", dims = 1:20)
+Batch7_MTG <- FindClusters(Batch7_MTG, resolution = 0.5, algorithm = 4)
+```
+
+run Umap based on top 10 harmony axis: 
+
+```{r}
+Batch7_MTG <- RunUMAP(Batch7_MTG, reduction = "harmony", dims = 1:20)
+```
+
+run tsne based on top 10 harmony axis: 
+
+```{r}
+#Batch7_MTG <- RunTSNE(Batch7_MTG, reduction = "harmony", dims = 1:17)
+```
+
+plot umap:
+
+```{r}
+DimPlot(Batch7_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
+```
+
+```{r}
+DimPlot(Batch7_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
+```
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+DimPlot(Batch7_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
+```
+
+```{r}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_Leiden_UMAPclusters_scRNA_seq_Batch7_MTG_2.pdf", device = "pdf", width = 6, height = 6, units = "in")
+```
+
+
+```{R}
+UMAPclusters <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, split.by = "case") + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_Split_GLMPCA_UMAPclusters_scRNA_seq_Batch7_MTG.pdf", device = "pdf", width = 12, height = 4, units = "in")
+```
+
+
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+#Batch7_MTG_Case_tsne <- DimPlot(Batch7_MTG, reduction = "tsne", split.by = "case", label = TRUE, ncol = 1) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+#ggsave(Batch7_MTG_Case_tsne, filename = "Figures/Batch7_MTG_Case_tsne.pdf", device = "pdf", width = 6, height = 8, units = "in")
+```
+
+Find markers for every cluster compared to all remaining cells, report only the positive ones
+```{r}
+Batch7_MTG.markers <- FindAllMarkers(Batch7_MTG, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
+
+Save single-cell elements. 
+```{r}
+#saveRDS(AllMB,"AllMB.rds")
+```
+
+```{r}
+#AllMB=readRDS("AllMB.rds")
+```
+
+```{r}
+#saveRDS(AllMB.markers,"AllMB.markers.rds")
+```
+
+```{r}
+#AllMB.markers=readRDS("AllMB.markers.rds")
+#write.csv(AllMB.markers,"AllMB_markers.csv")
+```
+
+```{r}
+unique(Batch7_MTG.markers$cluster)
+```
+
+Top marker genes for each clusters: 
+```{r}
+Batch7_MTG.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+write.table(Batch7_MTG.markers, file = "Files/AllMarkers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+top10Markers <- Batch7_MTG.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+write.table(top10Markers, file = "Files/top10Markers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+```
+
+Heatmap for some marker genes: 
+```{r}
+features <- unique(top10Markers$gene)
+DoHeatmap(Batch7_MTG, features = features, size = 2, draw.lines = FALSE, angle = 45,
+          hjust = 0.2) + theme(axis.text.y = element_text(size = 5))
+```
+#ignore actual genes, this is just a reminder of what a FeaturePlot is 
+
+Plot these genes in the cluster plot:
+```{r}
+FeaturePlot(Batch7_MTG, features = c("ENO2", "RBFOX3","SLC17A6", "SLC17A7","AQP4", "GFAP"))
+```
+
+```{r}
+saveRDS(Batch7_MTG,"Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+```
+
+
+ 
+#########################################################
+ 
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+```
+ 
+ 
+ 
+ 
+```{R}
+
+Batch7_MTG=readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+Batch7_MTG_counts_matrix <- Batch7_MTG@assays$RNA@counts
+
+saveRDS(Batch7_MTG_counts_matrix, "Files/GLMPCA_Batch7_MTG_Unassigned_counts_matrix.rds")
+
+```
+
+
+
+
+```{R}
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+}
+
+#Ident_Object <- subset(Batch7_MTG, idents = 1)
+
+Ident_Object <- Ident_Object[apply(Ident_Object@assays$RNA@counts,1,mkfilter) >= 20,]
+
+DetRate <- as.vector(scale(colSums(Batch7_MTG@assays$RNA@counts > 0)))
+
+```
+ 
+Testing T-cell/immune cell markers
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("SH3GL2"), pt.size = 0)
+```
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("CD4"),pt.size = 0)
+```
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("CD96"),pt.size = 0)
+```
+NK Cell Markers
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("IL7R"),pt.size = 0)
+```
+
+
+CD16
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("FCGR3A"),pt.size = 0)
+```
+
+CD56
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("NCAM1"),pt.size = 0)
+```
+
+CD94
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("KLRD1"),pt.size = 0)
+```
+NKG2A
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("KLRC1"),pt.size = 0)
+```
+```{r}
+VlnPlot(Batch7_MTG, features = c("CD244"),pt.size = 0)
+```
+
+resting T cell marker?
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("CD8A"),pt.size = 1)
+```
+
+```{r}
+TKillerCellMarkerVlnPlot <- VlnPlot(AllMB, features = c("CD8A","CD226","CD244","CD96","IL7R","KLRD1","NCAM1","FCGR3A","KLRC1"),pt.size = 0, ncol = 1) 
+
+ggsave(TKillerCellMarkerVlnPlot,filename = "TKillerCellMarkerVlnPlot.pdf", width = 20, height = 20)            
+
+
+```
+
+
+##################################################################
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("NEUROD1"),pt.size = 1)
+```
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("DCX"),pt.size = 1)
+```
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("SOX2"),pt.size = 1)
+```
+```{r}
+VlnPlot(Batch7_MTG, features = c("NES"),pt.size = 1)
+```
+```{r}
+VlnPlot(Batch7_MTG, features = c("TUBB3"),pt.size = 1)
+```
+
+##################################################################
+
+T lymphocyte markers
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("CD69"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("TFRC"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("IL2RA"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("CTLA4"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("FOXP3"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("TRAC"),pt.size = 0)
+```
+
+
+###################################################################
+
+ Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6, SLC17A7
+ GABAergic neurons = SLC32A1, GAD1, GAD2
+ Dopaminergic neurons = TH, SLC6A3, SCL18A2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+ 
+
+ Glu_Neurons = 1,3,(10),17
+ GABA_Neurons = 6,7,16
+ Astrocytes = 4,18
+ oligo = 0,2
+ OPCs= 4,9
+ Microglia = 8
+ Endothelial = 15
+ overlapping = 4
+ novel = 5,11,12,13,14 - all likely neurons
+
+Find cell-types by plotting marker genes.
+
+Neuron Markers
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("ENO2"),pt.size = 0)
+```
+Neurons: 0,1,2,3,5,6,7,8,9,10,13,15,16,18
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("RBFOX3"),pt.size = 0)
+```
+
+Glutamatergic neuron markers
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("SLC17A6"),pt.size = 1)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("SLC17A7"),pt.size = 0)
+```
+1,2,3,5,7,8,10,14,15,18,20,21 - Glu?
+
+GABAergic markers
+
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("SLC32A1"),pt.size = 1)
+```
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("GAD1"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("GAD2"),pt.size = 0)
+```
+
+6,9,12,17,22 - GABA?
+
+weaker evidence for 10
+
+Astrocyte markers
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("AQP4"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("GFAP"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("ALDH1L1"),pt.size = 0)
+```
+ALDH1L1
+
+
+
+11 - Astrocytes
+
+Oligodendrocyte markers
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("PLP1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("MBP"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("MOG"),pt.size = 1)
+```
+
+4 - oligodendrocytes - strong
+
+
+
+OPC markers
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("VCAN"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("BCAN"),pt.size = 0)
+```
+
+19 - OPCs
+
+Microglia
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("CX3CR1"),pt.size = 1)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("P2RY12"),pt.size = 1)
+```
+
+12 - Microglia
+
+Endothelial Cells
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("FLT1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("CLDN5"),pt.size = 0)
+```
+16 - Endothelial cells
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("RELN"),pt.size = 0)
+```
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("CALB2"),pt.size = 1)
+```
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("CNR1"),pt.size = 0)
+```
+```{R}
+VlnPlot(Batch7_MTG, features = c("PAFAH1B1"),pt.size = 1)
+```
+
+6 - Cajal-Retzius Cells
+
+
+
+ Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6, SLC17A7
+ GABAergic neurons = SLC32A1, GAD1, GAD2
+ Dopaminergic neurons = TH, SLC6A3, SCL18A2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+ 
+ 
+ Alter to make it counts per million
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(reshape2)
+library(sciplot)
+
+
+Batch7_MTG <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+
+MarkerGenes <- c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP","PLP1","MBP","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5")
+
+data_barplot <- FetchData(Batch7_MTG, vars = c("ident",rownames(Batch7_MTG@assays$RNA@counts)), slot = "counts")
+
+data_barplot_1 <- data_barplot[1:10,]
+
+#rowSums(data_barplot_1[2:length(colnames(data_barplot_1))])
+
+#1e6/rowSums(data_barplot_1[2:length(colnames(data_barplot_1))])
+
+scaledrowSums <- 1e6/rowSums(data_barplot[2:length(colnames(data_barplot))])
+
+swpt_barplot <- sweep(data_barplot[,2:length(colnames(data_barplot))],1,scaledrowSums,FUN = "*")
+
+swpt_data_barplot_markers <- swpt_barplot[,which(colnames(swpt_barplot) %in% MarkerGenes)]
+
+swpt_data_barplot_markers$ident <- as.vector(data_barplot$ident)
+
+data_barplot_melt <- melt(swpt_data_barplot_markers)
+
+data_barplot_melt$ident <- as.vector(data_barplot_melt$ident)
+data_barplot_melt$variable <- as.vector(data_barplot_melt$variable)
+data_barplot_melt$value <- as.numeric(as.vector(data_barplot_melt$value))
+
+data_barplot_melt_sum <- group_by(data_barplot_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(MarkerGenes))
+
+ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+Batch7_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+ggsave(Batch7_barchart,filename = "Files/GLMPCA_Batch7_Marker_Barchart", device = "pdf", width = 12, height = 12, units = "in")
+```
+1,2,3,5,10
+
+
+
+
+################################################################################################################
+
+Reading in the table for panglaodb to more systematically go through the known types of brain cell and assess their presence in the dataset.
+
+```{R}
+PanglaoDB <- read.delim("~/Documents/Projects/Misc. Files/PanglaoDB_markers_27_Mar_2020.tsv", stringsAsFactors = FALSE)
+
+
+
+PanglaoDBBrain <- PanglaoDB[PanglaoDB$organ %in% "Brain",]
+
+PanglaoDBBrain <- PanglaoDBBrain[!PanglaoDBBrain$species %in% "Mm",]
+
+PanglaoDBBrain <- PanglaoDBBrain[PanglaoDBBrain$canonical.marker %in% 1,]
+
+PanglaoDBBrain <- PanglaoDBBrain[PanglaoDBBrain$official.gene.symbol %in% rownames(Batch7_MTG@assays$RNA@counts),]
+
+PanglaoDBBrain$ubiquitousness.index[PanglaoDBBrain$ubiquitousness.index == 0] <- NA
+
+PanglaoDBBrain <- PanglaoDBBrain %>% group_by(cell.type) %>% arrange(cell.type, ubiquitousness.index)
+```
+
+Let's see how many unique cell types for the brain the database contains
+
+```{R}
+unique(PanglaoDBBrain$cell.type)
+
+sum(is.na(PanglaoDBBrain$cell.type))
+```
+Reminder of the unnassigned clusters:
+
+novel = 7,12,14,15,19,21 - all neurons
+
+Looking at top 5 markers for each cell type
+
+Making function and testing
+
+```{R}
+#GeneSet <- rownames(GetAssayData(object = Batch7_MTG, assay.type = "RNA", slot = "counts"))
+
+#filtering PanglaoDB for genes present in the scRNA-seq dataset
+
+#PanglaoDBBrainGroupfilter <- PanglaoDBBrainGroup[PanglaoDBBrainGroup$official.gene.symbol %in% GeneSet,]
+
+#markervlnplots <- function(x) {
+#  VlnPlot(Batch7_MTG, features = x,pt.size = 0)
+  
+#}
+
+#markervlnplots("RELN")
+
+```
+
+
+
+Running function for Tancytes
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Tanycytes",]$official.gene.symbol,markervlnplots)
+```
+
+Glycinergic neurons
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Glycinergic neurons",]$official.gene.symbol,markervlnplots)
+```
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Noradrenergic neurons",]$official.gene.symbol,markervlnplots)
+```
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Serotonergic neurons",]$official.gene.symbol,markervlnplots)
+```
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Trigeminal neurons",]$official.gene.symbol,markervlnplots)
+```
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Pyramidal cells",]$official.gene.symbol,markervlnplots)
+```
+
+
+Running function through lapply for all cell types in the brain in PanglaoDB
+
+```{R}
+#lapply(unique(PanglaoDBBrain$cell.type), markervlnplots, y=PanglaoDBBrain)
+
+
+
+```
+
+unique(PanglaoDBBrain$cell.type)
+
+Making barcharts for PanglaoDBBrain marker genes
+
+```{R}
+library(reshape2)
+library(sciplot)
+library(ggplot2)
+
+MarkerGenes <- c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP","PLP1","MBP","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5")
+
+ExtractGenes <- unique(c(MarkerGenes, PanglaoDBBrain$official.gene.symbol))
+
+data_barplot <- FetchData(Batch7_MTG, vars = c("ident", ExtractGenes), slot = "data")
+
+data_barplot_1 <- data_barplot[1:10,]
+
+#rowSums(data_barplot_1[2:length(colnames(data_barplot_1))])
+
+#1e6/rowSums(data_barplot_1[2:length(colnames(data_barplot_1))])
+
+data_barplot_melt <- melt(data_barplot)
+
+data_barplot_melt$ident <- as.vector(data_barplot_melt$ident)
+data_barplot_melt$variable <- as.vector(data_barplot_melt$variable)
+data_barplot_melt$value <- as.numeric(as.vector(data_barplot_melt$value))
+
+data_barplot_melt_sum <- group_by(data_barplot_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(ExtractGenes))
+
+cell_type_barcarts <- function(melted_data_matrix, cell_type){
+  CellMarkerGenes <- PanglaoDBBrain[PanglaoDBBrain$cell.type %in% cell_type,]$official.gene.symbol
+  melted_temp_matrix <- melted_data_matrix[melted_data_matrix$variable %in% CellMarkerGenes,]
+  celltype_barplot <- ggplot(melted_temp_matrix, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        ggtitle(cell_type) +
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0),
+              plot.title = element_text(hjust = 0.5),) + 
+              NoLegend()
+  ggsave(celltype_barplot,filename = paste("Figures/Barcharts/Barchart_",cell_type,"_Markers.pdf",sep = ""), device = "pdf", width = 12, height = length(CellMarkerGenes)*0.75, units = "in",limitsize = FALSE)
+  
+}
+
+
+
+Batch7_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+ggsave(Batch7_barchart,filename = "Files/Batch7_Marker_Barchart", device = "pdf", width = 12, height = 12, units = "in")
+```
+
+
+```{R}
+PanglaoDBBrain$cell.type <- gsub("/","_",PanglaoDBBrain$cell.type)
+
+CellMarkers <- unique(PanglaoDBBrain$cell.type)
+
+cell_type_barcarts(data_barplot_melt_sum, "Cajal-Retzius cells")
+
+lapply(CellMarkers, FUN = cell_type_barcarts, melted_data_matrix = data_barplot_melt_sum)
+```
+
+
+Other form of ploting genes across clusters:
+```{r}
+#RidgePlot(AllMB, features=c("ENO2"))
+#RidgePlot(AllMB, features=c("TH"))
+#RidgePlot(AllMB, features=c("SLC6A3"))
+#RidgePlot(AllMB, features=c("SLC18A2"))
+#RidgePlot(AllMB, features=c("SLC17A6"))
+#RidgePlot(AllMB, features=c("GAD2"))
+```
+
+
+##################################################################################################
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("CLDN5","TH","P2RY12","GRM4","BCAN"),pt.size = 0,stack = TRUE, flip = TRUE)
+```
+
+
+
+1,2,3,5,7,8,10,14,15,18,20,21 - Glu?
+9,12,17,22 - GABA?
+11 - Astrocytes
+4 - oligodendrocytes - strong
+19 - OPCs
+12 - Microglia
+16 - Endothelial cells
+6 - Cajal-Retzius Cells
+
+novel = 12,21 - all likely neurons - all likely neurons
+
+
+Assigning cell type identity to clusters: 
+
+```{r}
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons", `2` = "GLU Neurons", `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GABA Neurons", `6` = "GABA Neurons", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "GLU Neurons",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons",`13` = "GLU Neurons",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons", `17`="GLU Neurons", `18`="GLU Neurons", `19`="GABA Neurons", `20`="GLU Neurons", `21` = "GLU Neurons", `22` = "GLU Neurons", `23`="GLU Neurons", `24` = "GABA Neurons", `25` = "GLU Neurons")
+```
+
+
+
+```{r}
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons 1", `2` = "GLU Neurons 2", `3` = "GLU Neurons 3", `4` = "Oligodendrocytes", `5` = "GABA Neurons 1", `6` = "GABA Neurons 2", `7` = "GLU Neurons 4", `8` = "GLU Neurons 5",`9` = "GLU Neurons 6",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons 7",`13` = "GLU Neurons 8",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons 3", `17`="GLU Neurons 9", `18`="GLU Neurons 10", `19`="GABA Neurons 4", `20`="GLU Neurons 11", `21` = "GLU Neurons 12", `22` = "GLU Neurons 13", `23`="GLU Neurons 14", `24` = "GABA Neurons 5", `25` = "GLU Neurons 15")
+```
+
+
+```{R}
+#saveRDS(AllMB,"AllMB_Assigned.rds")
+#AllMB=readRDS("AllMB.rds")
+```
+
+```{R}
+
+#AllMB <- readRDS("Files/AllMB_Assigned.rds")
+
+```
+
+
+
+Now let's plot cells with the assigned celltypes: 
+```{r}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Files/GMAPCA_UMAPclusters_scRNA_seq_Batch7.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+```{r}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 1, split.by = "case", label.size = 2,
+        ncol = 1) + NoLegend()
+```
+
+
+```{r}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 1,reduction = 'umap')
+```
+
+
+#########################################################################################################################
+
+
+
+
+```{R}
+VlnPlot(Batch7_MTG, features = c("GRM5","TH","P2RY12","GRM4","BCAN"), pt.size = 0,stack = TRUE, flip = TRUE)
+```
+
+
+###########################################################################
+
+```{R}
+Batch7_MTG=readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+```
+
+```{R}
+
+library(scDblFinder)
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+
+
+Batch7_MTG.sce <- as.SingleCellExperiment(Batch7_MTG)
+Batch7_MTG.sce <- scDblFinder(Batch7_MTG.sce, samples = "sample_ID",clusters = "seurat_clusters")
+
+```
+
+```{R}
+
+barcode_doublet_Table <- as.data.frame(cbind(as.vector(rownames(Batch7_MTG.sce@colData)),as.vector(Batch7_MTG.sce@colData$scDblFinder.class)))
+
+Batch7_MTG@meta.data$class <- barcode_doublet_Table$V2
+
+```
+
+```{R}
+DimPlot(Batch7_MTG, label = FALSE, repel = TRUE, pt.size = 0, label.size = 2.5, group.by = "class") + 
+    theme(axis.text = element_text(size=8),
+          axis.title = element_text(size = 12),
+          legend.text = element_text(size = 8),
+          title = element_text(size = 12),
+          legend.key.size = unit(0.4,"cm"))
+
+```
+
+```{R}
+
+singlet_barcodes <- rownames(Batch7_MTG@meta.data)[as.vector(Batch7_MTG@meta.data$class) %in% "singlet"]
+
+```
+
+
+```{R}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+    theme(axis.text = element_text(size=8),
+          axis.title = element_text(size = 12),
+          legend.text = element_text(size = 8),
+          title = element_text(size = 12),
+          legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+```{R}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5, cells = singlet_barcodes) + 
+    theme(axis.text = element_text(size=8),
+          axis.title = element_text(size = 12),
+          legend.text = element_text(size = 8),
+          title = element_text(size = 12),
+          legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+```{R}
+library(dplyr)
+library(reshape)
+library(tidyr)
+
+metadata <- Batch7_MTG@meta.data
+
+#test <- metadata %>% group_by(sample_ID) %>% summarise(doublet_percentage = count(class))
+
+doublet_counts <- metadata %>% count(seurat_clusters, class)
+
+doublet_percentage <- doublet_counts %>% group_by(seurat_clusters) %>% mutate(doublet_percent = n[which(class == "doublet")]/sum(n)*100, total_cells = sum(n))
+
+```
+
+
+
+```{R}
+
+doublet_percentage <- doublet_percentage[doublet_percentage$class == "doublet",]
+
+write.table(doublet_percentage, file = "Files/Doublet_Percentage_Per_Cluster_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+#doublet_percentage[doublet_percentage$]
+
+```
+
+
+```{R}
+
+library(Seurat)
+
+singlet_clusters <- as.numeric(doublet_percentage$seurat_clusters[doublet_percentage$doublet_percent < 60])
+
+singles_Batch7_MTG <- subset(Batch7_MTG, subset = class == "singlet" & seurat_clusters %in% singlet_clusters)
+
+```
+
+
+```{R}
+
+DimPlot(singles_Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+    theme(axis.text = element_text(size=8),
+          axis.title = element_text(size = 12),
+          legend.text = element_text(size = 8),
+          title = element_text(size = 12),
+          legend.key.size = unit(0.4,"cm"))
+
+```
+
+"nFeature_RNA"
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("nCount_RNA"), ncol = 3, split.by = "seurat_clusters")
+
+ncount_per_cluster <- VlnPlot(Batch7_MTG, features = c("nCount_RNA"), split.by = "seurat_clusters")
+
+ggsave(ncount_per_cluster, filename = "Figures/nCount_per_Cluster_ViolinPlot.pdf", device = "pdf", width = 8, height = 6, units = "in")
+```
+
+```{R}
+
+mean_ncounts <- metadata %>% group_by(seurat_clusters) %>% summarise(mean = mean(nCount_RNA), SE = se(nCount_RNA))
+
+median_ncounts <- metadata %>% group_by(seurat_clusters) %>% summarise(median = median(nCount_RNA), SE = se(nCount_RNA))
+
+```
+
+
+
+
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("nFeature_RNA"), ncol = 3, split.by = "seurat_clusters")
+
+nfeature_per_cluster <- VlnPlot(Batch7_MTG, features = c("nFeature_RNA"), split.by = "seurat_clusters")
+
+ggsave(nfeature_per_cluster, filename = "Figures/nFeature_per_Cluster_ViolinPlot.pdf", device = "pdf", width = 8, height = 6, units = "in")
+```
+
+
+#################################################################################
+
+```{R}
+library(scDblFinder)
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(fgsea)
+```
+
+
+```{R}
+Batch7_MTG=readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+```
+
+
+```{R}
+
+C2_Gene_Sets <- gmtPathways("~/Documents/Projects/Database_Cache/GSEA_Analysis_Tables/GMT_Tables/c2.all.v7.4.symbols.gmt")
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+}
+
+```
+
+
+
+```{R}
+
+Ident_Object <- subset(Batch7_MTG, idents = 1)
+Ident_Object <- Ident_Object[apply(Ident_Object@assays$RNA@counts,1,mkfilter) >= 20,]
+Ident_Object@meta.data$DetRate <- as.vector(scale(colSums(Ident_Object@assays$RNA@counts)))
+Idents(Ident_Object) <- "case"
+FilteredGeneCount <- dim(Ident_Object)[1]
+
+```
+
+
+```{R}
+
+IdentObj <- Ident_Object
+IdentObj@meta.data$DetRate <- as.vector(scale(colSums(IdentObj@assays$RNA@counts > 0)))
+
+IdentObj.Markers <- FindMarkers(IdentObj, ident.1 = "PD", ident.2 = "HC", verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate"), logfc.threshold = 0, min.pct = 0)
+
+IdentObj.Markers$gene <- rownames(IdentObj.Markers)
+IdentObj.Avg <- as.data.frame(AverageExpression(IdentObj, verbose = FALSE)$RNA)
+IdentObj.Avg$gene <- rownames(IdentObj.Avg)
+ProgMarkersIdentObj.Avg <- IdentObj.Avg[IdentObj.Avg$gene %in% unique(IdentObj.Markers$gene),]
+
+ProgMarkersIdentObj.Avg <- ProgMarkersIdentObj.Avg[match(IdentObj.Markers$gene,ProgMarkersIdentObj.Avg$gene),]
+generanks <- IdentObj.Markers$avg_log2FC
+names(generanks) <- rownames(IdentObj.Markers)
+generanks <- generanks[order(generanks, decreasing = TRUE)]
+#fgseaRes = fgsea(C2_Gene_Sets, stats=generanks, minSize=10, maxSize=Inf, nPermSimple=10000)
+
+
+fgseaRes = fgsea(C2_Gene_Sets, stats=generanks, minSize=1, maxSize=Inf, nPermSimple=1000)
+```
+
+
+
+
+
+

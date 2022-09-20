@@ -1,0 +1,325 @@
+---
+title: "Analysing DE results in terms of common and unique genes"
+output: html_document
+---
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "AllGenes_.*_Markers_PD_vs_HC.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|AllGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+```{R}
+
+uniquegenes <- unique(DE_Aggr_Table$gene)
+
+```
+
+
+```{R}
+library(biomaRt)
+
+hg38ensembl98Mart <- useMart(biomart="ENSEMBL_MART_ENSEMBL", host="https://sep2019.archive.ensembl.org")
+
+listDatasets(hg38ensembl98Mart)
+
+
+```
+
+
+```{R}
+
+hg38ensembl98Mart = useDataset("hsapiens_gene_ensembl",mart=hg38ensembl98Mart)
+
+listAttributes(hg38ensembl98Mart)
+
+```
+
+
+```{R}
+
+hg38ensembl98MartMartGene <- getBM(attributes = c('go_id','hgnc_symbol'),
+                                   filters = 'hgnc_symbol',
+                                   values = uniquegenes,
+                                   mart = hg38ensembl98Mart)
+
+```
+
+
+```{R}
+
+hg38ensembl98MartMitocondrionCellularComponentTerm <- hg38ensembl98MartMartGene[hg38ensembl98MartMartGene$go_id %in% "GO:0005739",]
+
+```
+
+
+```{R}
+
+write.table(hg38ensembl98MartMitocondrionCellularComponentTerm, file = "../Files/hg38ensembl98MartMitocondrionCellularComponentTerm.tsv", sep = "\t", quote = FALSE, row.names = FALSE)
+
+#test <- read.delim("../Files/hg38ensembl98MartMitocondrionCellularComponentTerm.tsv", sep = "\t")
+
+```
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+hg38ensembl98MartMitocondrionCellularComponentTerm <- read.delim("../Files/hg38ensembl98MartMitocondrionCellularComponentTerm.tsv", sep = "\t")
+
+```
+
+
+
+```{R}
+
+colnames(DE_Aggr_Table)[7] <- "p_val_adj (BF)"
+
+write.table(DE_Aggr_Table, file = "../Files/DEGenes_MajorCellTypes_AggregateTable.csv", quote = FALSE, row.names = FALSE,col.names = TRUE, sep = ",")
+
+DEMTGenes <- as.vector(hg38ensembl98MartMitocondrionCellularComponentTerm[hg38ensembl98MartMitocondrionCellularComponentTerm$hgnc_symbol %in% DE_Aggr_Table$gene,]$hgnc_symbol)
+
+DEMTGenesTable <- as.data.frame(DEMTGenes)
+
+write.table(DEMTGenesTable, file = "../Files/MajorCellTypes_DEMTGenesTable.csv", quote = FALSE, row.names = FALSE,col.names = TRUE, sep = ",")
+
+```
+
+
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "AllGenes_.*_Markers_PD_vs_HC.csv")
+Gene_Aggr_Table <- vroom(files, id = "Cell_Type")
+Gene_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC.csv|AllGenes_","",Gene_Aggr_Table$Cell_Type)
+
+```
+
+
+```{R}
+
+DE_MT_Genes_AggrTable <- DE_Aggr_Table[DE_Aggr_Table$gene %in% hg38ensembl98MartMitocondrionCellularComponentTerm$hgnc_symbol,]
+
+DE_MT_Genes_AggrTable <- DE_MT_Genes_AggrTable[order(DE_MT_Genes_AggrTable$`p_val_adj (BF)`),]
+
+DE_MT_Genes_AggrTable_List <- unique(DE_MT_Genes_AggrTable$gene)
+
+DE_MT_Genes_AggrTable_List_Subset <- DE_MT_Genes_AggrTable_List[1:50]
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(DE_MT_Genes_AggrTable_List_Subset %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(DE_MT_Genes_AggrTable_List_Subset)),DE_MT_Genes_AggrTable_List_Subset,rep(0,length(DE_MT_Genes_AggrTable_List_Subset))))
+    colnames(temp_table2) <-  c("Cell_Type","avg_log2FC","gene")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% DE_MT_Genes_AggrTable_List_Subset,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(DE_MT_Genes_AggrTable_List_Subset[-index])),DE_MT_Genes_AggrTable_List_Subset[-index],rep(0,length(DE_MT_Genes_AggrTable_List_Subset[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+```{R}
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1,-2)]
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+```
+
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells", "Non-Microglia Immune Cells", rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66", "Unknown Cluster 1", rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Non-Microglia Immune Cells", "Unknown Cluster 1")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/Top50DEMTGenes_Mouse_PFC_Singlets_Heatmap_Clusters_FullIntegration.pdf", device = "pdf", height = 12, width = 16, units = "in")
+
+```
+
+
+
+###########################################################################################
+
+
+
+DSP4 DE Genes
+
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "AllGenes_.*_Markers_PD_vs_HC.csv")
+Gene_Aggr_Table <- vroom(files, id = "Cell_Type")
+Gene_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC.csv|AllGenes_","",Gene_Aggr_Table$Cell_Type)
+
+```
+
+
+
+```{R}
+
+DSP4_DE_MTGenes <- read.delim("~/Documents/Projects/Mouse PFC snRNA-seq/Mouse_Full_Integration_DSP4_split/Files/Clusters_DEMTGenesTable_DSP4_Split.csv")
+
+DSP4_DE_MTGenes <- DSP4_DE_MTGenes$DEMTGenes
+
+DSP4_DE_MTGenes <- casefold(DSP4_DE_MTGenes, upper = TRUE)
+
+```
+
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(DSP4_DE_MTGenes %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(DSP4_DE_MTGenes)),DSP4_DE_MTGenes,rep(0,length(DSP4_DE_MTGenes))))
+    colnames(temp_table2) <-  c("Cell_Type","avg_log2FC","gene")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% DSP4_DE_MTGenes,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(DSP4_DE_MTGenes[-index])),DSP4_DE_MTGenes[-index],rep(0,length(DSP4_DE_MTGenes[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+```{R}
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1,-2)]
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+```
+
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells", "Non-Microglia Immune Cells", rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66", "Unknown Cluster 1", rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Non-Microglia Immune Cells", "Unknown Cluster 1")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+DEMTGenesOrder_Table <- read.delim("~/Documents/Projects/Mouse PFC snRNA-seq/Mouse_Full_Integration_DSP4_split/Files/DEMTGenesOrder.tsv")
+
+DEMTGenesOrder_TableGenes <- casefold(DEMTGenesOrder_Table$Genes, upper = TRUE)
+
+Heatmap_Matrix <- Heatmap_Matrix[,match(DEMTGenesOrder_TableGenes,colnames(Heatmap_Matrix))]
+
+```
+
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = FALSE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/DSP4_DEMTGenes_Mouse_PFC_Singlets_Heatmap_Clusters_FullIntegration.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+```
+

@@ -1,0 +1,341 @@
+---
+title: "Looking at cell type proportions for full integration"
+output: html_document
+---
+
+
+```{R}
+
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(stringr)
+CellType_SplitSample_ProportionTable <- read.delim("../Files/CellType_SplitSample_ProportionTable.tsv")
+
+CellType_SplitSample_ProportionTable$Var2 <- gsub("_"," ",CellType_SplitSample_ProportionTable$Var2)
+
+CellType_SplitSample_ProportionTable$Var1 <- gsub("_"," ",CellType_SplitSample_ProportionTable$Var1)
+
+CellType_SplitSample_ProportionTable$Var1 <- gsub("GLU Cajal Retzius"," Cajal-Retzius",CellType_SplitSample_ProportionTable$Var1)
+
+CellType_SplitSample_ProportionTable$Var1 <- gsub("Oligo Endo"," Oligo/Endo",CellType_SplitSample_ProportionTable$Var1)
+
+```
+
+
+```{R}
+
+ggplot(CellType_SplitSample_ProportionTable, aes(fill=Var1, y=Freq, x=Var2)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Sample") +
+  scale_fill_discrete(name = "Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 8),
+        legend.text=element_text(size=8))
+
+```
+
+```{R}
+
+CellType_SplitSample_Proportion <- ggplot(CellType_SplitSample_ProportionTable, aes(fill=Var1, y=Freq, x=Var2)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Sample") +
+  scale_fill_discrete(name = "Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 8),
+        legend.text=element_text(size=8))
+
+```
+
+
+```{R}
+
+ggsave(CellType_SplitSample_Proportion,filename = paste("../Figures/CellType_SplitSample_ProportionTable.pdf",sep = ""), device = "pdf", width = 4, height = 4, units = "in")
+
+```
+
+###################################################################################################
+
+Cell/Cluster Numbers Data
+
+CellType_SplitCase_ProportionTable.tsv
+
+```{R}
+
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(stringr)
+Subcluster_SplitCase_NumbersTable <- read.delim("../Files/CellType_SplitCase_ProportionTable.tsv")
+
+```
+
+
+
+
+```{R}
+
+Subcluster_SplitCase_NumbersTableProportions <- Subcluster_SplitCase_NumbersTable %>% group_by(Var1) %>% mutate(CellTypeCaseProportion=(Freq/sum(Freq))*100)
+
+Subcluster_SplitCase_NumbersTableProportions$Var1 <- gsub("GLU_Cajal_Retzius","Cajal-Retzius",Subcluster_SplitCase_NumbersTableProportions$Var1)
+Subcluster_SplitCase_NumbersTableProportions$Var1 <- gsub("_"," ",Subcluster_SplitCase_NumbersTableProportions$Var1)
+
+#Subcluster_SplitCase_NumbersTableProportions$Var1 <- gsub("_"," ",Subcluster_SplitCase_NumbersTableProportions$Var1)
+
+
+```
+
+
+
+```{R}
+
+ggplot(Subcluster_SplitCase_NumbersTableProportions, aes(fill=Var2, y=CellTypeCaseProportion, x=Var1)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cluster") +
+  scale_fill_discrete(name = "Case") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6)) +
+  scale_y_continuous(breaks=c(0,33,66,100))
+
+
+```
+
+
+
+
+```{R}
+
+Subcluster_SplitCase_NumbersTableProportionsFigure <- ggplot(Subcluster_SplitCase_NumbersTableProportions, aes(fill=Var2, y=CellTypeCaseProportion, x=Var1)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cluster") +
+  scale_fill_discrete(name = "Case") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6)) +
+  scale_y_continuous(breaks=c(0,33,66,100))
+```
+
+
+```{R}
+
+ggsave(Subcluster_SplitCase_NumbersTableProportionsFigure,filename = paste("../Figures/CellType_SplitCase_NumbersTableProportionsFigure.pdf",sep = ""), device = "pdf", width = 6, height = 4, units = "in")
+
+```
+
+
+```{R}
+Subcluster_SplitCase_NumbersTable$perc <- Subcluster_SplitCase_NumbersTable$Freq*100
+
+ggplot(Subcluster_SplitCase_NumbersTable, aes(fill=Var1, y=perc, x=Var2)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Percentage") +
+  xlab("Case") +
+  scale_fill_discrete(name = "Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6))
+
+
+
+```
+
+```{R}
+ggplot(Subcluster_SplitCase_NumbersTable, aes(fill=Var1, y=perc, x=Var2)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Percentage") +
+  xlab("Case") +
+  scale_fill_discrete(name = "Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6))
+
+SubclusterStackPlot <- ggplot(Subcluster_SplitCase_NumbersTable, aes(fill=Var1, y=perc, x=Var2)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Percentage") +
+  xlab("Case") +
+  scale_fill_discrete(name = "Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6))
+```
+
+
+```{R}
+
+ggsave(SubclusterStackPlot,filename = paste("../Figures/CellType_SplitCase_NumbersTableStackFigure.pdf",sep = ""), device = "pdf", width = 6, height = 4, units = "in")
+
+```
+
+###############################################################################################
+
+
+Same again but for subclusters
+
+
+```{R}
+
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(stringr)
+Subcluster_SplitCase_NumbersTable <- read.delim("../Files/Subcluster_SplitCase_ProportionTable.tsv")
+
+```
+
+
+
+
+```{R}
+
+Subcluster_SplitCase_NumbersTableProportions <- Subcluster_SplitCase_NumbersTable %>% group_by(Var1) %>% mutate(CellTypeCaseProportion=(Freq/sum(Freq))*100)
+
+Subcluster_SplitCase_NumbersTableProportions$Var1 <- gsub("GLU_Cajal_Retzius","Cajal-Retzius",Subcluster_SplitCase_NumbersTableProportions$Var1)
+Subcluster_SplitCase_NumbersTableProportions$Var1 <- gsub("_"," ",Subcluster_SplitCase_NumbersTableProportions$Var1)
+
+#Subcluster_SplitCase_NumbersTableProportions$Var1 <- gsub("_"," ",Subcluster_SplitCase_NumbersTableProportions$Var1)
+
+
+```
+
+
+
+```{R}
+
+ggplot(Subcluster_SplitCase_NumbersTableProportions, aes(fill=Var2, y=CellTypeCaseProportion, x=Var1)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cluster") +
+  scale_fill_discrete(name = "Case") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6)) +
+  scale_y_continuous(breaks=c(0,33,66,100))
+
+
+```
+
+
+
+
+```{R}
+
+Subcluster_SplitCase_NumbersTableProportionsFigure <- ggplot(Subcluster_SplitCase_NumbersTableProportions, aes(fill=Var2, y=CellTypeCaseProportion, x=Var1)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cluster") +
+  scale_fill_discrete(name = "Case") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6)) +
+  scale_y_continuous(breaks=c(0,33,66,100))
+```
+
+```{R}
+
+ggsave(Subcluster_SplitCase_NumbersTableProportionsFigure,filename = paste("../Figures/Subcluster_SplitCase_NumbersTableProportionsFigure.pdf",sep = ""), device = "pdf", width = 6, height = 4, units = "in")
+
+```
+
+
+```{R}
+Subcluster_SplitCase_NumbersTable$perc <- Subcluster_SplitCase_NumbersTable$Freq*100
+
+ggplot(Subcluster_SplitCase_NumbersTable, aes(fill=Var1, y=perc, x=Var2)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Percentage") +
+  xlab("Case") +
+  scale_fill_discrete(name = "Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6))
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+######################################################################################################################
+
+```{R}
+
+Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChartTable <- read.delim("../Files/Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChartTable.tsv")
+
+
+
+```
+
+
+```{R}
+
+Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChartTable$Cell <- str_extract(Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChartTable$case_ident, "[[:alpha:]]+(?=_)")
+
+Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChartTable$Case <- str_extract(Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChartTable$case_ident, "(?<=_)TREATED|(?<=_)CTRL")
+
+
+```
+
+
+
+
+```{R}
+
+Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChart <- ggplot(Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChartTable, aes(fill=Case, y=mean, x=variable)) + 
+    geom_bar(position = position_dodge(), stat="identity")  + 
+  geom_errorbar(aes(x = variable , ymin = mean-SE, ymax = mean+SE, colour = Case), width = 0.9, alpha = 0.9, size = 0.3, position = position_dodge(.9)) +
+  ylab("Mean Expression") +
+  xlab("Gene") +
+  scale_fill_discrete(name = "Case") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5)) +
+  facet_wrap(~Cell, ncol = 1)
+
+```
+
+
+```{R}
+
+ggsave(Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChart,filename = paste("../Figures/Parkisons_Mendelian_Genes_CaseCellTypeSplit_BarChart.pdf",sep = ""), device = "pdf", width = 12, height = 14, units = "in")
+
+```
+
+
+Also sorting out proper tables for snca DE results
+
+```{R}
+
+snca_CellType_DE_Results_Table <- read.delim("../Files/Snca_DE_Results_Table_CellTypes.csv", sep = ",")
+
+snca_CellType_DE_Results_Table$X <- gsub("Files/DE_Genes/AllGenes_|_Markers_TREATED_vs_CTRL.csv:Sncaip|_Markers_TREATED_vs_CTRL.csv:Snca","",snca_CellType_DE_Results_Table$X)
+
+colnames(snca_CellType_DE_Results_Table)[1] <- "Cell_Type"
+
+write.table(snca_CellType_DE_Results_Table, file = "../Files/Snca_DE_Results_Table_CellTypes_Cleaned.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+```
+
+
+
+```{R}
+
+snca_Cluster_DE_Results_Table <- read.delim("../Files/Snca_DE_Results_Table_Subclusters.csv", sep = ",")
+
+snca_Cluster_DE_Results_Table$X <- gsub("Files/Subclusters_DE_Genes/AllGenes_|_Markers_TREATED_vs_CTRL.csv:Sncaip|_Markers_TREATED_vs_CTRL.csv:Snca","",snca_Cluster_DE_Results_Table$X)
+
+colnames(snca_Cluster_DE_Results_Table)[1] <- "Cell_Type"
+
+write.table(snca_Cluster_DE_Results_Table, file = "../Files/Snca_DE_Results_Table_Subclusters_Cleaned.tsv", row.names = FALSE, quote = FALSE, sep = "\t")
+```

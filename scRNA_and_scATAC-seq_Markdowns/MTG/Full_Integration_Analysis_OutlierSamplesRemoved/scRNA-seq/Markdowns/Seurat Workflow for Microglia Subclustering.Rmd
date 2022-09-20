@@ -1,0 +1,438 @@
+---
+title: "Seurat Workflow for Microglia Subclustering"
+output: html_document
+---
+
+
+
+```{R}
+
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(stringr)
+library(MAST)
+library(reshape2)
+
+TempObject <- readRDS("../Files/FullIntegrationOSR_MTG_SeuratFinal_MicrogliaSubset.rds")
+
+```
+
+```{R}
+
+MicrogliaCounts <- TempObject@assays$RNA@counts
+
+MicrogliaMetadata <- TempObject@meta.data
+
+SeuratObjectMicroglia <- CreateSeuratObject(counts = MicrogliaCounts,
+                            project = "FIOR_Microglia")
+
+
+SeuratObjectMicroglia@meta.data <- MicrogliaMetadata
+
+
+```
+
+
+
+```{R}
+
+SeuratObjectMicroglia <- NormalizeData(SeuratObjectMicroglia, normalization.method = "LogNormalize", scale.factor = 10000)
+
+SeuratObjectMicroglia <- FindVariableFeatures(SeuratObjectMicroglia, selection.method = "vst", nfeatures = 2000)
+
+all.genes <- rownames(SeuratObjectMicroglia)
+
+SeuratObjectMicroglia <- ScaleData(SeuratObjectMicroglia, features = all.genes, verbose = FALSE)
+
+SeuratObjectMicroglia <- RunGLMPCA(SeuratObjectMicroglia, features=SeuratObjectMicroglia@assays$RNA@var.features, L = 50)
+
+
+```
+
+
+```{R}
+
+saveRDS(SeuratObjectMicroglia, "../Files/FullIntegrationSeuratObjectMicrogliaPreHarmony.rds")
+
+
+```
+
+
+
+```{R}
+
+#SeuratObjectMicroglia <- RunHarmony(SeuratObjectMicroglia, group.by.vars = c("sample_id","batch","age_bracket","sex"), plot_convergence = TRUE, reduction = "glmpca", theta = c(0.5,0.5,0.5,0.5))
+
+SeuratObjectMicroglia <- RunHarmony(SeuratObjectMicroglia, group.by.vars = c("batch","age_bracket","sex"), plot_convergence = TRUE, reduction = "glmpca", theta = c((2/3),(2/3),(2/3)))
+
+```
+
+
+```{R}
+
+ElbowPlot(SeuratObjectMicroglia, reduction = "harmony",ndims = 50)
+
+```
+
+
+
+```{R}
+SeuratObjectMicroglia <- FindNeighbors(SeuratObjectMicroglia, reduction = "harmony", dims = 1:30)
+SeuratObjectMicroglia <- FindClusters(SeuratObjectMicroglia, algorithm = 4, method = "igraph", resolution = 0.6)
+```
+
+```{r}
+SeuratObjectMicroglia <- RunUMAP(SeuratObjectMicroglia, reduction = "harmony", dims = 1:30)
+```
+
+
+```{R}
+
+DimPlot(SeuratObjectMicroglia, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "P2RY12")
+
+ClusterFrame <- as.data.frame(table(Idents(SeuratObjectMicroglia), SeuratObjectMicroglia$case))
+
+ClusterPercentbyCaseTable <- group_by(ClusterFrame,Var2) %>% mutate(percentcluster=(Freq/sum(Freq))*100)
+
+ClusterPercentbyCaseTable <- dcast(PercentClusterbyCaseTable, Var1~Var2)
+
+ClusterTotalsbyCase <- dcast(ClusterFrame, Var1~Var2)
+
+```
+
+```{R}
+
+
+ClusterFrame <- as.data.frame(table(Idents(SeuratObjectMicroglia), SeuratObjectMicroglia$case))
+
+test <- group_by(ClusterFrame,Var2) %>% mutate(percentcluster=(Freq/sum(Freq))*100)
+
+test2 <- dcast(test, Var1~Var2)
+
+```
+
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "HLA-DRB1")
+
+```
+
+
+M1 Markers
+
+CD16
+
+```{R}
+
+
+VlnPlot(SeuratObjectMicroglia, "FCGR3A")
+
+
+
+```
+CD32
+
+```{R}
+
+
+VlnPlot(SeuratObjectMicroglia, "FCGR2A")
+
+
+
+```
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "CD86")
+
+```
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "IL17RA")
+
+```
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "IL18")
+
+```
+
+
+
+
+M2 Markers
+
+CD206
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "MRC1")
+
+```
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "CD163")
+
+```
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "GRN")
+
+```
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "GRN")
+
+```
+
+
+```{R}
+
+saveRDS(SeuratObjectMicroglia, "../Files/FullIntegrationSeuratObjectMicroglia.rds")
+
+remove(TempObject)
+
+```
+
+####################################################################################################
+
+```{R}
+
+SeuratObjectMicroglia <- readRDS("../Files/FullIntegrationSeuratObjectMicroglia.rds")
+```
+
+
+```{R}
+
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(stringr)
+library(MAST)
+library(reshape2)
+
+```
+
+```{R}
+
+DimPlot(SeuratObjectMicroglia, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"))
+
+```
+
+```{R}
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+}
+
+SeuratObjectMicroglia@meta.data$DetRate <- as.vector(scale(colSums(SeuratObjectMicroglia@assays$RNA@counts > 0)))
+
+AllMarkers <- FindAllMarkers(SeuratObjectMicroglia, test.use = "MAST", latent.vars = c("batch","RIN","PMI","age","sex","DetRate"), min.pct = 0.2)
+
+#FAMandSplit <- function(SeuObj){
+#  TempFAM <- FindAllMarkers(SeuObj, test.use = "MAST")
+#  for (i in TempFAM$cluster){
+#    clusterFAM <- TempFAM[TempFAM$cluster == i,]
+#    return(assign(paste("MicrogliaCluster",i,sep = ""),clusterFAM))
+#  }
+#  
+#}
+
+#FAMandSplit(SeuratObjectMicroglia)
+
+
+for (i in AllMarkers$cluster){
+  tempframe <- AllMarkers[AllMarkers$cluster %in% i,]
+  assign(paste("Cluster",i,"_Markers", sep = ""),tempframe)
+}
+
+write.table(AllMarkers, file = "../Files/MicrogliaSubclusteringAllMarkersTable.tsv", sep = "\t", quote = FALSE, col.names = TRUE, row.names = FALSE)
+
+
+```
+
+##############################################################################################
+
+
+```{R}
+
+AllMarkers <- read.delim("../Files/MicrogliaSubclusteringAllMarkersTable.tsv", sep = "\t")
+
+for (i in AllMarkers$cluster){
+  tempframe <- AllMarkers[AllMarkers$cluster %in% i,]
+  assign(paste("Cluster",i,"_Markers", sep = ""),tempframe)
+}
+
+```
+
+Characterising the clusters:
+
+First of all, are all the clusters microglia, or are there other related cells in the mix?
+
+let's look at some microglial markers
+
+```{R}
+VlnPlot(SeuratObjectMicroglia, "P2RY12")
+```
+
+```{R}
+VlnPlot(SeuratObjectMicroglia, "P2RY12")
+```
+
+Cluster 5 - likely infiltrating Macrophages
+
+Marker genes from MAST DE analysis include:
+
+
+COLEC12/CL-P1
+
+Scavenger receptor collectin placenta 1 is a novel receptor involved in the uptake of myelin by phagocytes, Bogie et al.
+
+CD163 + SIGLEC1 are macrophage markers
+
+```{R}
+
+
+M2MacrophageInfilitration <- c("F13A1","FUCA1","SDCBP","VSIG4","HLA-E","TAP2")
+
+Cluster5_Markers$gene[Cluster5_Markers$gene %in% M2MacrophageInfilitration]
+
+```
+
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "COLEC12")
+
+```
+
+
+Cluster 6 is likely to be neurons that got incorrectly assigned as microglia
+
+
+```{R}
+VlnPlot(SeuratObjectMicroglia, "MAP2")
+```
+```{R}
+VlnPlot(SeuratObjectMicroglia, "KAZN")
+```
+```{R}
+VlnPlot(SeuratObjectMicroglia, "PECAM1")
+```
+
+```{R}
+VlnPlot(SeuratObjectMicroglia, "FCGR3A")
+```
+
+```{R}
+VlnPlot(SeuratObjectMicroglia, "FCGR2A")
+```
+```{R}
+VlnPlot(SeuratObjectMicroglia, "CD44")
+```
+
+
+Cluster 8 is potentially immunomodulator OPCs/Oligodendrocytes, similar to disease specific lineage arising in MS detailed here: https://www.nature.com/articles/s41582-018-0111-y Oligodendrocytes — active accomplices in MS pathogenesis? OR a leukocyte? unclear... OR Brain Endothelial cells?
+
+
+```{R}
+VlnPlot(SeuratObjectMicroglia, "CD44")
+```
+
+
+```{R}
+VlnPlot(SeuratObjectMicroglia, "VCAN")
+```
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "PECAM1")
+
+```
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "CCR7")
+
+```
+	
+TCF7L2
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "TCF7L2")
+
+```
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, "NAMPT")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

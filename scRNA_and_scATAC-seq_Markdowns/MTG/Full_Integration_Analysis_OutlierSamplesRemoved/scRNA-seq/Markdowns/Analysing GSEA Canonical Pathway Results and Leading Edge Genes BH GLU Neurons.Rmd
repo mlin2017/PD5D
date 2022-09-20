@@ -1,0 +1,692 @@
+---
+title: "Analysing Subcluster Canonical Pathway GSEA Results and Leading Edge Genes"
+output: html_document
+---
+
+Looking at GLU Neurons
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+#GSEA_Aggr_Table$Cell_Type <- #gsub("GLU_Cajal_Retzius","Cajal-Retzius",GSEA_Aggr_Table$Cell_Type)
+```
+
+
+```{R}
+
+GSEA_Aggr_Table <- GSEA_Aggr_Table[grep("GLU_Neurons",GSEA_Aggr_Table$Cell_Type),]
+
+GSEA_Aggr_Table_PvalSorted <- GSEA_Aggr_Table[order(GSEA_Aggr_Table$padj),]
+
+GSEA_Top_Pathways <- unique(GSEA_Aggr_Table_PvalSorted$pathway)[1:15]
+
+```
+
+
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(GSEA_Top_Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(GSEA_Top_Pathways)),GSEA_Top_Pathways,rep(0,length(GSEA_Top_Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% GSEA_Top_Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(GSEA_Top_Pathways[-index])),GSEA_Top_Pathways[-index],rep(0,length(GSEA_Top_Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+
+```
+
+doublets: 10,25,28,29
+
+`10` = "GLU_Neurons_6"
+`25` = "GABA_Neurons_8"
+`28` = "GABA_Neurons_9",
+`29` = "GLU_Neurons_12"
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+excluded_cells <- excluded_cells[grep("GLU",excluded_cells)]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1")
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/GSEA_and_DE_Gene_Heatmaps/PD_vs_HC/GLU_Neurons_FullIntegrationOSR_GSEA_C2_Top15_Pathways_Heatmap.pdf", device = "pdf", height = 14, width = 12, units = "in")
+
+```
+#############################################################################################################
+
+Looking at GLU Neurons Upregulated pathways
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+#GSEA_Aggr_Table$Cell_Type <- #gsub("GLU_Cajal_Retzius","Cajal-Retzius",GSEA_Aggr_Table$Cell_Type)
+```
+
+
+```{R}
+
+GSEA_Aggr_Table <- GSEA_Aggr_Table[grep("GLU_Neurons",GSEA_Aggr_Table$Cell_Type),]
+
+GSEA_Aggr_Table_UP <- GSEA_Aggr_Table[GSEA_Aggr_Table$NES > 0,]
+
+GSEA_Aggr_Table_UP_PvalSorted <- GSEA_Aggr_Table_UP[order(GSEA_Aggr_Table_UP$padj),]
+
+GSEA_Top_Pathways <- unique(GSEA_Aggr_Table_UP_PvalSorted$pathway)[1:15]
+
+
+
+```
+
+
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(GSEA_Top_Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(GSEA_Top_Pathways)),GSEA_Top_Pathways,rep(0,length(GSEA_Top_Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% GSEA_Top_Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(GSEA_Top_Pathways[-index])),GSEA_Top_Pathways[-index],rep(0,length(GSEA_Top_Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+
+```
+
+doublets: 10,25,28,29
+
+`10` = "GLU_Neurons_6"
+`25` = "GABA_Neurons_8"
+`28` = "GABA_Neurons_9",
+`29` = "GLU_Neurons_12"
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+excluded_cells <- excluded_cells[grep("GLU",excluded_cells)]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1")
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/GSEA_and_DE_Gene_Heatmaps/PD_vs_HC/GLU_Neurons_FullIntegrationOSR_GSEA_C2_Top15_Upregulated_Pathways_Heatmap.pdf", device = "pdf", height = 14, width = 12, units = "in")
+
+```
+
+####################################################################################################
+
+Looking at GLU Neurons Upregulated pathways
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+#GSEA_Aggr_Table$Cell_Type <- #gsub("GLU_Cajal_Retzius","Cajal-Retzius",GSEA_Aggr_Table$Cell_Type)
+```
+
+
+```{R}
+
+GSEA_Aggr_Table <- GSEA_Aggr_Table[grep("GLU_Neurons",GSEA_Aggr_Table$Cell_Type),]
+
+GSEA_Aggr_Table_DOWN <- GSEA_Aggr_Table[GSEA_Aggr_Table$NES < 0,]
+
+GSEA_Aggr_Table_DOWN_PvalSorted <- GSEA_Aggr_Table_DOWN[order(GSEA_Aggr_Table_DOWN$padj),]
+
+GSEA_Top_Pathways <- unique(GSEA_Aggr_Table_DOWN_PvalSorted$pathway)[1:15]
+
+```
+
+
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(GSEA_Top_Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(GSEA_Top_Pathways)),GSEA_Top_Pathways,rep(0,length(GSEA_Top_Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% GSEA_Top_Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(GSEA_Top_Pathways[-index])),GSEA_Top_Pathways[-index],rep(0,length(GSEA_Top_Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+
+```
+
+doublets: 10,25,28,29
+
+`10` = "GLU_Neurons_6"
+`25` = "GABA_Neurons_8"
+`28` = "GABA_Neurons_9",
+`29` = "GLU_Neurons_12"
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+excluded_cells <- excluded_cells[grep("GLU",excluded_cells)]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1")
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/GSEA_and_DE_Gene_Heatmaps/PD_vs_HC/GLU_Neurons_FullIntegrationOSR_GSEA_C2_Top15_Downregulated_Pathways_Heatmap.pdf", device = "pdf", height = 14, width = 12, units = "in")
+
+```
+
+####################################################################################################
+
+GLU Neurons Top 30 MOST COMMON pathways
+
+Looking at GLU Neurons
+
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+#GSEA_Aggr_Table$Cell_Type <- #gsub("GLU_Cajal_Retzius","Cajal-Retzius",GSEA_Aggr_Table$Cell_Type)
+```
+
+
+
+```{R}
+
+GSEA_Aggr_Table <- GSEA_Aggr_Table[grep("GLU_Neurons",GSEA_Aggr_Table$Cell_Type),]
+
+GSEA_Aggr_Table_PvalSorted <- GSEA_Aggr_Table[order(GSEA_Aggr_Table$padj),]
+
+PathwayFreq <- as.data.frame(table(GSEA_Aggr_Table$pathway))
+
+PathwayFreq <- PathwayFreq[order(PathwayFreq$Freq, decreasing = TRUE),]
+
+GSEA_Common_Pathways <- as.vector(PathwayFreq$Var1[1:15])
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(GSEA_Common_Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(GSEA_Common_Pathways)),GSEA_Common_Pathways,rep(0,length(GSEA_Common_Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% GSEA_Common_Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(GSEA_Common_Pathways[-index])),GSEA_Common_Pathways[-index],rep(0,length(GSEA_Common_Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+
+```
+
+doublets: 10,25,28,29
+
+`10` = "GLU_Neurons_6"
+`25` = "GABA_Neurons_8"
+`28` = "GABA_Neurons_9",
+`29` = "GLU_Neurons_12"
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+excluded_cells <- excluded_cells[grep("GLU",excluded_cells)]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1")
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/GSEA_and_DE_Gene_Heatmaps/PD_vs_HC/GLU_Neurons_FullIntegrationOSR_GSEA_C2_MostCommon15_Pathways_Heatmap.pdf", device = "pdf", height = 14, width = 12, units = "in")
+
+```
+######################################################################################################
+
+
+Looking at GLU Neurons Downregulated pathways
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+#GSEA_Aggr_Table$Cell_Type <- #gsub("GLU_Cajal_Retzius","Cajal-Retzius",GSEA_Aggr_Table$Cell_Type)
+```
+
+
+```{R}
+
+GSEA_Aggr_Table <- GSEA_Aggr_Table[grep("GLU_Neurons",GSEA_Aggr_Table$Cell_Type),]
+
+GSEA_Aggr_Table_PvalSorted <- GSEA_Aggr_Table[order(GSEA_Aggr_Table$padj),]
+
+GSEA_Aggr_Table_Down <- GSEA_Aggr_Table[GSEA_Aggr_Table$NES < 0,]
+
+PathwayFreq <- as.data.frame(table(GSEA_Aggr_Table_Down$pathway))
+
+PathwayFreq <- PathwayFreq[order(PathwayFreq$Freq, decreasing = TRUE),]
+
+GSEA_Common_Pathways <- as.vector(PathwayFreq$Var1[1:15])
+
+```
+
+
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(GSEA_Common_Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(GSEA_Common_Pathways)),GSEA_Common_Pathways,rep(0,length(GSEA_Common_Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% GSEA_Common_Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(GSEA_Common_Pathways[-index])),GSEA_Common_Pathways[-index],rep(0,length(GSEA_Common_Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+
+```
+
+doublets: 10,25,28,29
+
+`10` = "GLU_Neurons_6"
+`25` = "GABA_Neurons_8"
+`28` = "GABA_Neurons_9",
+`29` = "GLU_Neurons_12"
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+excluded_cells <- excluded_cells[grep("GLU",excluded_cells)]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1")
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/GSEA_and_DE_Gene_Heatmaps/PD_vs_HC/GLU_Neurons_FullIntegrationOSR_GSEA_C2_Top15MostCommon_Downregulated_Pathways_Heatmap.pdf", device = "pdf", height = 14, width = 12, units = "in")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

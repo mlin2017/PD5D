@@ -1,0 +1,60 @@
+---
+title: "Adding Batch to metadata files"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(ReductionWrappers)
+library(monocle3)
+library(leidenbase)
+library(Nebulosa)
+library(stringr)
+```
+
+
+```{R}
+
+list.files(path = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/", pattern = "batch[[:digit:]]+_ASAP_snRNA-seq_[[:digit:]]+")
+
+for (i in list.files(path = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/", pattern = "batch[[:digit:]]+_ASAP_snRNA-seq_[[:digit:]]+")) {
+  batch <- str_extract(i,"batch[[:digit:]]+")
+  aggr_path <- paste("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/",i,"/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/aggregation.csv")
+  aggr_table <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/",i,"/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F, colClasses = c("sex"="character"))
+  aggr_table$batch <- batch
+  write.csv(aggr_table, file = paste("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/",i,"/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/aggregation.csv", sep = ""), quote = FALSE, row.names = FALSE)
+
+}
+#~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+

@@ -1,0 +1,337 @@
+---
+title: "Seurat Workflow and Cluster Assignment for Batch 7"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+
+Loading in the single cell data
+
+```{r}
+Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+```
+
+
+
+
+
+
+checking dimensions to check all samples have the same set of genes
+
+```{r}
+dim(Batch7.data)
+
+
+```
+
+
+```{r}
+Batch7_MTG <- CreateSeuratObject(counts = cbind(Batch7.data),
+                            project = "Batch7_MTG",
+                            min.cells = 3)
+```
+
+
+```{R}
+samples <- read.csv(file.path("Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+
+cellcodes <- as.data.frame(Batch7_MTG@assays$RNA@data@Dimnames[[2]])
+colnames(cellcodes) <- "barcodes"
+rownames(cellcodes) <- cellcodes$barcodes
+
+cellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", cellcodes$barcodes))
+cellcodes$samples <- as.vector(samples$library_id[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$sample_ID <- cellcodes$samples
+
+
+
+```
+
+
+```{R}
+
+cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$case <- cellcodes$case
+
+```
+
+
+
+
+Now let's see the cell the counts for each group:
+```{r}
+table(Batch7_MTG$sample_ID)
+```
+
+```{R}
+table(Batch7_MTG$case)
+```
+
+
+ Quality Checking : 
+
+ Seurat allows you to easily explore QC metrics and filter cells based on any user-defined criteria.
+ A few QC metrics commonly used by the community include : 
+ The number of unique genes detected in each cell.
+ Low-quality cells or empty droplets will often have very few genes
+ Cell doublets or multiplets may exhibit an aberrantly high gene count
+ Similarly, the total number of molecules detected within a cell (correlates strongly with unique genes)
+ The percentage of reads that map to the mitochondrial genome
+ Low-quality / dying cells often exhibit extensive mitochondrial contamination
+ We calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
+ We use the set of all genes starting with MT- as a set of mitochondrial genes
+
+```{r}
+Batch7_MTG[["percent.mt"]] <- PercentageFeatureSet(Batch7_MTG, pattern = "^MT-")
+
+VlnPlot(Batch7_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+
+
+average nfeature_RNA
+
+#Deprecated - use per sample filtering method
+
+```{R}
+library(stats)
+nfeature_RNA <- Batch7_MTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch7_MTG@meta.data$nFeature_RNA)
+
+```
+
+#Testing out per sample filtering
+
+```{R}
+
+library(stats)
+
+#metadata <- as.data.frame(Batch7_MTG@meta.data)
+#metadata$cell_barcode <- rownames(metadata)
+#metadata$nFeature_RNA <- as.numeric(metadata$nFeature_RNA)
+#test <- group_by(.data = metadata, sample_ID) %>% mutate(upperlimit = (median(nFeature_RNA) + (mad(nFeature_RNA, center = #median(nFeature_RNA))*3)))
+
+#Filtered_Metadata <- group_by(.data = test, sample_ID) %>% filter(nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing2 = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 2)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing2 = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+```
+
+Filtering low quality cells
+
+```{R}
+#Batch7_MTG@meta.data$cell_barcode <- rownames(Batch7_MTG@meta.data)
+
+#Batch7_MTG <- subset(Batch7_MTG, subset = cell_barcode %in% Filtered_Metadata$cell_barcode)
+
+```
+
+#Filtering low quality cells: 
+```{r}
+Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
+```
+
+Now let's recheck the cell the counts for each group:
+```{r}
+table(Batch7_MTG$sample_ID)
+```
+
+```{R}
+table(Batch7_MTG$case)
+```
+
+
+Log Normalizing data: 
+```{r}
+Batch7_MTG <- NormalizeData(Batch7_MTG, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+
+Finding and plotting 2000 most variable features
+
+```{R}
+Batch7_MTG <- FindVariableFeatures(Batch7_MTG, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(Batch7_MTG), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(Batch7_MTG)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+```
+
+```{R}
+plot1
+```
+
+```{R}
+plot2
+```
+
+Run the standard workflow for visualization and clustering :
+
+save list of all genes
+```{r}
+all.genes <- rownames(Batch7_MTG)
+```
+
+center and scale data
+```{r}
+Batch7_MTG <- ScaleData(Batch7_MTG, features = all.genes, verbose = FALSE)
+```
+
+Determining "Dimensionality" of the dataset
+
+
+
+
+
+finding the top 30 principal components for cells
+```{r}
+Batch7_MTG <- RunGLMPCA(Batch7_MTG, features=Batch7_MTG@assays$RNA@var.features, L = 30)
+```
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(Batch7_MTG, dims = 1:2, reduction = "glmpca")
+```
+
+
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = Batch7_MTG, reduction = "glmpca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = Batch7_MTG, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+
+Run Harmony
+```{r}
+Batch7_MTG <- RunHarmony(Batch7_MTG, group.by.vars = "case", reduction = "glmpca", plot_convergence = TRUE)
+
+```
+
+
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(Batch7_MTG, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+```{r}
+DimPlot(object = Batch7_MTG, reduction = "harmony", pt.size = .1, group.by = "case")
+```
+cells in harmony 1 axis
+```{r}
+VlnPlot(object = Batch7_MTG, features = "harmony_1", group.by = "case",  pt.size = .1)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+ 2 dimensional reductions calculated: pca, harmony
+
+Determing the dimensionality of the dataset
+
+```{R}
+#Batch7_MTG <- JackStraw(Batch7_MTG, num.replicate = 100)
+#Batch7_MTG <- ScoreJackStraw(Batch7_MTG, dims = 1:12)
+#JackStrawPlot(Batch7_MTG, dims = 1:20)
+
+
+
+```
+
+```{R}
+ElbowPlot(Batch7_MTG, reduction = "harmony", ndims = 30)
+
+```
+
+```{R}
+ElbowPlot(Batch7_MTG, reduction = "glmpca", ndims = 30)
+
+```
+
+10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
+
+Finding Clusters of cells:
+```{r}
+Batch7_MTG <- FindNeighbors(Batch7_MTG, reduction = "harmony", dims = 1:20)
+Batch7_MTG <- FindClusters(Batch7_MTG, resolution = 0.5, algorithm = 4)
+```
+
+run Umap based on top 10 harmony axis: 
+
+```{r}
+Batch7_MTG <- RunUMAP(Batch7_MTG, reduction = "harmony", dims = 1:20)
+```
+
+run tsne based on top 10 harmony axis: 
+
+```{r}
+#Batch7_MTG <- RunTSNE(Batch7_MTG, reduction = "harmony", dims = 1:17)
+```
+
+plot umap:
+
+```{r}
+DimPlot(Batch7_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
+```
+
+```{r}
+DimPlot(Batch7_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
+```
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+DimPlot(Batch7_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
+```
+
+```{r}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
+
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_Leiden_UMAPclusters_scRNA_seq_Batch7_MTG.pdf", device = "pdf", width = 6, height = 6, units = "in")
+```
+
+
+
+

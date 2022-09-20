@@ -1,0 +1,76 @@
+---
+title: "Testing ways of saving data from Seurat object"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+```
+
+
+```{R}
+SeuratObject=readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+```
+
+PROXY ANNOTATIONS - NOT REAL
+
+```{r}
+SeuratObject <- RenameIdents(SeuratObject, `1` = "GLU Neurons", `2` = "GLU Neurons", `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GLU Neurons",`6` = "Cajal-Retzius Cells", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "GABA Neurons", `10` = "GLU Neurons", `11` = "Astrocytes",`12` = "GABA Neurons", `13` = "Microglia",`14` = "GLU Neurons", `15` = "GLU Neurons", `16`="Endothelial", `17`="GABA Neurons", `18`="GLU Neurons", `19`="OPCs", `20`="GLU Neurons", `21` = "GLU Neurons", `22` = "GABA Neurons", `23` = "GABA Neurons",`24` = "GABA Neurons",`25` = "GABA Neurons")
+
+SeuratObject@meta.data$MajorCellTypes <- Idents(SeuratObject)
+
+Idents(SeuratObject) <- "seurat_clusters"
+
+SeuratObject <- RenameIdents(SeuratObject, `1` = "GLU Neurons 1", `2` = "GLU Neurons 2", `3` = "GLU Neurons 3", `4` = "Oligodendrocytes", `5` = "GLU Neurons 4",`6` = "Cajal-Retzius Cells", `7` = "GLU Neurons 5", `8` = "GLU Neurons 6",`9` = "GABA Neurons 1", `10` = "GLU Neurons 7", `11` = "Astrocytes",`12` = "GABA Neurons 2", `13` = "Microglia",`14` = "GLU Neurons 8", `15` = "GLU Neurons 9", `16`="Endothelial", `17`="GABA Neurons 3", `18`="GLU Neurons 10", `19`="OPCs", `20`="GLU Neurons 11", `21` = "GLU Neurons 12", `22` = "GABA Neurons 4", `23` = "GABA Neurons 5",`24` = "GABA Neurons 6",`25` = "GABA Neurons 7")
+
+SeuratObject@meta.data$CellSubtypes <- Idents(SeuratObject)
+
+Idents(SeuratObject) <- "seurat_clusters"
+
+DietSeuratObject <- DietSeurat(SeuratObject)
+
+
+
+
+
+
+
+
+```
+
+
+
+```{R}
+
+VarSeuratObject <- SeuratObject[rownames(SeuratObject@assays$RNA) %in% SeuratObject@assays$RNA@var.features,]
+
+VarSeuratCounts <- VarSeuratObject@assays$RNA@counts
+
+
+```
+
+
+
+Test annotations
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,1037 @@
+---
+title: "Seurat Integration and Cluster Assignment for Midbrain Pilot 2 and MTG Batch 7 and 8"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(SeuratWrappers)
+library(glmpca)
+library(stringr)
+```
+
+
+
+
+
+```{r}
+Batch8.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch27_ASAP_snRNA-seq_120721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Batch7.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch28_ASAP_snRNA-seq_120821/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Batch9.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch29_ASAP_snRNA-seq_121021/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Batch10.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch30_ASAP_snRNA-seq_121421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+```
+
+batch9_ASAP_snRNA-seq_062221
+batch10_ASAP_snRNA-seq_062321
+
+```{R}
+Batch7samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch27_ASAP_snRNA-seq_120721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Batch8samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch28_ASAP_snRNA-seq_120821/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Batch9samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch29_ASAP_snRNA-seq_121021/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Batch10samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch30_ASAP_snRNA-seq_121421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+
+```
+
+
+```{R}
+Batches <- ls()[grep("[[:digit:]].data",ls())]
+
+createmetadata <- function(batch) {
+  batchdf <- get(batch)
+  tempcellcodes <- as.data.frame(batchdf@Dimnames[[2]])
+  colnames(tempcellcodes) <- "barcodes"
+  tempcellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", tempcellcodes$barcodes))
+  prefix <- str_extract(batch,"Pilot_|Batch")
+  samptable <- paste(prefix,str_extract(batch,"[[:digit:]]+"),"samples",sep="")
+  tempcellcodes$samples <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]+"),"samples",sep=""))$library_id[tempcellcodes$libcodes])
+  tempcellcodes$case <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]+"),"samples",sep=""))$case[tempcellcodes$libcodes])
+  tempcellcodes$batch <- str_extract(batch,"Batch[[:digit:]]+")
+  return(tempcellcodes)
+}
+
+metadata <- bind_rows(lapply(Batches,createmetadata), .id = "column_label")
+
+
+```
+
+
+```{r}
+
+BatchMTG <- CreateSeuratObject(counts = do.call(cbind,lapply(Batches,get)),
+                            project = "BatchMB_MTG",
+                            min.cells = 3)
+```
+
+
+```{R}
+
+BatchMTG@meta.data$sample_id <- metadata$samples
+BatchMTG@meta.data$case <- metadata$case
+BatchMTG@meta.data$batch <- metadata$batch
+
+```
+
+
+
+
+Now let's see the cell the counts for each group:
+```{r}
+table(BatchMTG$sample_id)
+```
+
+```{R}
+table(BatchMTG$case)
+```
+
+
+ Quality Checking : 
+
+ Seurat allows you to easily explore QC metrics and filter cells based on any user-defined criteria.
+ A few QC metrics commonly used by the community include : 
+ The number of unique genes detected in each cell.
+ Low-quality cells or empty droplets will often have very few genes
+ Cell doublets or multiplets may exhibit an aberrantly high gene count
+ Similarly, the total number of molecules detected within a cell (correlates strongly with unique genes)
+ The percentage of reads that map to the mitochondrial genome
+ Low-quality / dying cells often exhibit extensive mitochondrial contamination
+ We calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
+ We use the set of all genes starting with MT- as a set of mitochondrial genes
+
+```{r}
+BatchMB_MTG[["percent.mt"]] <- PercentageFeatureSet(BatchMB_MTG, pattern = "^MT-")
+
+VlnPlot(BatchMB_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+
+
+average nfeature_RNA
+
+```{R}
+
+library(stats)
+nfeature_RNA <- BatchMTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(BatchMTG@meta.data$nFeature_RNA)
+
+```
+
+
+Filtering low quality cells:
+```{r}
+BatchMB_MTG <- subset(BatchMB_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
+```
+
+
+Log Normalizing data: 
+```{r}
+BatchMB_MTG <- NormalizeData(BatchMB_MTG, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+
+Finding and plotting 2000 most variable features
+
+```{R}
+BatchMB_MTG <- FindVariableFeatures(BatchMB_MTG, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(BatchMB_MTG), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(BatchMB_MTG)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+```
+
+```{R}
+plot1
+```
+
+```{R}
+plot2
+```
+
+Run the standard workflow for visualization and clustering :
+
+save list of all genes
+```{r}
+all.genes <- rownames(BatchMB_MTG)
+```
+
+center and scale data
+```{r}
+BatchMB_MTG <- ScaleData(BatchMB_MTG, features = all.genes, verbose = FALSE)
+```
+
+Determining "Dimensionality" of the dataset
+
+
+
+
+
+finding the top 30 principal components for cells
+```{r}
+BatchMB_MTG <- RunGLMPCA(BatchMB_MTG, features=BatchMB_MTG@assays$RNA@var.features, L = 30)
+```
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(BatchMB_MTG, dims = 1:2, reduction = "pca")
+```
+
+
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = MTGandMidbrainIntegration, reduction = "pca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = MTGandMidbrainIntegration, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+#MTGandMidbrainIntegration <- RunHarmony(MTGandMidbrainIntegration, group.by.vars = c("case","region"), plot_convergence = TRUE)
+
+Run Harmony
+
+```{r}
+BatchMB_MTG <- RunHarmony(BatchMB_MTG, group.by.vars = c("sample_id","case"), plot_convergence = TRUE, reduction = "glmpca", theta = c(1,1))
+```
+
+
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(BatchMB_MTG, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+```{r}
+DimPlot(object = BatchMB_MTG,  reduction = "harmony", pt.size = .1, group.by = "case")
+```
+cells in harmony 1 axis
+```{r}
+VlnPlot(object = BatchMB_MTG, features = "harmony_1", group.by = "case",  pt.size = .1)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+ 2 dimensional reductions calculated: pca, harmony
+
+Determing the dimensionality of the dataset
+
+```{R}
+#MTGandMidbrainIntegration <- JackStraw(MTGandMidbrainIntegration, num.replicate = 100)
+#MTGandMidbrainIntegration <- ScoreJackStraw(MTGandMidbrainIntegration, dims = 1:12)
+#JackStrawPlot(MTGandMidbrainIntegration, dims = 1:20)
+
+
+
+```
+
+```{R}
+
+ElbowPlot(BatchMB_MTG, reduction = "glmpca")
+
+```
+
+```{R}
+
+ElbowPlot(BatchMB_MTG, reduction = "harmony")
+
+```
+
+```{R}
+saveRDS(BatchMB_MTG,"Files/MTGandFullMidbrainIntegration_precluster.rds")
+
+BatchMB_MTG <- readRDS("Files/MTGandFullMidbrainIntegration_precluster.rds")
+```
+
+10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
+
+Finding Clusters of cells:
+```{r}
+BatchMB_MTG <- FindNeighbors(BatchMB_MTG, reduction = "harmony", dims = 1:20)
+BatchMB_MTG <- FindClusters(BatchMB_MTG, resolution = 0.5, algorithm = 4, method = "igraph")
+```
+
+run Umap based on top 10 harmony axis: 
+
+```{r}
+BatchMB_MTG <- RunUMAP(BatchMB_MTG, reduction = "harmony", dims = 1:20)
+```
+
+run tsne based on top 10 harmony axis: 
+
+```{r}
+#MTGandMidbrainIntegration <- RunTSNE(MTGandMidbrainIntegration, reduction = "harmony", dims = 1:17)
+```
+
+plot umap: 
+```{r}
+DimPlot(BatchMB_MTG, reduction = "umap", label = TRUE,pt.size = 0.01)
+```
+
+```{r}
+DimPlot(BatchMB_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
+```
+
+```{r}
+
+BatchMB_MTG@meta.data$region <- "Midbrain"
+
+BatchMB_MTG@meta.data$region[BatchMB_MTG@meta.data$batch %in% c("Batch7","Batch8")] <- "MTG"
+
+DimPlot(BatchMB_MTG, reduction = "umap", group.by = "region",pt.size = 0.1)
+
+```
+
+
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+DimPlot(BatchMB_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
+```
+
+```{r}
+DimPlot(BatchMB_MTG, reduction = "umap", split.by = "region", label = TRUE, ncol = 1)
+```
+
+
+```{R}
+
+MTGandMidbrainIntegration_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", label = TRUE, pt.size = 0.01) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_UMAP_Clusters, filename = "Figures/MTGandMidbrainIntegration_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+MTGandMidbrainIntegration_Case_Group_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", group.by = "case",pt.size = 0.1) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_Case_Group_UMAP_Clusters, filename = "Figures/MTGandMidbrainIntegration_Case_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+MTGandMidbrainIntegration_Region_Group_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", group.by = "region",pt.size = 0.1) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_Region_Group_UMAP_Clusters, filename = "Figures/MTGandMidbrainIntegration_Region_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+MTGandMidbrainIntegration_Case_Split_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_Case_Split_UMAP_Clusters, filename = "Figures/MTGandMidbrainIntegration_Case_Split_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 8, units = "in")
+
+MTGandMidbrainIntegration_Region_Split_UMAP_Clusters <- DimPlot(BatchMB_MTG, reduction = "umap", split.by = "region", label = TRUE, ncol = 1) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_Region_Split_UMAP_Clusters, filename = "Figures/MTGandMidbrainIntegration_Region_Split_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 8, units = "in")
+
+```
+
+Find markers for every cluster compared to all remaining cells, report only the positive ones
+```{r}
+MTGandMidbrainIntegration.markers <- FindAllMarkers(MTGandMidbrainIntegration, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+```
+
+
+Save single-cell elements. 
+```{r}
+#saveRDS(MTGandMidbrainIntegration,"Files/MTGandMidbrainIntegrationClusteredUnassiged.rds")
+```
+
+```{r}
+#MTGandMidbrainIntegration <- readRDS("Files/MTGandMidbrainIntegrationClusteredUnassiged.rds")
+```
+
+```{r}
+#saveRDS(AllMB.markers,"AllMB.markers.rds")
+```
+
+```{r}
+#AllMB.markers=readRDS("AllMB.markers.rds")
+#write.csv(AllMB.markers,"AllMB_markers.csv")
+```
+
+```{r}
+unique(MTGandMidbrainIntegration.markers$cluster)
+```
+
+Top marker genes for each clusters: 
+```{r}
+MTGandMidbrainIntegration.markers %>% group_by(cluster) %>% top_n(n = 2, wt = avg_log2FC)
+write.table(MTGandMidbrainIntegration.markers, file = "Files/AllMarkers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+top10Markers <- MTGandMidbrainIntegration.markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+write.table(top10Markers, file = "Files/top10Markers.txt", col.names = TRUE, sep = "\t", quote = FALSE)
+```
+
+Heatmap for some marker genes: 
+```{r}
+features <- unique(top10Markers$gene)
+DoHeatmap(MTGandMidbrainIntegration, features = features, size = 2, draw.lines = FALSE, angle = 45,
+          hjust = 0.2) + theme(axis.text.y = element_text(size = 5))
+```
+#ignore actual genes, this is just a reminder of what a FeaturePlot is 
+
+Plot these genes in the cluster plot:
+```{r}
+FeaturePlot(MTGandMidbrainIntegration, features = c("ENO2", "RBFOX3","SLC17A6", "SLC17A7","AQP4", "GFAP"))
+```
+
+```{r}
+saveRDS(MTGandMidbrainIntegration,"Files/MTGandMidbrainIntegrationClusteredUnassiged.rds")
+```
+
+
+ 
+#########################################################
+ 
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+```
+ 
+ 
+ 
+ 
+```{R}
+MTGandMidbrainIntegration=readRDS("Files/MTGandMidbrainIntegrationClusteredUnassiged.rds")
+```
+ 
+Testing T-cell/immune cell markers
+
+
+
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("CD96"),pt.size = 0, split.by = "region")
+```
+NK Cell Markers
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("IL7R"),pt.size = 0, split.by = "region")
+```
+
+
+CD16
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("FCGR3A"),pt.size = 0)
+```
+
+CD56
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("NCAM1"),pt.size = 0)
+```
+
+CD94
+
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("KLRD1"),pt.size = 0)
+```
+NKG2A
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("KLRC1"),pt.size = 1)
+```
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("CD244"),pt.size = 0)
+```
+
+resting T cell marker?
+
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("CD8A"),pt.size = 1)
+```
+
+```{r}
+TKillerCellMarkerVlnPlot <- VlnPlot(AllMB, features = c("CD8A","CD226","CD244","CD96","IL7R","KLRD1","NCAM1","FCGR3A","KLRC1"),pt.size = 0, ncol = 1) 
+
+ggsave(TKillerCellMarkerVlnPlot,filename = "TKillerCellMarkerVlnPlot.pdf", width = 20, height = 20)            
+
+
+```
+
+
+##################################################################
+
+T lymphocyte markers
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("CD69"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("TFRC"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("IL2RA"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("CTLA4"),pt.size = 0)
+```
+
+
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("FOXP3"),pt.size = 0)
+```
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("TRAC"),pt.size = 0)
+```
+
+
+###################################################################
+
+ Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6, SLC17A7
+ GABAergic neurons = SLC32A1, GAD1, GAD2
+ Dopaminergic neurons = TH, SLC6A3, SCL18A2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+ 
+Dopaminergic: 21
+ Glu_Neurons = 1,3,7,8,9,11,14,17,18,19,20,23
+ GABA_Neurons = 4,6,13,24
+ Astrocytes = 5
+ oligo = 2,22
+ OPCs= 12
+ Microglia = 10
+ Endothelial = 15,16
+ overlapping = 4
+ novel = 5,11,12,13,14 - all likely neurons
+
+Find cell-types by plotting marker genes.
+
+Neuron Markers
+
+```{r}
+VlnPlot(MTGandMidbrainIntegration, features = c("ENO2"),pt.size = 0)
+```
+Neurons: 0,1,2,3,5,6,7,8,9,10,13,15,16,18
+
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("RBFOX3"),pt.size = 0)
+```
+Dopaminergic neuron markers
+
+```{R}
+VlnPlot(BatchMB_MTG, features = c("SLC6A3"),pt.size = 1, split.by = "region")
+```
+
+```{R}
+VlnPlot(BatchMB_MTG, features = c("SLC18A2"),pt.size = 1)
+```
+
+```{R}
+VlnPlot(BatchMB_MTG, features = c("TH"),pt.size = 1)
+
+VlnPlot(BatchMB_MTG, features = c("TH"),pt.size = 1, split.by = "region")
+```
+
+DA neurons 12, (14)
+
+Glutamatergic neuron markers
+
+```{R}
+VlnPlot(BatchMB_MTG, features = c("SLC17A6"),pt.size = 1, split.by = "region")
+```
+```{R}
+VlnPlot(BatchMB_MTG, features = c("SLC17A7"),pt.size = 1)
+```
+0,1,2,6,10,(14),19,21,22,23,26 - Glu?
+
+GABAergic markers
+
+
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("SLC32A1"),pt.size = 1)
+```
+
+
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("GAD1"),pt.size = 1)
+```
+
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("GAD2"),pt.size = 1)
+```
+
+7,11,12,16,20,24 - GABA?
+
+
+
+Astrocyte markers
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("AQP4"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("GFAP"),pt.size = 0)
+```
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("ALDH1L1"),pt.size = 0)
+```
+ALDH1L1
+
+
+
+8,13 - Astrocytes
+
+Oligodendrocyte markers
+
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("PLP1"),pt.size = 0)
+```
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("MBP"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("MOG"),pt.size = 1)
+```
+
+3,4,5,17 - oligodendrocytes - strong
+
+
+
+OPC markers
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("VCAN"),pt.size = 0)
+```
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("BCAN"),pt.size = 0)
+```
+
+16,24 - OPCs
+
+Microglia
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("CX3CR1"),pt.size = 0)
+```
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("P2RY12"),pt.size = 0)
+```
+
+9 - Microglia
+
+Endothelial Cells
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("FLT1"),pt.size = 0)
+```
+
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("CLDN5"),pt.size = 0)
+```
+15,18 - Endothelial cells
+
+ Neuron  = ENO2, RBFOX3
+ Glutamatergic neurons = SLC17A6, SLC17A7
+ GABAergic neurons = SLC32A1, GAD1, GAD2
+ Dopaminergic neurons = TH, SLC6A3, SCL18A2
+ Astrocytes  = AQP4, GFAP
+ Oligodendrocytes  =  PLP1, MBP
+ OPCs  =  VCAN, BCAN,
+ Microglia = CX3CR1, P2RY12
+ Endothelial cells = FLT1, CLDN5
+ 
+ Alter to make it counts per million
+
+```{R}
+library(reshape2)
+library(sciplot)
+library(ggplot2)
+
+MarkerGenes <- c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP","PLP1","MBP","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5")
+
+data_barplot <- FetchData(MTGandMidbrainIntegration, vars = c("ident",rownames(MTGandMidbrainIntegration@assays$RNA@counts)), slot = "counts")
+
+data_barplot_1 <- data_barplot[1:10,]
+
+#rowSums(data_barplot_1[2:length(colnames(data_barplot_1))])
+
+#1e6/rowSums(data_barplot_1[2:length(colnames(data_barplot_1))])
+
+scaledrowSums <- 1e6/rowSums(data_barplot[2:length(colnames(data_barplot))])
+
+swpt_barplot <- sweep(data_barplot[,2:length(colnames(data_barplot))],1,scaledrowSums,FUN = "*")
+
+swpt_data_barplot_markers <- swpt_barplot[,which(colnames(swpt_barplot) %in% MarkerGenes)]
+
+swpt_data_barplot_markers$ident <- as.vector(data_barplot$ident)
+
+data_barplot_melt <- melt(swpt_data_barplot_markers)
+
+data_barplot_melt$ident <- as.vector(data_barplot_melt$ident)
+data_barplot_melt$variable <- as.vector(data_barplot_melt$variable)
+data_barplot_melt$value <- as.numeric(as.vector(data_barplot_melt$value))
+
+data_barplot_melt_sum <- group_by(data_barplot_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(MarkerGenes))
+
+ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+Batch8_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+ggsave(Batch8_barchart,filename = "Files/Batch8_Marker_Barchart", device = "pdf", width = 12, height = 12, units = "in")
+```
+1,2,3,5,10
+
+Alternate way of creating the barplot matrix
+
+###
+
+
+
+
+
+
+
+###
+
+
+
+
+################################################################################################################
+
+Reading in the table for panglaodb to more systematically go through the known types of brain cell and assess their presence in the dataset.
+
+```{R}
+#PanglaoDB <- read.delim("~/Documents/Projects/Misc. Files/PanglaoDB_markers_27_Mar_2020.tsv", stringsAsFactors = FALSE)
+
+#PanglaoDBBrain <- PanglaoDB[PanglaoDB$organ %in% "Brain",]
+```
+
+Let's see how many unique cell types for the brain the database contains
+
+```{R}
+#unique(PanglaoDBBrain$cell.type)
+
+#sum(is.na(PanglaoDBBrain$cell.type))
+```
+Reminder of the unnassigned clusters:
+
+novel = 7,12,14,15,19,21 - all neurons
+
+Looking at top 5 markers for each cell type
+
+Making function and testing
+
+```{R}
+#GeneSet <- rownames(GetAssayData(object = MTGandMidbrainIntegration, assay.type = "RNA", slot = "counts"))
+
+#filtering PanglaoDB for genes present in the scRNA-seq dataset
+
+#PanglaoDBBrainGroupfilter <- PanglaoDBBrainGroup[PanglaoDBBrainGroup$official.gene.symbol %in% GeneSet,]
+
+#markervlnplots <- function(x) {
+#  VlnPlot(MTGandMidbrainIntegration, features = x,pt.size = 0)
+  
+#}
+
+#markervlnplots("RELN")
+
+```
+
+
+
+Running function for Tancytes
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Tanycytes",]$official.gene.symbol,markervlnplots)
+```
+
+Glycinergic neurons
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Glycinergic neurons",]$official.gene.symbol,markervlnplots)
+```
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Noradrenergic neurons",]$official.gene.symbol,markervlnplots)
+```
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Serotonergic neurons",]$official.gene.symbol,markervlnplots)
+```
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Trigeminal neurons",]$official.gene.symbol,markervlnplots)
+```
+
+```{R}
+#lapply(PanglaoDBBrainGroupfilter[PanglaoDBBrainGroupfilter$cell.type %in% "Pyramidal cells",]$official.gene.symbol,markervlnplots)
+```
+
+
+Running function through lapply for all cell types in the brain in PanglaoDB
+
+```{R}
+#lapply(unique(PanglaoDBBrain$cell.type), markervlnplots, y=PanglaoDBBrain)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+Other form of ploting genes across clusters:
+```{r}
+#RidgePlot(AllMB, features=c("ENO2"))
+#RidgePlot(AllMB, features=c("TH"))
+#RidgePlot(AllMB, features=c("SLC6A3"))
+#RidgePlot(AllMB, features=c("SLC18A2"))
+#RidgePlot(AllMB, features=c("SLC17A6"))
+#RidgePlot(AllMB, features=c("GAD2"))
+```
+
+
+##################################################################################################
+
+```{R}
+VlnPlot(MTGandMidbrainIntegration, features = c("CLDN5","TH","P2RY12","GRM4","BCAN"),pt.size = 0,stack = TRUE, flip = TRUE)
+```
+
+0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26
+
+Dopaminergic: 21
+ Glu_Neurons = 1,3,7,8,9,11,14,17,18,19,20,23
+ GABA_Neurons = 4,6,13,24
+ Astrocytes = 5
+ oligo = 2,22
+ OPCs= 12
+ Microglia = 10
+ Endothelial = 15,16
+
+
+Assigning cell type identity to clusters: 
+
+```{r}
+BatchMB_MTG <- RenameIdents(BatchMB_MTG, `1` = "GLU Neurons", `2` = "Oligodendrocytes",
+                      `3` = "GLU Neurons", `4` = "GABA Neurons", `5` = "Astrocytes",
+                      `6` = "GABA Neurons", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "GLU Neurons",
+                      `10` = "Microglia", `11` = "GLU Neurons",`12` = "OPCs",
+                      `13` = "GABA Neurons",`14` = "GLU Neurons",
+                      `15` = "Endothelial", `16`="Endothelial", `17`="GLU Neurons", `18`="GLU Neurons", `19`="GLU Neurons",  `20`="GLU Neurons", `21` = "DA Neurons", `22` = "Oligodendrocytes", `23` = "GLU Neurons", `24` = "GABA Neurons")
+```
+
+reminder:, `25` = "CD8+ T cells", `25` = "GLU Neurons",`26` = "GLU Neurons"
+
+```{R}
+#saveRDS(AllMB,"AllMB_Assigned.rds")
+#AllMB=readRDS("AllMB.rds")
+```
+
+```{R}
+
+#AllMB <- readRDS("Files/AllMB_Assigned.rds")
+
+```
+
+
+
+Now let's plot cells with the assigned celltypes: 
+```{r}
+DimPlot(BatchMB_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+UMAPclusters <- DimPlot(BatchMB_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(UMAPclusters, filename = "Files/Assigned_UMAPclusters_scRNA_seq_MTGandMidbrainIntegration.pdf", device = "pdf", width = 6, height = 4, units = "in")
+```
+
+```{r}
+DimPlot(BatchMB_MTG, reduction = "umap", group.by = "case",pt.size = 0.1)
+```
+
+```{r}
+DimPlot(MTGandMidbrainIntegration, reduction = "umap", group.by = "region",pt.size = 0.1)
+```
+
+
+TSNE Plot cells colored by clusters and grouped by case. 
+```{r}
+DimPlot(MTGandMidbrainIntegration, reduction = "umap", split.by = "case", label = TRUE, ncol = 1)
+```
+
+```{r}
+DimPlot(BatchMB_MTG, reduction = "umap", split.by = "region", label = TRUE, ncol = 1)
+```
+
+
+```{R}
+MTGandMidbrainIntegration_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", label = TRUE, pt.size = 0.01, label.size = 2.5) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = ),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_UMAP_Clusters, filename = "Figures/Assigned_MTGandMidbrainIntegration_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+MTGandMidbrainIntegration_Case_Group_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", group.by = "case",pt.size = 0.1, label.size = 2.5) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_Case_Group_UMAP_Clusters, filename = "Figures/Assigned_MTGandMidbrainIntegration_Case_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+MTGandMidbrainIntegration_Region_Group_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", group.by = "region",pt.size = 0.1, label.size = 2.5) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_Region_Group_UMAP_Clusters, filename = "Figures/Assigned_MTGandMidbrainIntegration_Region_Group_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 4, units = "in")
+
+MTGandMidbrainIntegration_Case_Split_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", split.by = "case", label = TRUE, ncol = 1, label.size = 2.5) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_Case_Split_UMAP_Clusters, filename = "Figures/Assigned_MTGandMidbrainIntegration_Case_Split_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 8, units = "in")
+
+MTGandMidbrainIntegration_Region_Split_UMAP_Clusters <- DimPlot(MTGandMidbrainIntegration, reduction = "umap", split.by = "region", label = TRUE, ncol = 1, label.size = 2.5) + 
+  theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+ggsave(MTGandMidbrainIntegration_Region_Split_UMAP_Clusters, filename = "Figures/Assigned_MTGandMidbrainIntegration_Region_Split_UMAP_Clusters.pdf", device = "pdf", width = 6, height = 8, units = "in")
+
+```
+
+
+
+```{r}
+DimPlot(MTGandMidbrainIntegration, label = TRUE, repel = TRUE, pt.size = 1, split.by = "case", label.size = 2,
+        ncol = 1) + NoLegend()
+```
+
+
+```{r}
+DimPlot(MTGandMidbrainIntegration, label = TRUE, repel = TRUE, pt.size = 1,reduction = 'umap')
+```
+
+
+```{R}
+Markerggplots <- function(SeurObj,Genes){
+  for (i in Genes) {
+    TempViolin <- VlnPlot(SeurObj, features = i ,pt.size = 0)
+    ggsave(TempViolin, filename = paste("Files/",i,"_VlnPlot.pdf",sep = ""), device = "pdf", width = 12, height = 4, units = "in")
+}}
+
+Markerggplots(MTGandMidbrainIntegration,MarkerGenes)
+
+
+```
+

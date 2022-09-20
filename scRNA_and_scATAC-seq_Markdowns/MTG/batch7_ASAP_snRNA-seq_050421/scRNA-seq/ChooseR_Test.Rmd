@@ -1,0 +1,190 @@
+---
+title: "ChooseR_Test"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+Loading in the single cell data
+
+```{r}
+Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+```
+
+
+checking dimensions to check all samples have the same set of genes
+
+```{r}
+
+dim(Batch7.data)
+
+```
+
+
+```{r}
+Batch7_MTG <- CreateSeuratObject(counts = cbind(Batch7.data),
+                            project = "Batch7_MTG",
+                            min.cells = 3)
+```
+
+
+```{R}
+samples <- read.csv(file.path("Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+
+cellcodes <- as.data.frame(Batch7_MTG@assays$RNA@data@Dimnames[[2]])
+colnames(cellcodes) <- "barcodes"
+rownames(cellcodes) <- cellcodes$barcodes
+
+cellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", cellcodes$barcodes))
+cellcodes$samples <- as.vector(samples$library_id[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$sample_ID <- cellcodes$samples
+
+unique(Batch7_MTG@meta.data$sample_ID)
+
+```
+
+
+```{R}
+samples$case <- c("HC","PD","HC")
+
+cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$case <- cellcodes$case
+
+```
+
+
+```{r}
+Batch7_MTG[["percent.mt"]] <- PercentageFeatureSet(Batch7_MTG, pattern = "^MT-")
+
+VlnPlot(Batch7_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+```{R}
+library(stats)
+nfeature_RNA <- Batch7_MTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch7_MTG@meta.data$nFeature_RNA)
+
+```
+
+
+Filtering low quality cells:
+```{r}
+Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
+```
+
+Now let's recheck the cell the counts for each group:
+```{r}
+table(Batch7_MTG$sample_ID)
+```
+
+
+Now let's recheck the cell the counts for each group:
+```{r}
+table(Batch7_MTG$sample_ID)
+```
+
+```{R}
+table(Batch7_MTG$case)
+```
+
+
+Log Normalizing data: 
+```{r}
+Batch7_MTG <- NormalizeData(Batch7_MTG, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+
+Finding and plotting 2000 most variable features
+
+```{R}
+Batch7_MTG <- FindVariableFeatures(Batch7_MTG, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(Batch7_MTG), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(Batch7_MTG)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+```
+
+```{R}
+plot1
+```
+
+```{R}
+plot2
+```
+
+Run the standard workflow for visualization and clustering :
+
+save list of all genes
+```{r}
+all.genes <- rownames(Batch7_MTG)
+```
+
+center and scale data
+```{r}
+Batch7_MTG <- ScaleData(Batch7_MTG, features = all.genes, verbose = FALSE)
+```
+
+
+finding the top 30 principal components for cells
+```{r}
+Batch7_MTG <- RunGLMPCA(Batch7_MTG, features=Batch7_MTG@assays$RNA@var.features, L = 30)
+```
+
+see contribution of genes to construct each of these principal components.
+```{r}
+VizDimLoadings(Batch7_MTG, dims = 1:2, reduction = "glmpca")
+```
+
+
+plot cells in the first two principal components colored by case: 
+```{r}
+DimPlot(object = Batch7_MTG, reduction = "glmpca", pt.size = .1, group.by = "case")
+```
+
+Coordinate of cells in PC 1 characterized by case: 
+```{r}
+VlnPlot(object = Batch7_MTG, features = "PC_1", group.by = "case",  pt.size = .1)
+```
+
+Run Harmony
+```{r}
+Batch7_MTG <- RunHarmony(Batch7_MTG, group.by.vars = "case", reduction = "glmpca", plot_convergence = TRUE)
+
+```
+
+```{R}
+
+source("~/bin/cluster.stability/R/pipeline.R")
+
+```
+
+
+
+
+
+
+

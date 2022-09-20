@@ -1,0 +1,113 @@
+---
+title: "Analysing Azimuth results for cell type assignment"
+output: html_document
+---
+
+Predicted ID Score: 
+
+Construct a weights matrix that defines the association between each query cell and each anchor. These weights are computed as 1 - the distance between the query cell and the anchor divided by the distance of the query cell to the k.weightth anchor multiplied by the anchor score computed in FindIntegrationAnchors. We then apply a Gaussian kernel with a bandwidth defined by sd.weight and normalize across all k.weight anchors.
+
+Create a binary classification matrix, the rows corresponding to each possible class and the columns corresponding to the anchors. If the reference cell in the anchor pair is a member of a certain class, that matrix entry is filled with a 1, otherwise 0.
+
+Multiply this classification matrix by the transpose of weights matrix to compute a prediction score for each class for each cell in the query dataset.
+
+
+Mapping Score: This metric was designed to help identify query cells that aren't well represented in the reference dataset. The intuition for the score is that we are going to project the query cells into a reference-defined space and then project them back onto the query. By comparing the neighborhoods before and after projection, we identify cells who's local neighborhoods are the most affected by this transformation. This could be because there is a population of query cells that aren't present in the reference or the state of the cells in the query is significantly different from the equivalent cell type in the reference.
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+
+Azimuth_metadata <- read.delim("../Files/Azimuth_Metadata.tsv")
+
+mean_predictedID_scores <- read.delim("../Files/predicted_id_score_meantable.tsv")
+
+colnames(mean_predictedID_scores)[c(2,3)] <- c("mean_predictedIDscore","SE_mean_predictedIDscore") 
+  
+mean_mappping_scores <- read.delim("../Files/mapping_score_meantable.tsv")
+
+colnames(mean_mappping_scores)[c(2,3)] <- c("mean_mappping_score","SE_mean_mappping_score") 
+
+predicted_celltype_assignment_table <- read.delim("../Files/predictedcelltype_compositiontable.tsv")
+
+layer_assignments <- read.delim("../Files/cell_type_to_layer_for_jacob_sc_conts_05202022.csv", sep = ",")
+
+melted_layer_assignments <- melt(layer_assignments)
+
+Primary_Layer_Assignments <- group_by(melted_layer_assignments, Group.1) %>% filter(value == max(value))
+
+```
+
+
+```{R}
+
+#Determining most prominent predicted cell type for each assigned cell cluster
+
+Highest_Predicted_Celltype <- predicted_celltype_assignment_table %>% group_by(CellSubtypes) %>% filter(predictedsubclasspercentage == max(predictedsubclasspercentage))
+
+temp_table <- merge(Highest_Predicted_Celltype,mean_predictedID_scores)
+
+Combined_Predicted_CellType_Table <- merge(temp_table, mean_mappping_scores)
+
+Reordered_Primary_Layer_Assignments <- Primary_Layer_Assignments[order(match(Primary_Layer_Assignments$Group.1, Combined_Predicted_CellType_Table$CellSubtypes)),]
+
+Combined_Predicted_CellType_Table$Primary_Layer_Assignment <- Reordered_Primary_Layer_Assignments$variable
+
+Combined_Predicted_CellType_Table$Primary_Layer_Cell_Proportion <- Reordered_Primary_Layer_Assignments$value
+
+```
+
+#Option to add in predicted ID scores and mapping scores specifically for the "primary" predicted subclass
+
+predidscore=NULL
+predidmappingscore=NULL
+for (i in Combined_Predicted_CellType_Table$CellSubtypes){
+  predid <- Combined_Predicted_CellType_Table[Combined_Predicted_CellType_Table$CellSubtypes %in% i,]$predicted.subclass
+  temptable1 <- Azimuth_metadata[Azimuth_metadata$CellSubtypes %in% i,]
+  predidscore <- c(predidscore,mean(temptable1[temptable1$predicted.subclass %in% predid,]$predicted.subclass.score))
+  predidmappingscore <- c(predidmappingscore,mean(temptable1[temptable1$predicted.subclass %in% predid,]$mapping.score))
+}
+
+
+Combined_Predicted_CellType_Table$mean_predictedIDscore_subclass <- predidscore
+
+Combined_Predicted_CellType_Table$mean_mappingscore_subclass <- predidmappingscore
+  
+
+
+
+```{R}
+
+write.table(Combined_Predicted_CellType_Table, file = "../Files/HealthyControls_Full_Combined_Predicted_CellType_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+Subset_Combined_Predicted_CellType_Table <- Combined_Predicted_CellType_Table[,c(-6,-8)]
+
+Subset_Combined_Predicted_CellType_Table <- Subset_Combined_Predicted_CellType_Table[,c(1,2,7,3,4,5,6,8)]
+
+write.table(Subset_Combined_Predicted_CellType_Table, file = "../Files/HealthyControls_Combined_Predicted_CellType_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+
+```
+
+
+
+
+
+
+
+

@@ -1,0 +1,148 @@
+---
+title: "Testing for the correct metadata order"
+output: html_document
+---
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+```{R}
+
+FullIntegrationBN1614 <- readRDS("../Files/FullIntegrationOSR_MTG_SeuratFinal_BN1614.rds")
+
+
+FullIntegrationBN1614Metadata <- read.delim("../Files/MetadataBN1614.tsv", sep = "\t")
+
+
+OriginalBN161 <- Read10X(data.dir = "../../../batch14_ASAP_snRNA-seq_071421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+
+```
+
+
+
+```{R}
+
+ProcessedBarcodes <- colnames(FullIntegrationBN1614@assays$RNA)
+
+ProcessedBarcodes <- gsub("batch14_BN1614_","",ProcessedBarcodes)
+
+ProcessedBarcodes <- gsub("\\.[[:digit:]]","",ProcessedBarcodes)
+
+OrignalBarcodes <- colnames(OriginalBN161)
+
+OrignalBarcodes <- gsub("-[[:digit:]]","",OrignalBarcodes)
+
+sum(ProcessedBarcodes %in% OrignalBarcodes)
+
+
+ProcessedBarcodes_1 <- ProcessedBarcodes
+
+
+```
+
+Looking
+
+
+```{R}
+
+FullIntegrationBN1614 <- readRDS("../Files/FullIntegrationOSR_MTG_SeuratFinal_BN1614.rds")
+
+
+FullIntegrationBN1614Metadata <- read.delim("../Files/MetadataBN1614.tsv", sep = "\t")
+
+
+OriginalBN161 <- Read10X(data.dir = "../../../batch14_ASAP_snRNA-seq_071421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+
+```
+
+
+
+```{R}
+
+ProcessedBarcodes <- colnames(FullIntegrationBN1614@assays$RNA)
+
+ProcessedBarcodes <- gsub("batch14_BN1614_","",ProcessedBarcodes)
+
+ProcessedBarcodes <- gsub("\\.","-",ProcessedBarcodes)
+
+OrignalBarcodes <- colnames(OriginalBN161)
+
+sum(ProcessedBarcodes %in% OrignalBarcodes)
+
+lst <- lapply(ProcessedBarcodes_1, grep, x=OrignalBarcodes)
+
+listings <- unlist(lst)
+
+greppedoriginalbarcodes <- OrignalBarcodes[listings]
+
+length(grep("1",greppedoriginalbarcodes))
+
+length(grep("3",greppedoriginalbarcodes))
+```
+
+
+Original Barcode set
+
+```{R}
+
+part1barcodes <- read.delim("../Files/cell_barcodes_df.txt", sep = "\t")
+
+part1barcodesMeta <- gsub("batch19_BN1578_","",part1barcodes$metadata)
+
+part1barcodesMeta <- gsub("\\.","-",part1barcodesMeta)
+
+Batch19 <- Read10X(data.dir = "../../../batch19_ASAP_snRNA-seq_083121/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+
+Batch19Barcodes <- colnames(Batch19)
+
+
+sum(part1barcodesMeta %in% Batch19Barcodes)
+
+
+```
+
+
+#############################################################################################################
+
+```{R}
+
+FullMetatdata <- read.delim("../Files/PostFilteringMetadata_Table3.tsv", sep = "\t")
+
+
+Sample_Case_Table <- FullMetatdata[,c(4,5)]
+
+Sample_Case_Table_U <- unique(Sample_Case_Table)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```

@@ -1,0 +1,31 @@
+---
+title: "Cleaning Metadata for Sean"
+output: html_document
+---
+
+```{R}
+
+FinalSeuratObjectMetdata <- read.delim("../Files/FullIntegration_OutlierSamplesRemoved_FinaMetadata.tsv")
+
+
+
+```
+
+
+
+```{R}
+
+unique(FinalSeuratObjectMetdata$MajorCellTypes)
+
+FinalSeuratObjectMetdata <- FinalSeuratObjectMetdata[!FinalSeuratObjectMetdata$MajorCellTypes %in% "Unknown_Cluster_66",]
+FinalSeuratObjectMetdata$MajorCellTypes <- gsub("TEMRA_T_Cells","Unknown_Immune_Cells",FinalSeuratObjectMetdata$MajorCellTypes)
+
+unique(FinalSeuratObjectMetdata$CellSubtypes)
+
+FinalSeuratObjectMetdata$CellSubtypes <- gsub("TEMRA_T_Cells","Unknown_Immune_Cells",FinalSeuratObjectMetdata$CellSubtypes)
+
+unique(FinalSeuratObjectMetdata$CellSubtypes)
+```
+
+
+

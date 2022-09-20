@@ -1,0 +1,1523 @@
+---
+title: "Testing Azimuth Cell Type Classification"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(Azimuth)
+```
+
+```{R}
+
+
+reference <- LoadReference(path = "https://seurat.nygenome.org/azimuth/references/v1.0.0/human_motorcortex")
+
+SeuratObject <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```
+
+
+
+```{R}
+
+MTGanchors <- FindTransferAnchors(reference = reference$map, query = SeuratObject,
+    dims = 1:30, reference.reduction = "refDR", normalization.method = "SCT",features = intersect(rownames(x = reference$map), VariableFeatures(object = SeuratObject)),)
+
+
+
+```
+
+```{R}
+
+refdata <- lapply(X = "subclass", function(x) {
+  reference$map[[x, drop = TRUE]]
+})
+names(x = refdata) <- "subclass"
+if (FALSE) {
+  refdata[["impADT"]] <- GetAssayData(
+    object = reference$map[['ADT']],
+    slot = 'data'
+  )
+}
+
+```
+
+```{R}
+
+predictions <- TransferData(anchorset = MTGanchors, reference = reference$map, dims = 1:30, refdata = refdata)
+
+SeuratObject <- AddMetaData(SeuratObject, metadata = predictions)
+
+```
+
+
+```{R}
+
+table(SeuratObject$predicted.id)
+
+
+```
+
+
+```{R}
+
+DimPlot(SeuratObject, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2, group.by = "predicted.id")
+
+
+```
+
+
+######################################################################################################
+
+Same but with extra parameters
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(Azimuth)
+```
+
+```{R}
+
+
+reference <- LoadReference(path = "https://seurat.nygenome.org/azimuth/references/v1.0.0/human_motorcortex")
+
+SeuratObject <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```
+
+
+
+```{R}
+
+MTGanchors <- FindTransferAnchors(reference = reference$map, query = SeuratObject,
+    dims = 1:30, reference.reduction = "refDR", normalization.method = "SCT",features = intersect(rownames(x = reference$map), VariableFeatures(object = SeuratObject)),)
+
+```
+
+```{R}
+
+refdata <- lapply(X = "subclass", function(x) {
+  reference$map[[x, drop = TRUE]]
+})
+names(x = refdata) <- "subclass"
+if (FALSE) {
+  refdata[["impADT"]] <- GetAssayData(
+    object = reference$map[['ADT']],
+    slot = 'data'
+  )
+}
+
+```
+
+```{R}
+
+predictions <- TransferData(anchorset = MTGanchors, reference = reference$map, dims = 1:30, refdata = refdata)
+
+SeuratObject <- AddMetaData(SeuratObject, metadata = predictions)
+
+```
+
+
+```{R}
+
+table(SeuratObject$predicted.id)
+
+
+```
+
+
+```{R}
+
+DimPlot(SeuratObject, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2, group.by = "predicted.id")
+
+
+```
+
+
+
+########################################################################################3
+
+
+Trying to find out how to calculate the % of query cells with anchors
+
+```{R}
+library(Seurat)
+library(Azimuth)
+
+# Download the Azimuth reference and extract the archive
+
+# Load the reference
+# Change the file path based on where the reference is located on your system.
+reference <- LoadReference(path = "https://seurat.nygenome.org/azimuth/references/v1.0.0/human_motorcortex")
+
+# Load the query object for mapping
+# Change the file path based on where the query file is located on your system.
+query <- LoadFileInput(path = "Files/GLMPCA_Batch7_MTG_Unassigned_counts_matrix.rds")
+
+# Calculate nCount_RNA and nFeature_RNA if the query does not
+# contain them already
+if (!all(c("nCount_RNA", "nFeature_RNA") %in% c(colnames(x = query[[]])))) {
+    calcn <- as.data.frame(x = Seurat:::CalcN(object = query))
+    colnames(x = calcn) <- paste(
+      colnames(x = calcn),
+      "RNA",
+      sep = '_'
+    )
+    query <- AddMetaData(
+      object = query,
+      metadata = calcn
+    )
+    rm(calcn)
+}
+
+# Calculate percent mitochondrial genes if the query contains genes
+# matching the regular expression "^MT-"
+if (any(grepl(pattern = '^MT-', x = rownames(x = query)))) {
+  query <- PercentageFeatureSet(
+    object = query,
+    pattern = '^MT-',
+    col.name = 'percent.mt',
+    assay = "RNA"
+  )
+}
+
+# Filter cells based on the thresholds for nCount_RNA and nFeature_RNA
+# you set in the app
+cells.use <- query[["nCount_RNA", drop = TRUE]] <= 24672 &
+  query[["nCount_RNA", drop = TRUE]] >= 200 &
+  query[["nFeature_RNA", drop = TRUE]] <= 6386 &
+  query[["nFeature_RNA", drop = TRUE]] >= 200
+
+# If the query contains mitochondrial genes, filter cells based on the
+# thresholds for percent.mt you set in the app
+if ("percent.mt" %in% c(colnames(x = query[[]]))) {
+  cells.use <- cells.use & (query[["percent.mt", drop = TRUE]] <= 5 &
+    query[["percent.mt", drop = TRUE]] >= 0)
+}
+
+# Remove filtered cells from the query
+query <- query[, cells.use]
+
+# Preprocess with SCTransform
+query <- SCTransform(
+  object = query,
+  assay = "RNA",
+  new.assay.name = "refAssay",
+  residual.features = rownames(x = reference$map),
+  reference.SCT.model = reference$map[["refAssay"]]@SCTModel.list$refmodel,
+  method = 'glmGamPoi',
+  ncells = 2000,
+  n_genes = 2000,
+  do.correct.umi = FALSE,
+  do.scale = FALSE,
+  do.center = TRUE
+)
+
+# Find anchors between query and reference
+anchors <- FindTransferAnchors(
+  reference = reference$map,
+  query = query,
+  k.filter = NA,
+  reference.neighbors = "refdr.annoy.neighbors",
+  reference.assay = "refAssay",
+  query.assay = "refAssay",
+  reference.reduction = "refDR",
+  normalization.method = "SCT",
+  features = intersect(rownames(x = reference$map), VariableFeatures(object = query)),
+  dims = 1:50,
+  n.trees = 20,
+  mapping.score.k = 100
+)
+
+# Transfer cell type labels and impute protein expression
+#
+# Transferred labels are in metadata columns named "predicted.*"
+# The maximum prediction score is in a metadata column named "predicted.*.score"
+# The prediction scores for each class are in an assay named "prediction.score.*"
+# The imputed assay is named "impADT" if computed
+
+refdata <- lapply(X = "subclass", function(x) {
+  reference$map[[x, drop = TRUE]]
+})
+names(x = refdata) <- "subclass"
+if (FALSE) {
+  refdata[["impADT"]] <- GetAssayData(
+    object = reference$map[['ADT']],
+    slot = 'data'
+  )
+}
+query <- TransferData(
+  reference = reference$map,
+  query = query,
+  dims = 1:50,
+  anchorset = anchors,
+  refdata = refdata,
+  n.trees = 20,
+  store.weights = TRUE
+)
+
+# Calculate the embeddings of the query data on the reference SPCA
+query <- IntegrateEmbeddings(
+  anchorset = anchors,
+  reference = reference$map,
+  query = query,
+  reductions = "pcaproject",
+  reuse.weights.matrix = TRUE
+)
+
+
+
+# Calculate the query neighbors in the reference
+# with respect to the integrated embeddings
+query[["query_ref.nn"]] <- FindNeighbors(
+  object = Embeddings(reference$map[["refDR"]]),
+  query = Embeddings(query[["integrated_dr"]]),
+  return.neighbor = TRUE,
+  l2.norm = TRUE
+)
+
+
+#Below is additional steps to project the query onto the reference umap, but we don't do this in the actual analysis because we want to retain our original umap structure.
+
+# The reference used in the app is downsampled compared to the reference on which
+# the UMAP model was computed. This step, using the helper function NNTransform,
+# corrects the Neighbors to account for the downsampling.
+query <- NNTransform(
+  object = query,
+  meta.data = reference$map[[]]
+)
+
+# Project the query to the reference UMAP.
+query[["proj.umap"]] <- RunUMAP(
+  object = query[["query_ref.nn"]],
+  reduction.model = reference$map[["refUMAP"]],
+  reduction.key = 'UMAP_'
+)
+
+
+# Calculate mapping score and add to metadata
+query <- AddMetaData(
+  object = query,
+  metadata = MappingScore(anchors = anchors),
+  col.name = "mapping.score"
+)
+
+saveRDS(query,file = "Files/AzimuthTest.rds")
+
+test <- readRDS("Files/AzimuthTest.rds")
+
+test@meta.data$mapping.score
+```
+
+Working out final version of Azimuth code
+
+###############################################################################################
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(Azimuth)
+```
+
+
+
+```{R}
+
+
+reference <- LoadReference(path = "https://seurat.nygenome.org/azimuth/references/v1.0.0/human_motorcortex")
+
+SeuratObject <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```
+
+
+
+
+
+```{R}
+
+query <- SCTransform(
+  object = SeuratObject,
+  assay = "RNA",
+  new.assay.name = "refAssay",
+  residual.features = rownames(x = reference$map),
+  reference.SCT.model = reference$map[["refAssay"]]@SCTModel.list$refmodel,
+  method = 'glmGamPoi',
+  ncells = 2000,
+  n_genes = 2000,
+  do.correct.umi = FALSE,
+  do.scale = FALSE,
+  do.center = TRUE
+)
+
+```
+
+```{R}
+
+#MTGanchors <- FindTransferAnchors(reference = reference$map, query = SeuratObject,
+#    dims = 1:50, reference.reduction = "refDR", normalization.method = "SCT",features = #intersect(rownames(x = reference$map), VariableFeatures(object = SeuratObject)),)
+
+MTGanchors <- FindTransferAnchors(
+  reference = reference$map,
+  query = query,
+  k.filter = NA,
+  reference.neighbors = "refdr.annoy.neighbors",
+  reference.assay = "refAssay",
+  query.assay = "refAssay",
+  reference.reduction = "refDR",
+  normalization.method = "SCT",
+  features = intersect(rownames(x = reference$map), VariableFeatures(object = query)),
+  dims = 1:50,
+  n.trees = 20,
+  mapping.score.k = 100
+)
+
+```
+
+```{R}
+
+refdata <- lapply(X = "subclass", function(x) {
+  reference$map[[x, drop = TRUE]]
+})
+names(x = refdata) <- "subclass"
+if (FALSE) {
+  refdata[["impADT"]] <- GetAssayData(
+    object = reference$map[['ADT']],
+    slot = 'data'
+  )
+}
+
+```
+
+```{R}
+
+#predictions <- TransferData(anchorset = MTGanchors, reference = reference$map, dims = 1:50, refdata = refdata)
+
+#predictions <- TransferData(
+#  reference = reference$map,
+#  dims = 1:50,
+#  anchorset = MTGanchors,
+#  refdata = refdata,
+#  n.trees = 20,
+#  store.weights = TRUE
+#)
+
+query <- TransferData(
+  reference = reference$map,
+  dims = 1:50,
+  query = query,
+  anchorset = MTGanchors,
+  refdata = refdata,
+  n.trees = 20,
+  store.weights = TRUE
+)
+
+#query <- AddMetaData(query, metadata = predictions)
+
+query <- AddMetaData(
+  object = query,
+  metadata = MappingScore(anchors = MTGanchors),
+  col.name = "mapping.score"
+)
+
+saveRDS(query,file = "Files/AzimuthTestTrue.rds")
+
+```
+
+
+```{R}
+library(Seurat)
+library(Azimuth)
+library(sciplot)
+library(ggplot2)
+library(dplyr)
+# VISUALIZATIONS
+
+query <- readRDS("Files/AzimuthTestTrue.rds")
+
+reference <- LoadReference(path = "https://seurat.nygenome.org/azimuth/references/v1.0.0/human_motorcortex")
+
+#Batch7_MTG <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+query <- RenameIdents(query, `1` = "GLU Neurons 1", `2` = "GLU Neurons 2", `3` = "GLU Neurons 3", `4` = "Oligodendrocytes", `5` = "GABA Neurons 1", `6` = "GABA Neurons 2", `7` = "GLU Neurons 4", `8` = "GLU Neurons 5",`9` = "GLU Neurons 6",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons 7",`13` = "GLU Neurons 8",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons 3", `17`="GLU Neurons 9", `18`="GLU Neurons 10", `19`="GABA Neurons 4", `20`="GLU Neurons 11", `21` = "GLU Neurons 12", `22` = "GLU Neurons 13", `23`="GLU Neurons 14", `24` = "GABA Neurons 5", `25` = "GLU Neurons 15")
+
+query@meta.data$CellSubtypes <- Idents(query)
+
+# First predicted metadata field, change to visualize other predicted metadata
+id <- "subclass"[1]
+predicted.id <- paste0("predicted.", id)
+
+# DimPlot of the reference
+#DimPlot(object = reference$plot, reduction = "refUMAP", group.by = id, label = TRUE) + NoLegend()
+
+# DimPlot of the query, colored by predicted cell type
+
+DimPlot(query, reduction = "umap", group.by = predicted.id, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               
+  theme(axis.text = element_text(size=8),
+  axis.title = element_text(size = 12),
+  legend.text = element_text(size = 8),
+  title = element_text(size = 12),
+  legend.key.size = unit(0.4,"cm"),
+  legend.position = "none")
+
+UMAP_Predicted_ID <- DimPlot(query, reduction = "umap", group.by = predicted.id, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               
+  theme(axis.text = element_text(size=8),
+  axis.title = element_text(size = 12),
+  legend.text = element_text(size = 8),
+  title = element_text(size = 12),
+  legend.key.size = unit(0.4,"cm"),
+  legend.position = "none")
+
+ggsave(UMAP_Predicted_ID, filename = "Figures/Azimuth_UMAP_GroupedByPredictedID_scRNA_seq.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+
+```
+
+
+```{R}
+
+# Plot the score for the predicted cell type of the query
+FeaturePlot(object = query, features = paste0(predicted.id, ".score"), reduction = "umap")
+
+PredictedIDScore_AssignedClusters_FeaturePlot <- FeaturePlot(object = query, features = paste0(predicted.id, ".score"), reduction = "umap")
+
+ggsave(PredictedIDScore_AssignedClusters_FeaturePlot, filename = "Figures/PredictedIDScore_AssignedClusters_FeaturePlot.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+#VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = predicted.id) + NoLegend()
+
+
+VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+PredictedIDScore_AssignedClusters_VlnPlot <- VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+ggsave(PredictedIDScore_AssignedClusters_VlnPlot, filename = "Figures/PredictedIDScore_AssignedClusters_VlnPlot.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+predicted_id_score_meantable <- group_by(query@meta.data,CellSubtypes) %>% summarise(mean = mean(predicted.subclass.score), SE = se(predicted.subclass.score))
+
+ggplot(predicted_id_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MeanPredictedIDScore_AssignedClusters_Barchart <- ggplot(predicted_id_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+ggsave(MeanPredictedIDScore_AssignedClusters_Barchart, filename = "Figures/MeanPredictedIDScore_AssignedClusters_Barchart.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+write.table(predicted_id_score_meantable, file = "Files/predicted_id_score_meantable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+```
+
+
+```{R}
+
+# Plot the mapping score
+FeaturePlot(object = query, features = "mapping.score", reduction = "proj.umap")
+
+
+VlnPlot(object = query, features = "mapping.score", group.by = predicted.id) + NoLegend()
+
+```
+
+```{R}
+
+# Plot the score for the predicted cell type of the query
+FeaturePlot(object = query, features = "mapping.score", reduction = "umap")
+
+MappingScore_AssignedClusters_FeaturePlot <- FeaturePlot(object = query, features = "mapping.score", reduction = "umap")
+
+ggsave(MappingScore_AssignedClusters_FeaturePlot, filename = "Figures/MappingScore_AssignedClusters_FeaturePlot.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+#VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = predicted.id) + NoLegend()
+
+
+VlnPlot(object = query, features = "mapping.score", group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+MappingScore_AssignedClusters_VlnPlot <- VlnPlot(object = query, features = "mapping.score", group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+ggsave(MappingScore_AssignedClusters_VlnPlot, filename = "Figures/MappingScore_AssignedClusters_VlnPlot.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+mapping_score_meantable <- group_by(query@meta.data,CellSubtypes) %>% summarise(mean = mean(mapping.score), SE = se(mapping.score))
+
+ggplot(mapping_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MeanMappingScore_AssignedClusters_Barchart <- ggplot(mapping_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+ggsave(MeanMappingScore_AssignedClusters_Barchart, filename = "Figures/MeanMappingScore_AssignedClusters_Barchart.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+write.table(mapping_score_meantable, file = "Files/mapping_score_meantable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+```
+
+```{R}
+#barchart of predicted cell type composition for each assigned cluster
+
+predictedcelltype_compositiontable <- group_by(query@meta.data,CellSubtypes, predicted.subclass) %>% summarise(length(predicted.subclass))
+
+predictedcelltype_compositiontable <- ungroup(predictedcelltype_compositiontable)
+
+colnames(predictedcelltype_compositiontable)[3] <- "predictedsubclass_size"
+
+predictedcelltype_compositiontable <- group_by(predictedcelltype_compositiontable, CellSubtypes) %>% mutate(predictedsubclasspercentage=(predictedsubclass_size/sum(predictedsubclass_size))*100)
+
+ggplot(predictedcelltype_compositiontable, aes(fill=predicted.subclass, y=predictedsubclasspercentage, x=CellSubtypes)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cell Type") +
+  scale_fill_discrete(name = "predicted.subclass") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6)) +
+  scale_y_continuous(breaks=c(0,25,50,75,100))
+
+PredictedCellTypeComposition_Barchart <- ggplot(predictedcelltype_compositiontable, aes(fill=predicted.subclass, y=predictedsubclasspercentage, x=CellSubtypes)) + 
+    geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cell Type") +
+  scale_fill_discrete(name = "predicted.subclass") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 12),
+        axis.text.y = element_text(size = 12),
+        legend.text=element_text(size=12)) +
+  scale_y_continuous(breaks=c(0,25,50,75,100))
+
+ggsave(PredictedCellTypeComposition_Barchart, filename = "Figures/PredictedCellTypeComposition_Barchart.pdf", device = "pdf", width = 14, height = 8, units = "in")
+
+write.table(predictedcelltype_compositiontable, file = "Files/predictedcelltype_compositiontable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+```
+
+
+
+```{R}
+
+# Plot an imputed protein feature
+if (FALSE) {
+  FeaturePlot(object = query, features = "CD3-1", reduction = "proj.umap")
+  VlnPlot(object = query, features = "CD3-1", group.by = predicted.id) + NoLegend()
+}
+
+```
+
+##########################################################################################
+
+Properly assigning cell types to batch 7 based on marker barchart
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(reshape2)
+library(sciplot)
+
+Batch7_MTG <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```
+
+```{R}
+
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
+
+UMAP_Unassigned <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
+
+
+ggsave(UMAP_Unassigned, filename = "Figures/GLMPCA_Unassigned_UMAPclusters_scRNA_seq.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+```
+
+
+
+
+
+```{r}
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons", `2` = "GLU Neurons", `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GABA Neurons", `6` = "GABA Neurons", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "GLU Neurons",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons",`13` = "GLU Neurons",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons", `17`="GLU Neurons", `18`="GLU Neurons", `19`="GABA Neurons", `20`="GLU Neurons", `21` = "GLU Neurons", `22` = "GLU Neurons", `23`="GLU Neurons", `24` = "GABA Neurons", `25` = "GLU Neurons")
+```
+
+
+```{R}
+
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
+
+UMAP_MajorCellTypes <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
+
+
+ggsave(UMAP_MajorCellTypes, filename = "Figures/GLMPCA_MajorCellTypes_UMAPclusters_scRNA_seq.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+```
+
+
+
+```{R}
+
+Batch7_MTG@meta.data$MajorCellTypes <- Idents(Batch7_MTG)
+
+Idents(Batch7_MTG) <- "seurat_clusters"
+
+```
+
+
+```{r}
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons 1", `2` = "GLU Neurons 2", `3` = "GLU Neurons 3", `4` = "Oligodendrocytes", `5` = "GABA Neurons 1", `6` = "GABA Neurons 2", `7` = "GLU Neurons 4", `8` = "GLU Neurons 5",`9` = "GLU Neurons 6",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons 7",`13` = "GLU Neurons 8",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons 3", `17`="GLU Neurons 9", `18`="GLU Neurons 10", `19`="GABA Neurons 4", `20`="GLU Neurons 11", `21` = "GLU Neurons 12", `22` = "GLU Neurons 13", `23`="GLU Neurons 14", `24` = "GABA Neurons 5", `25` = "GLU Neurons 15")
+```
+
+
+```{R}
+
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) + 
+        theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+UMAP_AssignedClusters <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               theme(axis.text = element_text(size=8),
+              axis.title = element_text(size = 12),
+              legend.text = element_text(size = 8),
+              title = element_text(size = 12),
+              legend.key.size = unit(0.4,"cm"))
+
+
+ggsave(UMAP_AssignedClusters, filename = "Figures/GLMPCA_AssignedClusters_UMAPclusters_scRNA_seq.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+```
+
+
+
+
+############################################################################################
+
+Copy of Azimuth_Script.R
+
+
+```{R}
+
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(Azimuth)
+library(sciplot)
+
+reference <- LoadReference(path = "https://seurat.nygenome.org/azimuth/references/v1.0.0/human_motorcortex")
+
+SeuratObject <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+query <- SCTransform(
+  object = SeuratObject,
+  assay = "RNA",
+  new.assay.name = "refAssay",
+  residual.features = rownames(x = reference$map),
+  reference.SCT.model = reference$map[["refAssay"]]@SCTModel.list$refmodel,
+  method = 'glmGamPoi',
+  ncells = 2000,
+  n_genes = 2000,
+  do.correct.umi = FALSE,
+  do.scale = FALSE,
+  do.center = TRUE
+)
+
+MTGanchors <- FindTransferAnchors(
+  reference = reference$map,
+  query = query,
+  k.filter = NA,
+  reference.neighbors = "refdr.annoy.neighbors",
+  reference.assay = "refAssay",
+  query.assay = "refAssay",
+  reference.reduction = "refDR",
+  normalization.method = "SCT",
+  features = intersect(rownames(x = reference$map), VariableFeatures(object = query)),
+  dims = 1:50,
+  n.trees = 20,
+  mapping.score.k = 100
+)
+
+refdata <- lapply(X = "subclass", function(x) {
+  reference$map[[x, drop = TRUE]]
+})
+names(x = refdata) <- "subclass"
+if (FALSE) {
+  refdata[["impADT"]] <- GetAssayData(
+    object = reference$map[['ADT']],
+    slot = 'data'
+  )
+}
+
+query <- TransferData(
+  reference = reference$map,
+  dims = 1:50,
+  query = query,
+  anchorset = MTGanchors,
+  refdata = refdata,
+  n.trees = 20,
+  store.weights = TRUE
+)
+
+query <- AddMetaData(
+  object = query,
+  metadata = MappingScore(anchors = MTGanchors),
+  col.name = "mapping.score"
+)
+
+#saveRDS(query,file = "Files/AzimuthTestTrue.rds")
+
+
+
+#query <- readRDS("Files/AzimuthTestTrue.rds")
+
+reference <- LoadReference(path = "https://seurat.nygenome.org/azimuth/references/v1.0.0/human_motorcortex")
+
+query <- RenameIdents(query, `1` = "GLU Neurons 1", `2` = "GLU Neurons 2", `3` = "GLU Neurons 3", `4` = "Oligodendrocytes", `5` = "GABA Neurons 1", `6` = "GABA Neurons 2", `7` = "GLU Neurons 4", `8` = "GLU Neurons 5",`9` = "GLU Neurons 6",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons 7",`13` = "GLU Neurons 8",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons 3", `17`="GLU Neurons 9", `18`="GLU Neurons 10", `19`="GABA Neurons 4", `20`="GLU Neurons 11", `21` = "GLU Neurons 12", `22` = "GLU Neurons 13", `23`="GLU Neurons 14", `24` = "GABA Neurons 5", `25` = "GLU Neurons 15")
+
+query@meta.data$CellSubtypes <- Idents(query)
+
+# First predicted metadata field, change to visualize other predicted metadata
+id <- "subclass"[1]
+predicted.id <- paste0("predicted.", id)
+
+# DimPlot of the reference
+#DimPlot(object = reference$plot, reduction = "refUMAP", group.by = id, label = TRUE) + NoLegend()
+
+# DimPlot of the query, colored by predicted cell type
+
+DimPlot(query, reduction = "umap", group.by = predicted.id, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"),
+        legend.position = "none")
+
+UMAP_Predicted_ID <- DimPlot(query, reduction = "umap", group.by = predicted.id, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"),
+        legend.position = "none")
+
+#ggsave(UMAP_Predicted_ID, filename = "Figures/Azimuth_UMAP_GroupedByPredictedID_scRNA_seq.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+# Plot the score for the predicted cell type of the query
+FeaturePlot(object = query, features = paste0(predicted.id, ".score"), reduction = "umap")
+
+PredictedIDScore_AssignedClusters_FeaturePlot <- FeaturePlot(object = query, features = paste0(predicted.id, ".score"), reduction = "umap")
+
+#ggsave(PredictedIDScore_AssignedClusters_FeaturePlot, filename = "Figures/PredictedIDScore_AssignedClusters_FeaturePlot.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+PredictedIDScore_AssignedClusters_VlnPlot <- VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+#ggsave(PredictedIDScore_AssignedClusters_VlnPlot, filename = "Figures/PredictedIDScore_AssignedClusters_VlnPlot.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+predicted_id_score_meantable <- group_by(query@meta.data,CellSubtypes) %>% summarise(mean = mean(predicted.subclass.score), SE = se(predicted.subclass.score))
+
+ggplot(predicted_id_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MeanPredictedIDScore_AssignedClusters_Barchart <- ggplot(predicted_id_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+#ggsave(MeanPredictedIDScore_AssignedClusters_Barchart, filename = "Figures/MeanPredictedIDScore_AssignedClusters_Barchart.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+#write.table(predicted_id_score_meantable, file = "Files/predicted_id_score_meantable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+# Plot the mapping score
+FeaturePlot(object = query, features = "mapping.score", reduction = "proj.umap")
+
+
+VlnPlot(object = query, features = "mapping.score", group.by = predicted.id) + NoLegend()
+
+# Plot the score for the predicted cell type of the query
+FeaturePlot(object = query, features = "mapping.score", reduction = "umap")
+
+MappingScore_AssignedClusters_FeaturePlot <- FeaturePlot(object = query, features = "mapping.score", reduction = "umap")
+
+#ggsave(MappingScore_AssignedClusters_FeaturePlot, filename = "Figures/MappingScore_AssignedClusters_FeaturePlot.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+VlnPlot(object = query, features = "mapping.score", group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+MappingScore_AssignedClusters_VlnPlot <- VlnPlot(object = query, features = "mapping.score", group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+#ggsave(MappingScore_AssignedClusters_VlnPlot, filename = "Figures/MappingScore_AssignedClusters_VlnPlot.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+mapping_score_meantable <- group_by(query@meta.data,CellSubtypes) %>% summarise(mean = mean(mapping.score), SE = se(mapping.score))
+
+ggplot(mapping_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MeanMappingScore_AssignedClusters_Barchart <- ggplot(mapping_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+#ggsave(MeanMappingScore_AssignedClusters_Barchart, filename = "Figures/MeanMappingScore_AssignedClusters_Barchart.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+#write.table(mapping_score_meantable, file = "Files/mapping_score_meantable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+#barchart of predicted cell type composition for each assigned cluster
+
+predictedcelltype_compositiontable <- group_by(query@meta.data,CellSubtypes, predicted.subclass) %>% summarise(length(predicted.subclass))
+
+predictedcelltype_compositiontable <- ungroup(predictedcelltype_compositiontable)
+
+colnames(predictedcelltype_compositiontable)[3] <- "predictedsubclass_size"
+
+predictedcelltype_compositiontable <- group_by(predictedcelltype_compositiontable, CellSubtypes) %>% mutate(predictedsubclasspercentage=(predictedsubclass_size/sum(predictedsubclass_size))*100)
+
+ggplot(predictedcelltype_compositiontable, aes(fill=predicted.subclass, y=predictedsubclasspercentage, x=CellSubtypes)) + 
+  geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cell Type") +
+  scale_fill_discrete(name = "predicted.subclass") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6)) +
+  scale_y_continuous(breaks=c(0,25,50,75,100))
+
+PredictedCellTypeComposition_Barchart <- ggplot(predictedcelltype_compositiontable, aes(fill=predicted.subclass, y=predictedsubclasspercentage, x=CellSubtypes)) + 
+  geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cell Type") +
+  scale_fill_discrete(name = "predicted.subclass") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 12),
+        axis.text.y = element_text(size = 12),
+        legend.text=element_text(size=12)) +
+  scale_y_continuous(breaks=c(0,25,50,75,100))
+
+#ggsave(PredictedCellTypeComposition_Barchart, filename = "Figures/PredictedCellTypeComposition_Barchart.pdf", device = "pdf", width = 14, height = 8, units = "in")
+
+#write.table(predictedcelltype_compositiontable, file = "Files/predictedcelltype_compositiontable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+#write.table(query@meta.data, file = "Files/Azimuth_Metadata.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+
+
+
+
+```
+
+
+##############################################################################################
+
+Copy of O2 script (changed to local dataset)
+
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(Azimuth)
+library(sciplot)
+
+reference <- LoadReference(path = "https://seurat.nygenome.org/azimuth/references/v1.0.0/human_motorcortex")
+
+SeuratObject <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+query <- SCTransform(
+  object = SeuratObject,
+  assay = "RNA",
+  new.assay.name = "refAssay",
+  residual.features = rownames(x = reference$map),
+  reference.SCT.model = reference$map[["refAssay"]]@SCTModel.list$refmodel,
+  method = 'glmGamPoi',
+  ncells = 2000,
+  n_genes = 2000,
+  do.correct.umi = FALSE,
+  do.scale = FALSE,
+  do.center = TRUE
+)
+
+MTGanchors <- FindTransferAnchors(
+  reference = reference$map,
+  query = query,
+  k.filter = NA,
+  reference.neighbors = "refdr.annoy.neighbors",
+  reference.assay = "refAssay",
+  query.assay = "refAssay",
+  reference.reduction = "refDR",
+  normalization.method = "SCT",
+  features = intersect(rownames(x = reference$map), VariableFeatures(object = query)),
+  dims = 1:50,
+  n.trees = 20,
+  mapping.score.k = 100
+)
+
+refdata <- lapply(X = "subclass", function(x) {
+  reference$map[[x, drop = TRUE]]
+})
+names(x = refdata) <- "subclass"
+if (FALSE) {
+  refdata[["impADT"]] <- GetAssayData(
+    object = reference$map[['ADT']],
+    slot = 'data'
+  )
+}
+
+query <- TransferData(
+  reference = reference$map,
+  dims = 1:50,
+  query = query,
+  anchorset = MTGanchors,
+  refdata = refdata,
+  n.trees = 20,
+  store.weights = TRUE
+)
+
+query <- AddMetaData(
+  object = query,
+  metadata = MappingScore(anchors = MTGanchors),
+  col.name = "mapping.score"
+)
+
+query <- RenameIdents(query, `1` = "GLU Neurons 1", `2` = "GLU Neurons 2", `3` = "GLU Neurons 3", `4` = "Oligodendrocytes", `5` = "GABA Neurons 1", `6` = "GABA Neurons 2", `7` = "GLU Neurons 4", `8` = "GLU Neurons 5",`9` = "GLU Neurons 6",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons 7",`13` = "GLU Neurons 8",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons 3", `17`="GLU Neurons 9", `18`="GLU Neurons 10", `19`="GABA Neurons 4", `20`="GLU Neurons 11", `21` = "GLU Neurons 12", `22` = "GLU Neurons 13", `23`="GLU Neurons 14", `24` = "GABA Neurons 5", `25` = "GLU Neurons 15")
+
+query@meta.data$CellSubtypes <- Idents(query)
+
+# First predicted metadata field, change to visualize other predicted metadata
+id <- "subclass"[1]
+predicted.id <- paste0("predicted.", id)
+
+# DimPlot of the reference
+#DimPlot(object = reference$plot, reduction = "refUMAP", group.by = id, label = TRUE) + NoLegend()
+
+# DimPlot of the query, colored by predicted cell type
+
+DimPlot(query, reduction = "umap", group.by = predicted.id, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"),
+        legend.position = "none")
+
+UMAP_Predicted_ID <- DimPlot(query, reduction = "umap", group.by = predicted.id, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"),
+        legend.position = "none")
+
+#ggsave(UMAP_Predicted_ID, filename = "Figures/Azimuth_UMAP_GroupedByPredictedID_scRNA_seq.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+# Plot the score for the predicted cell type of the query
+FeaturePlot(object = query, features = paste0(predicted.id, ".score"), reduction = "umap")
+
+PredictedIDScore_AssignedClusters_FeaturePlot <- FeaturePlot(object = query, features = paste0(predicted.id, ".score"), reduction = "umap")
+
+#ggsave(PredictedIDScore_AssignedClusters_FeaturePlot, filename = "Figures/PredictedIDScore_AssignedClusters_FeaturePlot.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+PredictedIDScore_AssignedClusters_VlnPlot <- VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+#ggsave(PredictedIDScore_AssignedClusters_VlnPlot, filename = "Figures/PredictedIDScore_AssignedClusters_VlnPlot.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+predicted_id_score_meantable <- group_by(query@meta.data,CellSubtypes) %>% summarise(mean = mean(predicted.subclass.score), SE = se(predicted.subclass.score))
+
+ggplot(predicted_id_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MeanPredictedIDScore_AssignedClusters_Barchart <- ggplot(predicted_id_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+#ggsave(MeanPredictedIDScore_AssignedClusters_Barchart, filename = "Figures/MeanPredictedIDScore_AssignedClusters_Barchart.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+#write.table(predicted_id_score_meantable, file = "Files/predicted_id_score_meantable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+# Plot the score for the predicted cell type of the query
+FeaturePlot(object = query, features = "mapping.score", reduction = "umap")
+
+MappingScore_AssignedClusters_FeaturePlot <- FeaturePlot(object = query, features = "mapping.score", reduction = "umap")
+
+#ggsave(MappingScore_AssignedClusters_FeaturePlot, filename = "Figures/MappingScore_AssignedClusters_FeaturePlot.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+VlnPlot(object = query, features = "mapping.score", group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+MappingScore_AssignedClusters_VlnPlot <- VlnPlot(object = query, features = "mapping.score", group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+#ggsave(MappingScore_AssignedClusters_VlnPlot, filename = "Figures/MappingScore_AssignedClusters_VlnPlot.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+mapping_score_meantable <- group_by(query@meta.data,CellSubtypes) %>% summarise(mean = mean(mapping.score), SE = se(mapping.score))
+
+ggplot(mapping_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MeanMappingScore_AssignedClusters_Barchart <- ggplot(mapping_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+#ggsave(MeanMappingScore_AssignedClusters_Barchart, filename = "Figures/MeanMappingScore_AssignedClusters_Barchart.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+#write.table(mapping_score_meantable, file = "Files/mapping_score_meantable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+#barchart of predicted cell type composition for each assigned cluster
+
+predictedcelltype_compositiontable <- group_by(query@meta.data,CellSubtypes, predicted.subclass) %>% summarise(length(predicted.subclass))
+
+predictedcelltype_compositiontable <- ungroup(predictedcelltype_compositiontable)
+
+colnames(predictedcelltype_compositiontable)[3] <- "predictedsubclass_size"
+
+predictedcelltype_compositiontable <- group_by(predictedcelltype_compositiontable, CellSubtypes) %>% mutate(predictedsubclasspercentage=(predictedsubclass_size/sum(predictedsubclass_size))*100)
+
+ggplot(predictedcelltype_compositiontable, aes(fill=predicted.subclass, y=predictedsubclasspercentage, x=CellSubtypes)) + 
+  geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cell Type") +
+  scale_fill_discrete(name = "predicted.subclass") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6)) +
+  scale_y_continuous(breaks=c(0,25,50,75,100))
+
+PredictedCellTypeComposition_Barchart <- ggplot(predictedcelltype_compositiontable, aes(fill=predicted.subclass, y=predictedsubclasspercentage, x=CellSubtypes)) + 
+  geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cell Type") +
+  scale_fill_discrete(name = "predicted.subclass") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 12),
+        axis.text.y = element_text(size = 12),
+        legend.text=element_text(size=12)) +
+  scale_y_continuous(breaks=c(0,25,50,75,100))
+
+#ggsave(PredictedCellTypeComposition_Barchart, filename = "Figures/PredictedCellTypeComposition_Barchart.pdf", device = "pdf", width = 14, height = 8, units = "in")
+
+#write.table(predictedcelltype_compositiontable, file = "Files/predictedcelltype_compositiontable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+#write.table(query@meta.data, file = "Files/Azimuth_Metadata.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+```
+
+##############################################################################################
+
+Testing Azimuth but with "cluster" labels instead of "subclass" labels
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(Azimuth)
+```
+
+
+
+```{R}
+
+
+reference <- LoadReference(path = "https://seurat.nygenome.org/azimuth/references/v1.0.0/human_motorcortex")
+
+SeuratObject <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```
+
+
+
+
+
+```{R}
+
+query <- SCTransform(
+  object = SeuratObject,
+  assay = "RNA",
+  new.assay.name = "refAssay",
+  residual.features = rownames(x = reference$map),
+  reference.SCT.model = reference$map[["refAssay"]]@SCTModel.list$refmodel,
+  method = 'glmGamPoi',
+  ncells = 2000,
+  n_genes = 2000,
+  do.correct.umi = FALSE,
+  do.scale = FALSE,
+  do.center = TRUE
+)
+
+```
+
+```{R}
+
+#MTGanchors <- FindTransferAnchors(reference = reference$map, query = SeuratObject,
+#    dims = 1:50, reference.reduction = "refDR", normalization.method = "SCT",features = #intersect(rownames(x = reference$map), VariableFeatures(object = SeuratObject)),)
+
+MTGanchors <- FindTransferAnchors(
+  reference = reference$map,
+  query = query,
+  k.filter = NA,
+  reference.neighbors = "refdr.annoy.neighbors",
+  reference.assay = "refAssay",
+  query.assay = "refAssay",
+  reference.reduction = "refDR",
+  normalization.method = "SCT",
+  features = intersect(rownames(x = reference$map), VariableFeatures(object = query)),
+  dims = 1:50,
+  n.trees = 20,
+  mapping.score.k = 100
+)
+
+```
+
+```{R}
+
+refdata <- lapply(X = "cluster", function(x) {
+  reference$map[[x, drop = TRUE]]
+})
+names(x = refdata) <- "cluster"
+if (FALSE) {
+  refdata[["impADT"]] <- GetAssayData(
+    object = reference$map[['ADT']],
+    slot = 'data'
+  )
+}
+
+```
+
+```{R}
+
+#predictions <- TransferData(anchorset = MTGanchors, reference = reference$map, dims = 1:50, refdata = refdata)
+
+#predictions <- TransferData(
+#  reference = reference$map,
+#  dims = 1:50,
+#  anchorset = MTGanchors,
+#  refdata = refdata,
+#  n.trees = 20,
+#  store.weights = TRUE
+#)
+
+query <- TransferData(
+  reference = reference$map,
+  dims = 1:50,
+  query = query,
+  anchorset = MTGanchors,
+  refdata = refdata,
+  n.trees = 20,
+  store.weights = TRUE
+)
+
+#query <- AddMetaData(query, metadata = predictions)
+
+query <- AddMetaData(
+  object = query,
+  metadata = MappingScore(anchors = MTGanchors),
+  col.name = "mapping.score"
+)
+
+#saveRDS(query,file = "Files/AzimuthTestTrue.rds")
+
+query_metadata <- query@meta.data
+
+```
+
+
+```{R}
+query <- RenameIdents(query, `1` = "GLU Neurons 1", `2` = "GLU Neurons 2", `3` = "GLU Neurons 3", `4` = "Oligodendrocytes", `5` = "GABA Neurons 1", `6` = "GABA Neurons 2", `7` = "GLU Neurons 4", `8` = "GLU Neurons 5",`9` = "GLU Neurons 6",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons 7",`13` = "GLU Neurons 8",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons 3", `17`="GLU Neurons 9", `18`="GLU Neurons 10", `19`="GABA Neurons 4", `20`="GLU Neurons 11", `21` = "GLU Neurons 12", `22` = "GLU Neurons 13", `23`="GLU Neurons 14", `24` = "GABA Neurons 5", `25` = "GLU Neurons 15")
+
+query@meta.data$CellSubtypes <- Idents(query)
+
+# First predicted metadata field, change to visualize other predicted metadata
+id <- "cluster"[1]
+predicted.id <- paste0("predicted.", id)
+
+# DimPlot of the reference
+#DimPlot(object = reference$plot, reduction = "refUMAP", group.by = id, label = TRUE) + NoLegend()
+
+# DimPlot of the query, colored by predicted cell type
+
+DimPlot(query, reduction = "umap", group.by = predicted.id, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"),
+        legend.position = "none")
+
+UMAP_Predicted_ID <- DimPlot(query, reduction = "umap", group.by = predicted.id, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2.5) +               
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"),
+        legend.position = "none")
+
+#ggsave(UMAP_Predicted_ID, filename = "Figures/Azimuth_UMAP_GroupedByPredictedID_scRNA_seq.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+# Plot the score for the predicted cell type of the query
+FeaturePlot(object = query, features = paste0(predicted.id, ".score"), reduction = "umap")
+
+PredictedIDScore_AssignedClusters_FeaturePlot <- FeaturePlot(object = query, features = paste0(predicted.id, ".score"), reduction = "umap")
+
+#ggsave(PredictedIDScore_AssignedClusters_FeaturePlot, filename = "Figures/PredictedIDScore_AssignedClusters_FeaturePlot.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+PredictedIDScore_AssignedClusters_VlnPlot <- VlnPlot(object = query, features = paste0(predicted.id, ".score"), group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+#ggsave(PredictedIDScore_AssignedClusters_VlnPlot, filename = "Figures/PredictedIDScore_AssignedClusters_VlnPlot.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+predicted_id_score_meantable <- group_by(query@meta.data,CellSubtypes) %>% summarise(mean = mean(predicted.subclass.score), SE = se(predicted.subclass.score))
+
+ggplot(predicted_id_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MeanPredictedIDScore_AssignedClusters_Barchart <- ggplot(predicted_id_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+#ggsave(MeanPredictedIDScore_AssignedClusters_Barchart, filename = "Figures/MeanPredictedIDScore_AssignedClusters_Barchart.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+#write.table(predicted_id_score_meantable, file = "Files/predicted_id_score_meantable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+# Plot the score for the predicted cell type of the query
+FeaturePlot(object = query, features = "mapping.score", reduction = "umap")
+
+MappingScore_AssignedClusters_FeaturePlot <- FeaturePlot(object = query, features = "mapping.score", reduction = "umap")
+
+#ggsave(MappingScore_AssignedClusters_FeaturePlot, filename = "Figures/MappingScore_AssignedClusters_FeaturePlot.pdf", device = "pdf", width = 6, height = 6, units = "in")
+
+VlnPlot(object = query, features = "mapping.score", group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+MappingScore_AssignedClusters_VlnPlot <- VlnPlot(object = query, features = "mapping.score", group.by = "CellSubtypes", pt.size = 0) + NoLegend()
+
+#ggsave(MappingScore_AssignedClusters_VlnPlot, filename = "Figures/MappingScore_AssignedClusters_VlnPlot.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+mapping_score_meantable <- group_by(query@meta.data,CellSubtypes) %>% summarise(mean = mean(mapping.score), SE = se(mapping.score))
+
+ggplot(mapping_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MeanMappingScore_AssignedClusters_Barchart <- ggplot(mapping_score_meantable, aes(x = CellSubtypes, y = mean, fill = CellSubtypes)) + 
+  geom_bar(aes(x = CellSubtypes, y = mean), stat = "identity", alpha = 1) + 
+  geom_errorbar(aes(x = CellSubtypes, ymin = mean-SE, ymax = mean+SE, colour = CellSubtypes), width = 0.4, alpha = 0.9, size = 0.5) + 
+  theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks = element_blank(),
+        strip.background = element_blank(), strip.placement = "outside", 
+        strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+        strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+#ggsave(MeanMappingScore_AssignedClusters_Barchart, filename = "Figures/MeanMappingScore_AssignedClusters_Barchart.pdf", device = "pdf", width = 12, height = 6, units = "in")
+
+#write.table(mapping_score_meantable, file = "Files/mapping_score_meantable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+#barchart of predicted cell type composition for each assigned cluster
+
+predictedcelltype_compositiontable <- group_by(query@meta.data,CellSubtypes, predicted.subclass) %>% summarise(length(predicted.subclass))
+
+predictedcelltype_compositiontable <- ungroup(predictedcelltype_compositiontable)
+
+colnames(predictedcelltype_compositiontable)[3] <- "predictedsubclass_size"
+
+predictedcelltype_compositiontable <- group_by(predictedcelltype_compositiontable, CellSubtypes) %>% mutate(predictedsubclasspercentage=(predictedsubclass_size/sum(predictedsubclass_size))*100)
+
+ggplot(predictedcelltype_compositiontable, aes(fill=predicted.subclass, y=predictedsubclasspercentage, x=CellSubtypes)) + 
+  geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cell Type") +
+  scale_fill_discrete(name = "predicted.subclass") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.text=element_text(size=6)) +
+  scale_y_continuous(breaks=c(0,25,50,75,100))
+
+PredictedCellTypeComposition_Barchart <- ggplot(predictedcelltype_compositiontable, aes(fill=predicted.subclass, y=predictedsubclasspercentage, x=CellSubtypes)) + 
+  geom_bar(position="stack", stat="identity") +
+  ylab("Proportion") +
+  xlab("Cell Type") +
+  scale_fill_discrete(name = "predicted.subclass") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 12),
+        axis.text.y = element_text(size = 12),
+        legend.text=element_text(size=12)) +
+  scale_y_continuous(breaks=c(0,25,50,75,100))
+
+#ggsave(PredictedCellTypeComposition_Barchart, filename = "Figures/PredictedCellTypeComposition_Barchart.pdf", device = "pdf", width = 14, height = 8, units = "in")
+
+#write.table(predictedcelltype_compositiontable, file = "Files/predictedcelltype_compositiontable.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+#write.table(query@meta.data, file = "Files/Azimuth_Metadata.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+```
+
+
+
+
+

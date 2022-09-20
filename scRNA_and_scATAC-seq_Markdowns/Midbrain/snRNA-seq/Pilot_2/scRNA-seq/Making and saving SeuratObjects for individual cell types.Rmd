@@ -1,0 +1,124 @@
+---
+title: "Making and saving SeuratObjects for individual cell types"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+require("knitr")
+opts_knit$set(root.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_2/scRNA-seq")
+```
+
+Reading in the three different batches and assigning metadata
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(stringr)
+```
+
+
+
+
+
+
+Load the BRI-318, BRI-319, BRI-320, BRI-321, B0085, H0321, H1009, H1118  single-cell data.
+
+Loading in the single cell data
+
+```{R}
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_2")
+
+
+```
+
+
+```{r}
+Pilot_1.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Pilot_2.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+```
+
+
+
+```{R}
+Pilot_1samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Pilot_2samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+
+
+```
+
+
+```{R}
+Batches <- ls()[grep("[[:digit:]].data",ls())]
+
+createmetadata <- function(batch) {
+  batchdf <- get(batch)
+  tempcellcodes <- as.data.frame(batchdf@Dimnames[[2]])
+  colnames(tempcellcodes) <- "barcodes"
+  tempcellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", tempcellcodes$barcodes))
+  prefix <- str_extract(batch,"Pilot_|batch")
+  samptable <- paste(prefix,str_extract(batch,"[[:digit:]]"),"samples",sep="")
+  tempcellcodes$samples <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]"),"samples",sep=""))$library_id[tempcellcodes$libcodes])
+  tempcellcodes$case <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]"),"samples",sep=""))$case[tempcellcodes$libcodes])
+  tempcellcodes$batch <- str_extract(batch,"Batch[[:digit:]]|Pilot_[[:digit:]]")
+  return(tempcellcodes)
+}
+
+metadata <- bind_rows(lapply(Batches,createmetadata), .id = "column_label")
+
+```
+
+
+
+
+```{R}
+Pilot1and2_MB <- CreateSeuratObject(counts = do.call(cbind,lapply(Batches,get)),
+                            project = "Pilot1and2_MB",
+                            min.cells = 3)
+
+```
+
+
+```{R}
+
+Pilot1and2_MB@meta.data$sample_ID <- metadata$samples
+Pilot1and2_MB@meta.data$case <- metadata$case
+Pilot1and2_MB@meta.data$batch <- metadata$batch
+
+```
+
+
+```{R}
+
+CellTypeAssignment <- read.delim("Files/CellTypeAssignment.tsv")
+
+```
+
+
+```{R}
+
+Pilot1and2_MB_Astrocytes <- Pilot1and2_MB[,colnames(Pilot1and2_MB@assays$RNA@counts) %in% CellTypeAssignment$Barcode[CellTypeAssignment$Cell_Type %in% "Astrocytes"]]
+
+saveRDS(Pilot1and2_MB_Astrocytes,file = "Files/Pilot1and2_MB_Astrocytes")
+
+Pilot1and2_MB_Oligodendrocytes <- Pilot1and2_MB[,colnames(Pilot1and2_MB@assays$RNA@counts) %in% CellTypeAssignment$Barcode[CellTypeAssignment$Cell_Type %in% "Oligodendrocytes"]]
+
+saveRDS(Pilot1and2_MB_Oligodendrocytes,"Files/Pilot1and2_MB_Oligodendrocytes")
+
+Pilot1and2_MB_Microglia <- Pilot1and2_MB[,colnames(Pilot1and2_MB@assays$RNA@counts) %in% CellTypeAssignment$Barcode[CellTypeAssignment$Cell_Type %in% "Microglia"]]
+
+saveRDS(Pilot1and2_MB_Microglia,"Files/Pilot1and2_MB_Microglia")
+
+```

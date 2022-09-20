@@ -1,0 +1,231 @@
+---
+title: Testing methods for finding genes differentially expressed between clusters
+  within a cell type
+output: html_document
+---
+
+
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+
+
+
+
+```{R}
+
+Batch7_MTG <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```
+
+
+```{r}
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU_Neurons_1", `2` = "GLU_Neurons_2",
+                      `3` = "GLU_Neurons_3", `4` = "Oligodendrocytes", `5` = "GLU_Neurons_4",
+                      `6` = "Cajal-Retzius Cells", `7` = "GLU_Neurons_5", `8` = "GLU_Neurons_6",`9` = "GABA_Neurons_1",
+                      `10` = "GLU_Neurons_7", `11` = "Astrocytes",`12` = "GABA_Neurons_2",
+                      `13` = "Microglia",`14` = "GLU_Neurons_8",
+                      `15` = "GLU_Neurons_9", `16`="Endothelial", `17`="GABA_Neurons_3", `18`="GLU_Neurons_10", `19`="OPCs",  `20`="GLU_Neurons_11", `21` = "GLU_Neurons_12", `22` = "GABA_Neurons_4")
+```
+
+
+```{R}
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+
+
+```
+
+
+
+```{R}
+
+Cell_Types <- unique(gsub("_[[:digit:]]+","",unique(as.vector(Batch7_MTG@active.ident))))
+
+```
+
+
+Add in additional metadata 
+
+```{R}
+ID_Order <- unique(Batch7_MTG@meta.data$sample_ID)
+
+ID_Order
+
+sex <- c("M","F","M","F")
+
+#Batch567_MTG@meta.data <- Batch567_MTG@meta.data %>% group_by(sample_ID) %>% mutate(sex = rep(sex[match(unique(sample_ID), ID_Order)], length(sample_ID)))
+
+#Batch567_MTG@meta.data$DetRate <- as.vector(scale(colSums(Batch567_MTG@assays$RNA@counts)))
+
+Batch7_MTG@meta.data$sex <- Batch7_MTG@meta.data %>% group_by(sample_ID) %>% mutate(Sex = rep(sex[match(unique(sample_ID), ID_Order)], length(sample_ID))) %>% .$Sex
+
+Batch7_MTG <- Batch7_MTG[apply(Batch7_MTG@assays$RNA@counts,1,mkfilter) >= 20,]
+
+Batch7_MTG@meta.data$DetRate <- as.vector(scale(colSums(Batch7_MTG@assays$RNA@counts > 0)))
+```
+
+
+```{R}
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+} 
+
+
+
+MkCellTypeObjects <- function(SeuObj, Cell) {
+  Cell_Subclusters <- unique(as.vector(SeuObj@active.ident))[grep(Cell, unique(as.vector(SeuObj@active.ident)))]
+  if(length(Cell_Subclusters) > 1) {
+    Cell
+    Cell_SeuObj <- subset(SeuObj, idents = Cell_Subclusters)
+    Cell_SeuObj <- Cell_SeuObj[apply(Cell_SeuObj@assays$RNA@counts,1,mkfilter) >= 20,]
+    Cell_SeuObj@meta.data$DetRate <- as.vector(scale(colSums(Cell_SeuObj@assays$RNA@counts > 0)))
+    Markers <- FindAllMarkers(Cell_SeuObj, verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate"))
+    assign(paste(Cell, "Subcluster_Markers", sep = "_"), Markers)
+    return(eval(parse(text = paste(Cell, "Subcluster_Markers", sep = "_"))))
+} else {
+    Cell
+    Markers <- FindMarkers(SeuObj, ident.1 = "Oligodendrocytes", ident.2 = NULL, test.use = "MAST", latent.vars = c("sex","DetRate"))
+    assign(paste(Cell, "Subcluster_Markers", sep = "_"), Markers)
+    return(eval(parse(text = paste(Cell, "Subcluster_Markers", sep = "_"))))
+  }
+}
+
+
+```
+
+
+```{R}
+Astrocytes_SeuObj <- subset(Batch7_MTG, idents = "Astrocytes")
+Astrocytes_SeuObj <- Astrocytes_SeuObj[apply(Astrocytes_SeuObj@assays$RNA@counts,1,mkfilter) >= 10,]
+FindAllMarkers(Astrocytes_SeuObj, verbose = FALSE, test.use = "MAST", latent.vars = c("sex","DetRate"))
+Batch7_MTG_sub <- Batch7_MTG[rownames(Batch7_MTG@assays$RNA@counts) %in% rownames(Astrocytes_SeuObj@assays$RNA@counts),]
+
+```
+
+assign(paste(Cell, deparse(substitute(SeuObj)), sep = "_"),
+
+```{R}
+MkCellTypeObjects(Batch7_MTG, "GABA_Neurons")
+
+test <- MkCellTypeObjects(Batch7_MTG, "Astrocytes")
+
+MkCellTypeObjects(Batch7_MTG, "Oligodendrocytes")
+
+SubClusterMarkers <- lapply(X = Cell_Types, MkCellTypeObjects, SeuObj = Batch7_MTG)
+
+```
+
+
+```{R}
+FindMarkers(Batch7_MTG, ident.1 = "Astrocytes", ident.2 = NULL, test.use = "MAST", latent.vars = c("sex","DetRate"))
+
+
+Cell_Sub <- unique(as.vector(Batch7_MTG@active.ident))[grep("Astrocytes", unique(as.vector(Batch7_MTG@active.ident)))]
+length(Cell_Sub) > 1
+
+
+```
+
+
+
+################################################################################################################
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+
+
+
+
+```{R}
+
+Batch7_MTG <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```
+
+
+THESE AREN'T TRUE ASSIGNMENTS, JUST PROXIES TO CHECK THIS CODE
+
+```{r}
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU_Neurons", `2` = "GLU_Neurons",
+                      `3` = "GLU_Neurons", `4` = "Oligodendrocytes", `5` = "GLU_Neurons",
+                      `6` = "GABA_Neurons", `7` = "GLU_Neurons", `8` = "GLU_Neurons",`9` = "GABA_Neurons",
+                      `10` = "GLU_Neurons", `11` = "Astrocytes",`12` = "GABA_Neurons",
+                      `13` = "Microglia",`14` = "GLU_Neurons",
+                      `15` = "GLU_Neurons", `16`="Endothelial", `17`="GABA_Neurons", `18`="GLU_Neurons", `19`="OPCs",  `20`="GLU_Neurons", `21` = "GLU_Neurons", `22` = "GABA_Neurons", `23` = "GABA_Neurons", `24` = "GABA_Neurons", `25` = "GABA_Neurons")
+```
+
+
+
+```{R}
+
+unique(Idents(Batch7_MTG))
+
+
+
+
+```
+
+
+
+
+
+```{R}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+

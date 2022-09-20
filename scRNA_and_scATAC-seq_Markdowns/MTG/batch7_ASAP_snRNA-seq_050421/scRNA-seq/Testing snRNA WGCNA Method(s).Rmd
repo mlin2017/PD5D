@@ -1,0 +1,69 @@
+---
+title: "Testing snRNA WGCNA Method(s)"
+output: html_document
+---
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(reshape2)
+library(sciplot)
+
+SeuratObject <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```
+
+
+
+```{r}
+SeuratObject <- RenameIdents(SeuratObject, `1` = "GLU Neurons", `2` = "GLU Neurons", `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GABA Neurons", `6` = "GABA Neurons", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "GLU Neurons",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons",`13` = "GLU Neurons",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons", `17`="GLU Neurons", `18`="GLU Neurons", `19`="GABA Neurons", `20`="GLU Neurons", `21` = "GLU Neurons", `22` = "GLU Neurons", `23`="GLU Neurons", `24` = "GABA Neurons", `25` = "GLU Neurons")
+```
+
+
+
+```{R}
+
+SeuratObject <- SetupForWGCNA(
+  SeuratObject,
+  gene_select = "fraction", # the gene selection approach
+  fraction = 0.2, # fraction of cells that a gene needs to be expressed in order to be included
+  wgcna_name = "tutorial" # the name of the hdWGCNA experiment
+)
+
+
+
+
+
+```
+
+
+
+
+```{R}
+
+
+
+
+
+```
+
+
+
+
+
+
+
