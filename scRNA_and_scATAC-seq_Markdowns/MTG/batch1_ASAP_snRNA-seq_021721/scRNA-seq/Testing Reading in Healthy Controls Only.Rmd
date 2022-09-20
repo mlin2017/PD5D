@@ -1,0 +1,200 @@
+---
+title: "Testing Reading in Healthy Controls Only"
+output: html_document
+---
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(ReductionWrappers)
+library(monocle3)
+library(leidenbase)
+library(Nebulosa)
+library(stringr)
+```
+
+
+```{R}
+
+batch1_aggr <- read.delim("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch1_ASAP_snRNA-seq_021721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/aggregation.csv", sep = ",")
+
+batch2_aggr <- read.delim("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch2_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/aggregation.csv", sep = ",")
+
+aggr_list <- c("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch1_ASAP_snRNA-seq_021721/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/aggregation.csv","~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch2_ASAP_snRNA-seq_031621/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/aggregation.csv")
+
+healthy_controls=NULL
+for (i in aggr_list){
+  aggr_table <- read.delim(i, sep = ",")
+  healthy_controls <- c(healthy_controls,aggr_table[aggr_table$case %in% "HC",]$library_id)
+}
+
+
+```
+
+
+```{R}
+
+test <- Read10X("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch1_ASAP_snRNA-seq_021721/scRNA-seq/Files/cellranger_matrices/BN0009/filtered_feature_bc_matrix")
+
+test2 <- Read10X("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch1_ASAP_snRNA-seq_021721/scRNA-seq/Files/cellranger_matrices/BN0339/filtered_feature_bc_matrix")
+
+test3 <- Read10X("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch1_ASAP_snRNA-seq_021721/scRNA-seq/Files/cellranger_matrices/BN0341/filtered_feature_bc_matrix")
+
+test4 <- Read10X("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch1_ASAP_snRNA-seq_021721/scRNA-seq/Files/cellranger_matrices/BN0415/filtered_feature_bc_matrix")
+
+```
+
+
+```{R}
+
+list.dirs("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch1_ASAP_snRNA-seq_021721/scRNA-seq/Files/cellranger_matrices/")
+
+
+```
+
+
+```{R}
+
+for (id in healthy_controls){
+  filepath <- paste("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/batch1_ASAP_snRNA-seq_021721/scRNA-seq/Files/cellranger_matrices/",id)
+  SampleSeurat <- Read10X(data.dir = filepath)
+  SampleSeurat <- CreateSeuratObject(counts = SampleSeurat,
+                            project = "Midbrain",
+                            min.cells = 3)
+  
+}
+
+
+```
+
+####################################################################################################################
+
+```{R}
+
+
+for (i in list.files(path = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/", pattern = "batch[[:digit:]]_ASAP_snRNA-seq_[[:digit:]]+")){
+  aggr <-  read.delim(paste("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/",i,"/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/aggregation.csv", sep = ""), stringsAsFactors = FALSE, sep = ",")
+  healthy_controls <- aggr[aggr$case %in% "HC",]$library_id
+  batchnumber <- str_extract(i,"batch[[:digit:]]+")
+for (id in healthy_controls){
+  filepath <- paste("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/",i,"/scRNA-seq/Files/cellranger_matrices/",id, sep = "")
+  SampleMatrix <- Read10X(data.dir = filepath)
+  SampleSeurat <- CreateSeuratObject(counts = SampleMatrix,
+              project = id,
+              min.cells = 3)
+  metadata <- as.data.frame(SampleMatrix@Dimnames[[2]])
+  colnames(metadata) <- "barcodes"
+  metadata$samples <- as.vector(rep(id, ncol(SampleMatrix)))
+  metadata$sex <- as.vector(rep(aggr[aggr$library_id %in% id,]$sex, ncol(SampleMatrix)))
+  metadata$RIN <- as.vector(rep(aggr[aggr$library_id %in% id,]$RIN, ncol(SampleMatrix)))
+  metadata$PMI <- as.vector(rep(aggr[aggr$library_id %in% id,]$PMI, ncol(SampleMatrix)))
+  metadata$age <- as.vector(rep(aggr[aggr$library_id %in% id,]$age, ncol(SampleMatrix)))
+  metadata$batch <- as.vector(rep(batchnumber, ncol(SampleMatrix)))
+  SampleSeurat@meta.data$sample_id <- metadata$samples
+  SampleSeurat@meta.data$case <- metadata$case
+  SampleSeurat@meta.data$batch <- metadata$batch
+  SampleSeurat@meta.data$sex <- metadata$sex
+  SampleSeurat@meta.data$RIN <- metadata$RIN
+  SampleSeurat@meta.data$PMI <- metadata$PMI
+  SampleSeurat@meta.data$age <- metadata$age
+  age_bracket <- cut(SampleSeurat@meta.data$age, c(50,60,70,80,90,100,110))
+  age_bracket <- gsub("\\(|]","",age_bracket)
+  age_bracket <- gsub(",","-",age_bracket)
+  SampleSeurat@meta.data$age_bracket <- age_bracket
+  assign(as.character(as.name(id)), SampleSeurat)
+}
+}
+
+#assign(x = paste(batch,".data", sep = ""), value = Read10X(data.dir = paste("~/PD5D_Repo/PD5D/scRNA_and_scATAC-seq_Markdowns/",i,"/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix/", sep = "")))
+
+
+```
+
+
+
+
+```{R}
+fullmetadata <- data.frame(barcodes=character(),
+                 samples=character(),
+                 sex=character(),
+                 RIN=numeric(),
+                 PMI=numeric(),
+                 age=numeric(),
+                 batch=character(),
+                 stringsAsFactors=FALSE)
+
+
+
+for (i in list.files(path = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/", pattern = "batch[123]_ASAP_snRNA-seq_[[:digit:]]+")){
+  aggr <-  read.delim(paste("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/",i,"/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/aggregation.csv", sep = ""), stringsAsFactors = FALSE, sep = ",")
+  healthy_controls <- aggr[aggr$case %in% "HC",]$library_id
+  batchnumber <- str_extract(i,"batch[[:digit:]]+")
+for (id in healthy_controls){
+  filepath <- paste("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/",i,"/scRNA-seq/Files/cellranger_matrices/",id, sep = "")
+  SampleMatrix <- Read10X(data.dir = filepath)
+  SampleSeurat <- CreateSeuratObject(counts = SampleMatrix,
+              project = id,
+              min.cells = 3)
+  metadata <- as.data.frame(SampleMatrix@Dimnames[[2]])
+  colnames(metadata) <- "barcodes"
+  metadata$samples <- as.vector(rep(id, ncol(SampleMatrix)))
+  metadata$sex <- as.vector(rep(aggr[aggr$library_id %in% id,]$sex, ncol(SampleMatrix)))
+  metadata$RIN <- as.vector(rep(aggr[aggr$library_id %in% id,]$RIN, ncol(SampleMatrix)))
+  metadata$PMI <- as.vector(rep(aggr[aggr$library_id %in% id,]$PMI, ncol(SampleMatrix)))
+  metadata$age <- as.vector(rep(aggr[aggr$library_id %in% id,]$age, ncol(SampleMatrix)))
+  metadata$batch <- as.vector(rep(batchnumber, ncol(SampleMatrix)))
+  SampleSeurat@meta.data$sample_id <- metadata$samples
+  SampleSeurat@meta.data$case <- metadata$case
+  SampleSeurat@meta.data$batch <- metadata$batch
+  SampleSeurat@meta.data$sex <- metadata$sex
+  SampleSeurat@meta.data$RIN <- metadata$RIN
+  SampleSeurat@meta.data$PMI <- metadata$PMI
+  SampleSeurat@meta.data$age <- metadata$age
+  age_bracket <- cut(SampleSeurat@meta.data$age, c(50,60,70,80,90,100,110))
+  age_bracket <- gsub("\\(|]","",age_bracket)
+  age_bracket <- gsub(",","-",age_bracket)
+  SampleSeurat@meta.data$age_bracket <- age_bracket
+  assign(as.character(as.name(id)), SampleSeurat)
+  fullmetadata <- rbind(fullmetadata, metadata)
+}
+}
+
+```
+
+
+
+```{R}
+
+SampleObjects <- ls()[grep("BN",ls())]
+
+SeuratObject <- merge(get(SampleObjects[1]), 
+                 y = lapply(SampleObjects[2:length(SampleObjects)],get), 
+                 add.cell.ids = SampleObjects, 
+                 project = "FullIntegration_MTG")
+
+
+
+SeuratObject@meta.data[10000:10100,]
+
+metadata
+
+```
+```{R}
+
+fullmetadata[10000:10100,]
+
+```
+

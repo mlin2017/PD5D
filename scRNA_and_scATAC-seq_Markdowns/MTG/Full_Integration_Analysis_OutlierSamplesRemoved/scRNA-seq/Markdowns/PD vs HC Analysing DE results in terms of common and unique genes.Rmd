@@ -1,0 +1,1487 @@
+---
+title: "Analysing DE results in terms of common and unique genes"
+output: html_document
+---
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+
+```{R}
+
+
+write.table(DE_Aggr_Table, file = "../Files/PD_vs_HC_DEGenes_Cluster_AggregateTable.csv", quote = FALSE, row.names = FALSE,col.names = TRUE, sep = ",")
+
+
+
+```
+
+
+```{R}
+
+DE_Aggr_Table_order <- DE_Aggr_Table[order(DE_Aggr_Table$p_val_adj),]
+
+TopGenes <- unique(DE_Aggr_Table_order$gene)[1:30]
+
+Gene_Aggr_Table <- DE_Aggr_Table
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(TopGenes %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(TopGenes)),TopGenes,rep(0,length(TopGenes))))
+    colnames(NES_subtable) <-  c("Cell_Type","gene","avg_log2FC")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% TopGenes,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(TopGenes[-index])),TopGenes[-index],rep(0,length(TopGenes[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+for (i in seq(1,42,1)) {
+  print(colnames(Heatmap_Matrix[[i]]))
+}
+
+
+
+
+
+
+```{R}
+
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1)]
+
+
+```
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/GSEA_Human_PFC_Heatmap_PostDoubletFilterBF.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_FullIntegrationOSR_Top30DEGenes_Heatmap.pdf", device = "pdf", height = 8, width = 8, units = "in")
+
+```
+
+
+```{R}
+
+GenesOrder <- as.data.frame(GSEA_Human_PFC_Heatmap$tree_col$labels[GSEA_Human_PFC_Heatmap$tree_col$order])
+
+colnames(GenesOrder) <- "Genes"
+
+GenesOrder
+
+write.table(GenesOrder, file = "../Figures/DE_Gene_Heatmaps/MostDEGenesOrder.tsv", sep = "\t", quote = FALSE, row.names = FALSE)
+
+Gene_Table <- read.delim("../Figures/DE_Gene_Heatmaps/MostDEGenesOrder.tsv")
+
+Gene_Table_TOP <- Gene_Table
+
+```
+
+
+
+###########################################################################################
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+
+
+
+```{R}
+
+DETable <- as.data.frame(table(DE_Aggr_Table$gene))
+
+DETable <- DETable[order(DETable$Freq, decreasing = TRUE),]
+
+CommonDEGenes <- as.vector(DETable$Var1[1:30])
+
+Gene_Aggr_Table <- DE_Aggr_Table
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(CommonDEGenes %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(CommonDEGenes)),CommonDEGenes,rep(0,length(CommonDEGenes))))
+    colnames(NES_subtable) <-  c("Cell_Type","gene","avg_log2FC")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% CommonDEGenes,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(CommonDEGenes[-index])),CommonDEGenes[-index],rep(0,length(CommonDEGenes[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+for (i in seq(1,42,1)) {
+  print(colnames(Heatmap_Matrix[[i]]))
+}
+
+
+
+
+
+
+```{R}
+
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1)]
+
+
+```
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/GSEA_Human_PFC_Heatmap_PostDoubletFilterBF.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_FullIntegrationOSR_TopMostCommon30DEGenes_Heatmap.pdf", device = "pdf", height = 8, width = 8, units = "in")
+
+```
+
+
+```{R}
+
+GenesOrder <- as.data.frame(GSEA_Human_PFC_Heatmap$tree_col$labels[GSEA_Human_PFC_Heatmap$tree_col$order])
+
+colnames(GenesOrder) <- "Genes"
+
+GenesOrder
+
+write.table(GenesOrder, file = "../Figures/DE_Gene_Heatmaps/MostCommonDEGenesOrder.tsv", sep = "\t", quote = FALSE, row.names = FALSE)
+
+Gene_Table <- read.delim("../Figures/DE_Gene_Heatmaps/MostCommonDEGenesOrder.tsv")
+
+```
+
+```{R}
+
+Top_exclude <- Gene_Table_TOP[!(Gene_Table_TOP$Genes %in% Gene_Table$Genes),]
+
+Top_exclude_df <- as.data.frame(Top_exclude)
+
+colnames(Top_exclude_df) <- "Top Pval Specific Genes"
+
+Top_common <- Gene_Table[!(Gene_Table$Genes %in% Gene_Table_TOP$Genes),]
+
+Top_common_df <- as.data.frame(Top_common)
+
+colnames(Top_common_df) <- "Most Common Specific Genes"
+
+Unique_genes_table <- cbind(Top_exclude_df, Top_common_df)
+
+write.table(Unique_genes_table, file = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GSEA_AllCells_ExclusiveGenesTable.tsv", sep = "\t", quote = FALSE, row.names = FALSE)
+
+```
+
+
+################################################################################################
+
+
+Looking at pathways per major cell type
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+Unique Pathways per MCT?
+
+```{R}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+GSEA_Aggr_Table_MCTAnno <- DE_Aggr_Table
+
+GSEA_Aggr_Table_MCTAnno$MCT <- gsub("_[[:digit:]]+","",GSEA_Aggr_Table_MCTAnno$Cell_Type)
+
+UniquePathwaySummaryTable <- group_by(GSEA_Aggr_Table_MCTAnno, MCT) %>% summarise(unique(gene))
+
+UniquePathwayNumberSummaryTable <- group_by(GSEA_Aggr_Table_MCTAnno, MCT) %>% summarise(length(unique(gene)))
+
+colnames(UniquePathwayNumberSummaryTable) <- c("Major_Cell_Type", "Number_of_Unique_Significant_Genes")
+
+UniquePathwayNumberSummaryFigureTable <- UniquePathwayNumberSummaryTable
+
+UniquePathwayNumberSummaryFigureTable$Major_Cell_Type <- gsub("_"," ",UniquePathwayNumberSummaryFigureTable$Major_Cell_Type)
+
+UniquePathwayNumberSummaryFigureTable$Major_Cell_Type <- gsub("TEMRA T Cells","Unknown Immune Cells",UniquePathwayNumberSummaryFigureTable$Major_Cell_Type)
+
+UniquePathwayNumberSummaryFigureTable$Major_Cell_Type <- gsub("Unknown Cluster","Unknown Cluster 1",UniquePathwayNumberSummaryFigureTable$Major_Cell_Type)
+
+ggplot(UniquePathwayNumberSummaryFigureTable, aes(fill=Major_Cell_Type, y=Number_of_Unique_Significant_Genes, x=Major_Cell_Type)) + 
+    geom_bar(stat="identity") +
+  ylab("Unique Significant Genes") +
+  xlab("Major Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.position = "none")
+
+UniquePathwayNumberSummaryChart <- ggplot(UniquePathwayNumberSummaryFigureTable, aes(fill=Major_Cell_Type, y=Number_of_Unique_Significant_Genes, x=Major_Cell_Type)) + 
+    geom_bar(stat="identity") +
+  ylab("Unique Significant Genes") +
+  xlab("Major Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.position = "none")
+
+ggsave(UniquePathwayNumberSummaryChart,filename = paste("../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_UniqueGeneNumberSummaryChart.pdf",sep = ""), device = "pdf", width = 6, height = 4, units = "in")
+
+```
+
+
+Correcting number of unique pathways by number of cells (Normalised Pathway Score)
+
+```{R}
+
+CellType_SplitCase_NumbersTable <- read.delim("../Files/CellType_SplitCase_NumbersTable.tsv")
+
+CellType_NumbersTable <- group_by(CellType_SplitCase_NumbersTable, Var1) %>% summarise(sum(Freq))
+
+colnames(CellType_NumbersTable) <- c("Major_Cell_Type", "Number_of_Cells")
+
+#CellType_NumbersTable <- CellType_NumbersTable[-9,]
+
+UniquePathwayNumberSummaryTable$Major_Cell_Type <- gsub("Unknown_Cluster","Unknown_Cluster_66",UniquePathwayNumberSummaryTable$Major_Cell_Type)
+
+PathwayCelltypeNumbers_MergedTable <- merge(UniquePathwayNumberSummaryTable, CellType_NumbersTable)
+
+PathwayCelltypeNumbers_MergedTable$PMC <- (PathwayCelltypeNumbers_MergedTable$Number_of_Unique_Significant_Genes/PathwayCelltypeNumbers_MergedTable$Number_of_Cells)
+
+
+#PathwayCelltypeNumbers_MergedTable <- PathwayCelltypeNumbers_MergedTable[-8,]
+
+ggplot(PathwayCelltypeNumbers_MergedTable, aes(fill=Major_Cell_Type, y=PMC, x=Major_Cell_Type)) + 
+    geom_bar(stat="identity") +
+  ylab("Normalised Gene Score") +
+  xlab("Major Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.position = "none")
+
+UniquePathwayNormalisedSummaryChart <- ggplot(PathwayCelltypeNumbers_MergedTable, aes(fill=Major_Cell_Type, y=PMC, x=Major_Cell_Type)) + 
+    geom_bar(stat="identity") +
+  ylab("Normalised Gene Score") +
+  xlab("Major Cell Type") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, size = 6),
+        axis.text.y = element_text(size = 6),
+        legend.position = "none")
+
+ggsave(UniquePathwayNormalisedSummaryChart,filename = paste("../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_UniqueGenesNormalisedSummaryChart.pdf",sep = ""), device = "pdf", width = 6, height = 4, units = "in")
+
+```
+
+
+
+###########################################################################################
+
+
+
+Looking at GLU Neurons
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+
+
+```{R}
+
+DE_Aggr_Table <- DE_Aggr_Table[grep("GLU_Neurons",DE_Aggr_Table$Cell_Type),]
+
+DE_Aggr_Table_order <- DE_Aggr_Table[order(DE_Aggr_Table$p_val_adj),]
+
+TopGenes <- unique(DE_Aggr_Table_order$gene)[1:30]
+
+Gene_Aggr_Table <- DE_Aggr_Table
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(TopGenes %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(TopGenes)),TopGenes,rep(0,length(TopGenes))))
+    colnames(NES_subtable) <-  c("Cell_Type","gene","avg_log2FC")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% TopGenes,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(TopGenes[-index])),TopGenes[-index],rep(0,length(TopGenes[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+for (i in seq(1,42,1)) {
+  print(colnames(Heatmap_Matrix[[i]]))
+}
+
+
+
+
+
+
+```{R}
+
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1)]
+
+
+```
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+excluded_cells <- excluded_cells[grep("GLU",excluded_cells)]
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/GSEA_Human_PFC_Heatmap_PostDoubletFilterBF.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GLU_Neurons_FullIntegrationOSR_Top30DEGenes_Heatmap.pdf", device = "pdf", height = 8, width = 8, units = "in")
+
+```
+
+
+```{R}
+
+GenesOrder <- as.data.frame(GSEA_Human_PFC_Heatmap$tree_col$labels[GSEA_Human_PFC_Heatmap$tree_col$order])
+
+colnames(GenesOrder) <- "Genes"
+
+Gene_Table_TOP <- GenesOrder
+
+```
+
+###############################################################################################
+
+
+
+Looking at GLU Neurons most common genes
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+```{R}
+
+DE_Aggr_Table <- DE_Aggr_Table[grep("GLU_Neurons",DE_Aggr_Table$Cell_Type),]
+
+GSEA_Aggr_Table_PvalSorted <- DE_Aggr_Table[order(DE_Aggr_Table$p_val_adj),]
+
+GeneFreq <- as.data.frame(table(DE_Aggr_Table$gene))
+
+GeneFreq <- GeneFreq[order(GeneFreq$Freq, decreasing = TRUE),]
+
+GSEA_Common_Gene <- as.vector(GeneFreq$Var1[1:30])
+
+Gene_Aggr_Table <- DE_Aggr_Table
+
+```
+
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(GSEA_Common_Gene %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(GSEA_Common_Gene)),GSEA_Common_Gene,rep(0,length(GSEA_Common_Gene))))
+    colnames(NES_subtable) <-  c("Cell_Type","gene","avg_log2FC")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% GSEA_Common_Gene,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(GSEA_Common_Gene[-index])),GSEA_Common_Gene[-index],rep(0,length(GSEA_Common_Gene[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+for (i in seq(1,42,1)) {
+  print(colnames(Heatmap_Matrix[[i]]))
+}
+
+
+
+
+
+
+```{R}
+
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1)]
+
+
+```
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+excluded_cells <- excluded_cells[grep("GLU",excluded_cells)]
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/GSEA_Human_PFC_Heatmap_PostDoubletFilterBF.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GLU_Neurons_FullIntegrationOSR_TopMostCommon30DEGenes_Heatmap.pdf", device = "pdf", height = 8, width = 8, units = "in")
+
+```
+
+
+```{R}
+
+GenesOrder <- as.data.frame(GSEA_Human_PFC_Heatmap$tree_col$labels[GSEA_Human_PFC_Heatmap$tree_col$order])
+
+colnames(GenesOrder) <- "Genes"
+
+Gene_Table <- GenesOrder
+
+Top_exclude <- Gene_Table_TOP[!(Gene_Table_TOP$Genes %in% Gene_Table$Genes),]
+
+Top_exclude_df <- as.data.frame(Top_exclude)
+
+colnames(Top_exclude_df) <- "Top Pval Specific Genes"
+
+Top_common <- Gene_Table[!(Gene_Table$Genes %in% Gene_Table_TOP$Genes),]
+
+Top_common_df <- as.data.frame(Top_common)
+
+colnames(Top_common_df) <- "Most Common Specific Genes"
+
+Unique_genes_table <- cbind(Top_exclude_df, Top_common_df)
+
+write.table(Unique_genes_table, file = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GLU_Neurons_ExclusiveGenesTable.tsv", sep = "\t", quote = FALSE, row.names = FALSE)
+
+```
+
+###########################################################################################
+
+
+
+Looking at GABA Neurons
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+
+
+```{R}
+
+DE_Aggr_Table <- DE_Aggr_Table[grep("GABA_Neurons",DE_Aggr_Table$Cell_Type),]
+
+DE_Aggr_Table_order <- DE_Aggr_Table[order(DE_Aggr_Table$p_val_adj),]
+
+TopGenes <- unique(DE_Aggr_Table_order$gene)[1:30]
+
+Gene_Aggr_Table <- DE_Aggr_Table
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(TopGenes %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(TopGenes)),TopGenes,rep(0,length(TopGenes))))
+    colnames(NES_subtable) <-  c("Cell_Type","gene","avg_log2FC")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% TopGenes,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(TopGenes[-index])),TopGenes[-index],rep(0,length(TopGenes[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+for (i in seq(1,42,1)) {
+  print(colnames(Heatmap_Matrix[[i]]))
+}
+
+
+
+
+
+
+```{R}
+
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1)]
+
+
+```
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+excluded_cells <- excluded_cells[grep("GABA",excluded_cells)]
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/GSEA_Human_PFC_Heatmap_PostDoubletFilterBF.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+"GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1"
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GABA_Neurons_FullIntegrationOSR_Top30DEGenes_Heatmap.pdf", device = "pdf", height = 8, width = 8, units = "in")
+
+```
+
+
+```{R}
+
+GenesOrder <- as.data.frame(GSEA_Human_PFC_Heatmap$tree_col$labels[GSEA_Human_PFC_Heatmap$tree_col$order])
+
+colnames(GenesOrder) <- "Genes"
+
+Gene_Table_TOP <- GenesOrder
+
+```
+
+
+###############################################################################################
+
+
+
+Looking at GABA Neurons most common genes
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+```{R}
+
+DE_Aggr_Table <- DE_Aggr_Table[grep("GABA_Neurons",DE_Aggr_Table$Cell_Type),]
+
+GSEA_Aggr_Table_PvalSorted <- DE_Aggr_Table[order(DE_Aggr_Table$p_val_adj),]
+
+GeneFreq <- as.data.frame(table(DE_Aggr_Table$gene))
+
+GeneFreq <- GeneFreq[order(GeneFreq$Freq, decreasing = TRUE),]
+
+GSEA_Common_Gene <- as.vector(GeneFreq$Var1[1:30])
+
+Gene_Aggr_Table <- DE_Aggr_Table
+
+```
+
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(GSEA_Common_Gene %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(GSEA_Common_Gene)),GSEA_Common_Gene,rep(0,length(GSEA_Common_Gene))))
+    colnames(NES_subtable) <-  c("Cell_Type","gene","avg_log2FC")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% GSEA_Common_Gene,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(GSEA_Common_Gene[-index])),GSEA_Common_Gene[-index],rep(0,length(GSEA_Common_Gene[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+for (i in seq(1,42,1)) {
+  print(colnames(Heatmap_Matrix[[i]]))
+}
+
+
+
+
+
+
+```{R}
+
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1)]
+
+
+```
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+excluded_cells <- excluded_cells[grep("GABA",excluded_cells)]
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/GSEA_Human_PFC_Heatmap_PostDoubletFilterBF.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+"GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1"
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GABA_Neurons_FullIntegrationOSR_TopMostCommon30DEGenes_Heatmap.pdf", device = "pdf", height = 8, width = 8, units = "in")
+
+```
+
+
+```{R}
+
+GenesOrder <- as.data.frame(GSEA_Human_PFC_Heatmap$tree_col$labels[GSEA_Human_PFC_Heatmap$tree_col$order])
+
+colnames(GenesOrder) <- "Genes"
+
+Gene_Table <- GenesOrder
+
+Top_exclude <- Gene_Table_TOP[!(Gene_Table_TOP$Genes %in% Gene_Table$Genes),]
+
+Top_exclude_df <- as.data.frame(Top_exclude)
+
+colnames(Top_exclude_df) <- "Top Pval Specific Genes"
+
+Top_common <- Gene_Table[!(Gene_Table$Genes %in% Gene_Table_TOP$Genes),]
+
+Top_common_df <- as.data.frame(Top_common)
+
+colnames(Top_common_df) <- "Most Common Specific Genes"
+
+Unique_genes_table <- cbind(Top_exclude_df, Top_common_df)
+
+write.table(Unique_genes_table, file = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GABA_Neurons_ExclusiveGenesTable.tsv", sep = "\t", quote = FALSE, row.names = FALSE)
+
+```
+
+############################################################################################
+
+Looking at Glial Cells 
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+
+
+```{R}
+
+DE_Aggr_Table <- DE_Aggr_Table[grep("_Neurons",DE_Aggr_Table$Cell_Type, invert = TRUE),]
+
+DE_Aggr_Table_order <- DE_Aggr_Table[order(DE_Aggr_Table$p_val_adj),]
+
+TopGenes <- unique(DE_Aggr_Table_order$gene)[1:30]
+
+Gene_Aggr_Table <- DE_Aggr_Table
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(TopGenes %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(TopGenes)),TopGenes,rep(0,length(TopGenes))))
+    colnames(NES_subtable) <-  c("Cell_Type","gene","avg_log2FC")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% TopGenes,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(TopGenes[-index])),TopGenes[-index],rep(0,length(TopGenes[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+for (i in seq(1,42,1)) {
+  print(colnames(Heatmap_Matrix[[i]]))
+}
+
+
+
+
+
+
+```{R}
+
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1)]
+
+
+```
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+excluded_cells <- excluded_cells[grep("_Neurons",excluded_cells, invert = TRUE)]
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/GSEA_Human_PFC_Heatmap_PostDoubletFilterBF.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+"GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1"
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GlialCells_FullIntegrationOSR_Top30DEGenes_Heatmap.pdf", device = "pdf", height = 8, width = 8, units = "in")
+
+```
+
+
+```{R}
+
+GenesOrder <- as.data.frame(GSEA_Human_PFC_Heatmap$tree_col$labels[GSEA_Human_PFC_Heatmap$tree_col$order])
+
+colnames(GenesOrder) <- "Genes"
+
+Gene_Table_TOP <- GenesOrder
+
+```
+
+
+###############################################################################################
+
+
+
+Looking at GLU Neurons most common genes
+
+
+```{R}
+
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/MTG/Full_Integration_Analysis_OutlierSamplesRemoved/scRNA-seq/Markdowns")
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_DE_Genes", full.names = TRUE, pattern = "All_SigGenes_.*_Markers_PD_vs_HC_BF.csv")
+DE_Aggr_Table <- vroom(files, id = "Cell_Type")
+DE_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_DE_Genes/|_Markers_PD_vs_HC_BF.csv|All_SigGenes_","",DE_Aggr_Table$Cell_Type)
+
+```
+
+```{R}
+
+DE_Aggr_Table <- DE_Aggr_Table[grep("_Neurons",DE_Aggr_Table$Cell_Type, invert = TRUE),]
+
+GSEA_Aggr_Table_PvalSorted <- DE_Aggr_Table[order(DE_Aggr_Table$p_val_adj),]
+
+GeneFreq <- as.data.frame(table(DE_Aggr_Table$gene))
+
+GeneFreq <- GeneFreq[order(GeneFreq$Freq, decreasing = TRUE),]
+
+GSEA_Common_Gene <- as.vector(GeneFreq$Var1[1:30])
+
+Gene_Aggr_Table <- DE_Aggr_Table
+
+```
+
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(Gene_Aggr_Table$Cell_Type)) {
+  temp_table <- Gene_Aggr_Table[Gene_Aggr_Table$Cell_Type %in% i,]
+  index <- which(GSEA_Common_Gene %in% temp_table$gene)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(GSEA_Common_Gene)),GSEA_Common_Gene,rep(0,length(GSEA_Common_Gene))))
+    colnames(NES_subtable) <-  c("Cell_Type","gene","avg_log2FC")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$gene %in% GSEA_Common_Gene,]
+    NES_subtable <- NES_subtable[,c(1,8,4)]
+    if (length(NES_subtable$Cell_Type) == unique(Gene_Aggr_Table$Cell_Type)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(GSEA_Common_Gene[-index])),GSEA_Common_Gene[-index],rep(0,length(GSEA_Common_Gene[-index]))))
+      colnames(temp_table2) <-  c("Cell_Type","gene","avg_log2FC")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+for (i in seq(1,42,1)) {
+  print(colnames(Heatmap_Matrix[[i]]))
+}
+
+
+
+
+
+
+```{R}
+
+Heatmap_Matrix$avg_log2FC <- as.numeric(Heatmap_Matrix$avg_log2FC)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~gene,fun.aggregate = sum,value.var = "avg_log2FC")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,c(-1)]
+
+
+```
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+#excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+excluded_cells <- excluded_cells[grep("_Neurons",excluded_cells, invert = TRUE)]
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/GSEA_Human_PFC_Heatmap_PostDoubletFilterBF.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells","Unknown Immune Cells",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66","Unknown Cluster 1",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+```
+
+"GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Unknown Immune Cells", "Unknown Cluster 1"
+
+
+```{R}
+
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(t(Heatmap_Matrix), border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Human_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-0.5,to=0.5, length.out=200), cluster_cols = TRUE, cluster_rows = FALSE)
+
+ggsave(GSEA_Human_PFC_Heatmap,filename = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GlialCells_Neurons_FullIntegrationOSR_TopMostCommon30DEGenes_Heatmap.pdf", device = "pdf", height = 8, width = 8, units = "in")
+
+```
+
+
+```{R}
+
+GenesOrder <- as.data.frame(GSEA_Human_PFC_Heatmap$tree_col$labels[GSEA_Human_PFC_Heatmap$tree_col$order])
+
+colnames(GenesOrder) <- "Genes"
+
+Gene_Table <- GenesOrder
+
+Top_exclude <- Gene_Table_TOP[!(Gene_Table_TOP$Genes %in% Gene_Table$Genes),]
+
+Top_exclude_df <- as.data.frame(Top_exclude)
+
+colnames(Top_exclude_df) <- "Top Pval Specific Genes"
+
+Top_common <- Gene_Table[!(Gene_Table$Genes %in% Gene_Table_TOP$Genes),]
+
+Top_common_df <- as.data.frame(Top_common)
+
+colnames(Top_common_df) <- "Most Common Specific Genes"
+
+Unique_genes_table <- cbind(Top_exclude_df, Top_common_df)
+
+write.table(Unique_genes_table, file = "../Figures/DE_Gene_Heatmaps/PD_vs_HC/PD_vs_HC_GlialCells_ExclusiveGenesTable.tsv", sep = "\t", quote = FALSE, row.names = FALSE)
+
+```
+
+
+############################################################################################################
+
+
+
+

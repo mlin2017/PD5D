@@ -39,22 +39,22 @@ Load the BRI-318, BRI-319, BRI-320, BRI-321, B0085, H0321, H1009, H1118  single-
 Loading in the single cell data
 
 ```{R}
-setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_2")
+setwd("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_2")
 
 
 ```
 
 
 ```{r}
-Pilot_1.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
-Pilot_2.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Pilot_1.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Pilot_2.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
 ```
 
 
 
 ```{R}
-Pilot_1samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
-Pilot_2samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Pilot_1samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Pilot_2samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Midbrain/snRNA-seq/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 
 
 ```

@@ -1,0 +1,797 @@
+---
+title: "GSEA Pathway Analyses"
+output: html_document
+---
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_PD_vs_HC_GSEA_SigBHCorrection_Genesets.ts")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+
+```
+
+WP_MITOCHONDRIAL_CIV_ASSEMBLY
+REACTOME_RESPIRATORY_ELECTRON_TRANSPORT
+WP_OXIDATIVE_PHOSPHORYLATION
+REACTOME_THE_CITRIC_ACID_TCA_CYCLE_AND_RESPIRATORY_ELECTRON_TRANSPORT
+REACTOME_NONSENSE_MEDIATED_DECAY_NMD
+REACTOME_MITOCHONDRIAL_PROTEIN_IMPORT
+WP_MITOCHONDRIAL_COMPLEX_I_ASSEMBLY_MODEL_OXPHOS_SYSTEM
+
+```{R}
+
+Pathways <- c("BIOCARTA_PGC1A_PATHWAY","KEGG_OXIDATIVE_PHOSPHORYLATION","WP_ELECTRON_TRANSPORT_CHAIN_OXPHOS_SYSTEM_IN_MITOCHONDRIA","REACTOME_RESPIRATORY_ELECTRON_TRANSPORT_ATP_SYNTHESIS_BY_CHEMIOSMOTIC_COUPLING_AND_HEAT_PRODUCTION_BY_UNCOUPLING_PROTEINS","REACTOME_IRON_UPTAKE_AND_TRANSPORT","KEGG_PARKINSONS_DISEASE")
+
+```
+
+
+
+if (length(index) == 0) {
+    NES_subtable <- as.data.frame(rbind(rep(i,length(Pathways),Pathways,rep(0,length(Pathways)))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type == 8)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      rbind(NES_subtable,as.data.frame(rbind(rep(i,length(Pathways[-index])),Pathways[-index],rep(0,length(Pathways[-index])))))
+    }
+  }
+  Heatmap_Matrix <- cbind(Heatmap_Matrix,NES_subtable)
+}
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(Pathways)),Pathways,rep(0,length(Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(Pathways[-index])),Pathways[-index],rep(0,length(Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+```
+
+doublets: 10,25,28,29
+
+`10` = "GLU_Neurons_6"
+`25` = "GABA_Neurons_8"
+`28` = "GABA_Neurons_9",
+`29` = "GLU_Neurons_12"
+
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+
+#excluded_cells <- c("GABA Neurons 2","GLU Neurons 4","GLU Neurons 6","GABA Neurons 4","GABA Neurons 5","OPCs","GABA Neurons 6","Tanycytes","GABA Neurons 7","Ependymal Cells","GABA Neurons 8","GLU Neurons 8")
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+```
+
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells", "Non-Microglia Immune Cells", rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66", "Unknown Cluster 1", rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Non-Microglia Immune Cells", "Unknown Cluster 1")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+DSP4_Pathway_Table <- read.delim("~/Documents/Projects/Mouse PFC snRNA-seq/Mouse_Full_Integration_DSP4_split/Files/MtPathwaysOrder.tsv")
+
+Heatmap_Matrix <- Heatmap_Matrix[,match(DSP4_Pathway_Table$Pathways,colnames(Heatmap_Matrix))]
+
+```
+
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = FALSE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/GSEA_Human_C2CanonicalPathways_FullIntegration_Heatmap.pdf", device = "pdf", height = 18, width = 12, units = "in")
+
+```
+
+
+
+Heatmap_Matrix_Subset <- Heatmap_Matrix[!rownames(Heatmap_Matrix) %in% c("GLU_Neurons_6","GABA_Neurons_8","GABA_Neurons_9","GLU_Neurons_12"),]
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+GSEA_Mouse_PFC_Heatmap_DoubletClustersRemoved <- pheatmap(Heatmap_Matrix_Subset, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap_DoubletClustersRemoved,filename = "../Figures/GSEA_Mouse_PFC_Heatmap_DoubletClustersRemoved.pdf", device = "pdf", height = 12, width = 12, units = "in")
+
+
+
+
+
+
+#################################################################################################################
+
+For expanded pathways
+
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_PD_vs_HC_GSEA_SigBHCorrection_Genesets.ts")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_PD_vs_HC_GSEA_SigBHCorrection_Genesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+
+```
+
+WP_MITOCHONDRIAL_CIV_ASSEMBLY
+REACTOME_RESPIRATORY_ELECTRON_TRANSPORT
+WP_OXIDATIVE_PHOSPHORYLATION
+REACTOME_THE_CITRIC_ACID_TCA_CYCLE_AND_RESPIRATORY_ELECTRON_TRANSPORT
+REACTOME_NONSENSE_MEDIATED_DECAY_NMD
+REACTOME_MITOCHONDRIAL_PROTEIN_IMPORT
+WP_MITOCHONDRIAL_COMPLEX_I_ASSEMBLY_MODEL_OXPHOS_SYSTEM
+
+
+```{R}
+
+Pathways <- c("BIOCARTA_PGC1A_PATHWAY","KEGG_OXIDATIVE_PHOSPHORYLATION","WP_ELECTRON_TRANSPORT_CHAIN_OXPHOS_SYSTEM_IN_MITOCHONDRIA","REACTOME_RESPIRATORY_ELECTRON_TRANSPORT_ATP_SYNTHESIS_BY_CHEMIOSMOTIC_COUPLING_AND_HEAT_PRODUCTION_BY_UNCOUPLING_PROTEINS","REACTOME_IRON_UPTAKE_AND_TRANSPORT","KEGG_PARKINSONS_DISEASE","WP_MITOCHONDRIAL_CIV_ASSEMBLY","REACTOME_RESPIRATORY_ELECTRON_TRANSPORT","WP_OXIDATIVE_PHOSPHORYLATION","REACTOME_THE_CITRIC_ACID_TCA_CYCLE_AND_RESPIRATORY_ELECTRON_TRANSPORT","REACTOME_MITOCHONDRIAL_PROTEIN_IMPORT","WP_MITOCHONDRIAL_COMPLEX_I_ASSEMBLY_MODEL_OXPHOS_SYSTEM")
+
+```
+
+
+
+
+if (length(index) == 0) {
+    NES_subtable <- as.data.frame(rbind(rep(i,length(Pathways),Pathways,rep(0,length(Pathways)))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type == 8)){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      rbind(NES_subtable,as.data.frame(rbind(rep(i,length(Pathways[-index])),Pathways[-index],rep(0,length(Pathways[-index])))))
+    }
+  }
+  Heatmap_Matrix <- cbind(Heatmap_Matrix,NES_subtable)
+}
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(Pathways)),Pathways,rep(0,length(Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(Pathways[-index])),Pathways[-index],rep(0,length(Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+```
+
+doublets: 10,25,28,29
+
+`10` = "GLU_Neurons_6"
+`25` = "GABA_Neurons_8"
+`28` = "GABA_Neurons_9",
+`29` = "GLU_Neurons_12"
+
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+
+#excluded_cells <- c("GABA Neurons 2","GLU Neurons 4","GLU Neurons 6","GABA Neurons 4","GABA Neurons 5","OPCs","GABA Neurons 6","Tanycytes","GABA Neurons 7","Ependymal Cells","GABA Neurons 8","GLU Neurons 8")
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+```
+
+
+```{R}
+
+rownames(Heatmap_Matrix) <- gsub("TEMRA T Cells", "Non-Microglia Immune Cells", rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("Unknown Cluster 66", "Unknown Cluster 1", rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GLU Neurons 13", "GLU Neurons 14", "GLU Neurons 15", "GLU Neurons 16", "GLU Neurons 17", "GLU Neurons 18", "GLU Neurons 19", "GLU Neurons 20", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "GABA Neurons 12", "GABA Neurons 13", "GABA Neurons 14", "GABA Neurons 15", "Astrocytes", "Oligodendrocytes", "OPCs", "Microglia", "Endothelial Cells 1", "Endothelial Cells 2", "Non-Microglia Immune Cells", "Unknown Cluster 1")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+DSP4_Pathway_Table <- read.delim("~/Documents/Projects/Mouse PFC snRNA-seq/Mouse_Full_Integration_DSP4_split/Files/ExpandedMtPathwaysOrder.tsv")
+
+Heatmap_Matrix <- Heatmap_Matrix[,match(DSP4_Pathway_Table$Pathways,colnames(Heatmap_Matrix))]
+
+```
+
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = FALSE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/Expanded_GSEA_Human_C2CanonicalPathways_FullIntegration_Heatmap.pdf", device = "pdf", height = 18, width = 12, units = "in")
+
+```
+
+##########################################################################################
+
+Testing DSP4 pathways for all pathways in Propanolol
+
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_Propanolol_vs_DM_CTRL_GSEA_AllGenesets.tsv")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_Propanolol_vs_DM_CTRL_GSEA_AllGenesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+
+```
+
+
+```{R}
+
+Pathways <- c("BIOCARTA_PGC1A_PATHWAY","KEGG_OXIDATIVE_PHOSPHORYLATION","WP_ELECTRON_TRANSPORT_CHAIN_OXPHOS_SYSTEM_IN_MITOCHONDRIA","REACTOME_RESPIRATORY_ELECTRON_TRANSPORT_ATP_SYNTHESIS_BY_CHEMIOSMOTIC_COUPLING_AND_HEAT_PRODUCTION_BY_UNCOUPLING_PROTEINS","REACTOME_IRON_UPTAKE_AND_TRANSPORT","KEGG_PARKINSONS_DISEASE")
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(Pathways)),Pathways,rep(0,length(Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(Pathways[-index])),Pathways[-index],rep(0,length(Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+
+```
+
+
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#excluded_cells <- c("GABA Neurons 2","GLU Neurons 4","GLU Neurons 6","GABA Neurons 4","GABA Neurons 5","OPCs","GABA Neurons 6","Tanycytes","GABA Neurons 7","Ependymal Cells","GABA Neurons 8","GLU Neurons 8")
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+```{R}
+rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "Astrocytes", "Oligodendrocytes", "OPCs", "Endothelial Cells and Microglia", "Unknown Cluster 1", "Unknown Cluster 2", "Unknown Cluster 3")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+DSP4_Pathway_Table <- read.delim("../../Mouse_Full_Integration_DSP4_split/Files/MtPathwaysOrder.tsv")
+
+Heatmap_Matrix <- Heatmap_Matrix[,match(DSP4_Pathway_Table$Pathways,colnames(Heatmap_Matrix))]
+
+```
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = FALSE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/GSEA_Mouse_DSP4SIGPATHWAYS_Propanolol_SPLIT_PFC_Heatmap_Clusters.pdf", device = "pdf", height = 18, width = 12, units = "in")
+
+```
+
+
+######################################################################################################
+
+Testing DSP4 significant expanded pathways for all pathways in DBH
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_Propanolol_vs_DM_CTRL_GSEA_AllGenesets.tsv")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_Propanolol_vs_DM_CTRL_GSEA_AllGenesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+
+```
+
+
+```{R}
+
+Expanded_Pathways <- c("BIOCARTA_PGC1A_PATHWAY","KEGG_OXIDATIVE_PHOSPHORYLATION","WP_ELECTRON_TRANSPORT_CHAIN_OXPHOS_SYSTEM_IN_MITOCHONDRIA","REACTOME_RESPIRATORY_ELECTRON_TRANSPORT_ATP_SYNTHESIS_BY_CHEMIOSMOTIC_COUPLING_AND_HEAT_PRODUCTION_BY_UNCOUPLING_PROTEINS","REACTOME_IRON_UPTAKE_AND_TRANSPORT","KEGG_PARKINSONS_DISEASE","WP_MITOCHONDRIAL_CIV_ASSEMBLY","REACTOME_RESPIRATORY_ELECTRON_TRANSPORT","WP_OXIDATIVE_PHOSPHORYLATION","REACTOME_THE_CITRIC_ACID_TCA_CYCLE_AND_RESPIRATORY_ELECTRON_TRANSPORT","REACTOME_MITOCHONDRIAL_PROTEIN_IMPORT","WP_MITOCHONDRIAL_COMPLEX_I_ASSEMBLY_MODEL_OXPHOS_SYSTEM")
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(Expanded_Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(Expanded_Pathways)),Expanded_Pathways,rep(0,length(Expanded_Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% Expanded_Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(Expanded_Pathways[-index])),Expanded_Pathways[-index],rep(0,length(Expanded_Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+
+```
+
+
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#excluded_cells <- c("GABA Neurons 2","GLU Neurons 4","GLU Neurons 6","GABA Neurons 4","GABA Neurons 5","OPCs","GABA Neurons 6","Tanycytes","GABA Neurons 7","Ependymal Cells","GABA Neurons 8","GLU Neurons 8")
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+```{R}
+rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "Astrocytes", "Oligodendrocytes", "OPCs", "Endothelial Cells and Microglia", "Unknown Cluster 1", "Unknown Cluster 2", "Unknown Cluster 3")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+DSP4_Pathway_Table <- read.delim("../../Mouse_Full_Integration_DSP4_split/Files/ExpandedMtPathwaysOrder.tsv")
+
+Heatmap_Matrix <- Heatmap_Matrix[,match(DSP4_Pathway_Table$Pathways,colnames(Heatmap_Matrix))]
+
+```
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = FALSE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/Expanded_GSEA_Mouse_DSP4SIGPATHWAYS_Propanolol_SPLIT_PFC_Heatmap_Singlets_Clusters.pdf", device = "pdf", height = 18, width = 12, units = "in")
+
+```
+
+############################################################################################
+
+Repeating above analysis for all pathways, but now restricting to nominal pval
+
+first for conservative set of pathways
+
+
+Testing DSP4 pathways for all pathways in DBH
+
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_Propanolol_vs_DM_CTRL_GSEA_AllGenesets.tsv")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_Propanolol_vs_DM_CTRL_GSEA_AllGenesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+
+GSEA_Aggr_Table <- GSEA_Aggr_Table[GSEA_Aggr_Table$pval <= 0.05,]
+
+```
+
+
+```{R}
+
+Pathways <- c("BIOCARTA_PGC1A_PATHWAY","KEGG_OXIDATIVE_PHOSPHORYLATION","WP_ELECTRON_TRANSPORT_CHAIN_OXPHOS_SYSTEM_IN_MITOCHONDRIA","REACTOME_RESPIRATORY_ELECTRON_TRANSPORT_ATP_SYNTHESIS_BY_CHEMIOSMOTIC_COUPLING_AND_HEAT_PRODUCTION_BY_UNCOUPLING_PROTEINS","REACTOME_IRON_UPTAKE_AND_TRANSPORT","KEGG_PARKINSONS_DISEASE")
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(Pathways)),Pathways,rep(0,length(Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(Pathways[-index])),Pathways[-index],rep(0,length(Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+
+```
+
+
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#excluded_cells <- c("GABA Neurons 2","GLU Neurons 4","GLU Neurons 6","GABA Neurons 4","GABA Neurons 5","OPCs","GABA Neurons 6","Tanycytes","GABA Neurons 7","Ependymal Cells","GABA Neurons 8","GLU Neurons 8")
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+```{R}
+rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "Astrocytes", "Oligodendrocytes", "OPCs", "Endothelial Cells and Microglia", "Unknown Cluster 1", "Unknown Cluster 2", "Unknown Cluster 3")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+DSP4_Pathway_Table <- read.delim("../../Mouse_Full_Integration_DSP4_split/Files/MtPathwaysOrder.tsv")
+
+Heatmap_Matrix <- Heatmap_Matrix[,match(DSP4_Pathway_Table$Pathways,colnames(Heatmap_Matrix))]
+
+```
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = FALSE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/NomPval_GSEA_Mouse_DSP4SIGPATHWAYS_Propanolol_SPLIT_PFC_Heatmap_Clusters.pdf", device = "pdf", height = 18, width = 12, units = "in")
+
+```
+
+
+######################################################################################################
+
+Testing DSP4 significant expanded pathways for all pathways in DBH with nom pval cut-off
+
+```{R}
+library(reshape2)
+library(dplyr)
+library(tidyr)
+library(vroom)
+library(pheatmap)
+
+#Cell_Type <- gsub("_TREATED_vs_CTRL_GSEA_Sig_Genesets.tsv","",list.files("../Files/Subclusters_GSEA/"))
+files <- list.files("../Files/Subclusters_GSEA", full.names = TRUE, pattern = "*_Propanolol_vs_DM_CTRL_GSEA_AllGenesets.tsv")
+GSEA_Aggr_Table <- vroom(files, id = "Cell_Type")
+GSEA_Aggr_Table$Cell_Type <- gsub("../Files/Subclusters_GSEA/|_Propanolol_vs_DM_CTRL_GSEA_AllGenesets.tsv","",GSEA_Aggr_Table$Cell_Type)
+
+GSEA_Aggr_Table <- GSEA_Aggr_Table[GSEA_Aggr_Table$pval <= 0.05,]
+
+```
+
+
+```{R}
+
+Expanded_Pathways <- c("BIOCARTA_PGC1A_PATHWAY","KEGG_OXIDATIVE_PHOSPHORYLATION","WP_ELECTRON_TRANSPORT_CHAIN_OXPHOS_SYSTEM_IN_MITOCHONDRIA","REACTOME_RESPIRATORY_ELECTRON_TRANSPORT_ATP_SYNTHESIS_BY_CHEMIOSMOTIC_COUPLING_AND_HEAT_PRODUCTION_BY_UNCOUPLING_PROTEINS","REACTOME_IRON_UPTAKE_AND_TRANSPORT","KEGG_PARKINSONS_DISEASE","WP_MITOCHONDRIAL_CIV_ASSEMBLY","REACTOME_RESPIRATORY_ELECTRON_TRANSPORT","WP_OXIDATIVE_PHOSPHORYLATION","REACTOME_THE_CITRIC_ACID_TCA_CYCLE_AND_RESPIRATORY_ELECTRON_TRANSPORT","REACTOME_MITOCHONDRIAL_PROTEIN_IMPORT","WP_MITOCHONDRIAL_COMPLEX_I_ASSEMBLY_MODEL_OXPHOS_SYSTEM")
+
+```
+
+
+```{R}
+library(rlist)
+Heatmap_Matrix <- list()
+for (i in unique(GSEA_Aggr_Table$Cell_Type)) {
+  temp_table <- GSEA_Aggr_Table[GSEA_Aggr_Table$Cell_Type %in% i,]
+  index <- which(Expanded_Pathways %in% temp_table$pathway)
+  if (length(index) == 0) {
+    NES_subtable <- as.data.frame(cbind(rep(i,length(Expanded_Pathways)),Expanded_Pathways,rep(0,length(Expanded_Pathways))))
+    colnames(NES_subtable) <- c("Cell_Type","pathway","NES")
+  }
+  else {
+    NES_subtable <- temp_table[temp_table$pathway %in% Expanded_Pathways,]
+    NES_subtable <- NES_subtable[,c(1,2,7)]
+    if (length(NES_subtable$Cell_Type) == 7){
+      NES_subtable <- NES_subtable
+    }
+    else{
+      temp_table2 <- as.data.frame(cbind(rep(i,length(Expanded_Pathways[-index])),Expanded_Pathways[-index],rep(0,length(Expanded_Pathways[-index]))))
+      colnames(temp_table2) <- c("Cell_Type","pathway","NES")
+      NES_subtable <- rbind(NES_subtable,temp_table2)
+    }
+  }
+  Heatmap_Matrix <- list.append(Heatmap_Matrix,NES_subtable)
+}
+
+Heatmap_Matrix <- do.call("rbind", Heatmap_Matrix)
+```
+
+
+
+
+```{R}
+Heatmap_Matrix$NES <- as.numeric(Heatmap_Matrix$NES)
+Heatmap_Matrix <- dcast(data = Heatmap_Matrix,formula = Cell_Type~pathway,fun.aggregate = sum,value.var = "NES")
+rownames(Heatmap_Matrix) <- Heatmap_Matrix$Cell_Type
+Heatmap_Matrix <- Heatmap_Matrix[,-1]
+
+
+```
+
+
+
+
+```{R}
+
+SubclusterSplitCaseNumbersTable <- read.delim("../Files/Subcluster_SplitCase_NumbersTable.tsv")
+
+Assigned_Clusters <- unique(SubclusterSplitCaseNumbersTable$Var1)
+
+excluded_cells <- Assigned_Clusters[-which(Assigned_Clusters %in% rownames(Heatmap_Matrix))]
+
+excluded_cells <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",excluded_cells)
+
+#excluded_cells <- c("GABA Neurons 2","GLU Neurons 4","GLU Neurons 6","GABA Neurons 4","GABA Neurons 5","OPCs","GABA Neurons 6","Tanycytes","GABA Neurons 7","Ependymal Cells","GABA Neurons 8","GLU Neurons 8")
+
+for (ec in excluded_cells) {
+  Heatmap_Matrix <- rbind(Heatmap_Matrix,rep(0,ncol(Heatmap_Matrix)))
+  rownames(Heatmap_Matrix)[nrow(Heatmap_Matrix)] <- ec
+}
+
+```
+
+```{R}
+rownames(Heatmap_Matrix) <- gsub("Endothelial_Cells","Endothelial_Cells_and_Microglia",rownames(Heatmap_Matrix))
+
+rownames(Heatmap_Matrix) <- gsub("_"," ",rownames(Heatmap_Matrix))
+
+Cluster_Order <- c("GLU Neurons 1", "GLU Neurons 2", "GLU Neurons 3", "GLU Neurons 4", "GLU Neurons 5", "GLU Neurons 6", "GLU Neurons 7", "GLU Neurons 8", "GLU Neurons 9", "GLU Neurons 10", "GLU Neurons 11", "GLU Neurons 12", "GABA Neurons 1", "GABA Neurons 2", "GABA Neurons 3", "GABA Neurons 4", "GABA Neurons 5", "GABA Neurons 6", "GABA Neurons 7", "GABA Neurons 8", "GABA Neurons 9", "GABA Neurons 10", "GABA Neurons 11", "Astrocytes", "Oligodendrocytes", "OPCs", "Endothelial Cells and Microglia", "Unknown Cluster 1", "Unknown Cluster 2", "Unknown Cluster 3")
+
+Heatmap_Matrix <- Heatmap_Matrix[match(Cluster_Order,rownames(Heatmap_Matrix)),]
+
+DSP4_Pathway_Table <- read.delim("../../Mouse_Full_Integration_DSP4_split/Files/ExpandedMtPathwaysOrder.tsv")
+
+Heatmap_Matrix <- Heatmap_Matrix[,match(DSP4_Pathway_Table$Pathways,colnames(Heatmap_Matrix))]
+
+```
+
+```{R}
+library(ggplot2)
+
+MYPalette <- colorRampPalette(c("magenta","#C228C8","#813384","#000000","#817E3E","#BEB72F","#FFF300"))(200)
+
+pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = TRUE, cluster_rows = TRUE)
+
+GSEA_Mouse_PFC_Heatmap <- pheatmap(Heatmap_Matrix, border_color = "gray", color = MYPalette, cellwidth = 10, cellheight = 10, breaks = seq(from=-2,to=2, length.out=200), cluster_cols = FALSE, cluster_rows = FALSE)
+
+ggsave(GSEA_Mouse_PFC_Heatmap,filename = "../Figures/NomPval_Expanded_GSEA_Mouse_DSP4SIGPATHWAYS_Propanolol_SPLIT_PFC_Heatmap_Singlets_Clusters.pdf", device = "pdf", height = 18, width = 12, units = "in")
+
+```

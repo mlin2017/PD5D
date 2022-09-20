@@ -148,9 +148,84 @@ length(Cell_Sub) > 1
 
 
 
+################################################################################################################
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
 
 
 
 
+
+
+```{R}
+
+Batch7_MTG <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```
+
+
+THESE AREN'T TRUE ASSIGNMENTS, JUST PROXIES TO CHECK THIS CODE
+
+```{r}
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU_Neurons", `2` = "GLU_Neurons",
+                      `3` = "GLU_Neurons", `4` = "Oligodendrocytes", `5` = "GLU_Neurons",
+                      `6` = "GABA_Neurons", `7` = "GLU_Neurons", `8` = "GLU_Neurons",`9` = "GABA_Neurons",
+                      `10` = "GLU_Neurons", `11` = "Astrocytes",`12` = "GABA_Neurons",
+                      `13` = "Microglia",`14` = "GLU_Neurons",
+                      `15` = "GLU_Neurons", `16`="Endothelial", `17`="GABA_Neurons", `18`="GLU_Neurons", `19`="OPCs",  `20`="GLU_Neurons", `21` = "GLU_Neurons", `22` = "GABA_Neurons", `23` = "GABA_Neurons", `24` = "GABA_Neurons", `25` = "GABA_Neurons")
+```
+
+
+
+```{R}
+
+unique(Idents(Batch7_MTG))
+
+
+
+
+```
+
+
+
+
+
+```{R}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
 
 

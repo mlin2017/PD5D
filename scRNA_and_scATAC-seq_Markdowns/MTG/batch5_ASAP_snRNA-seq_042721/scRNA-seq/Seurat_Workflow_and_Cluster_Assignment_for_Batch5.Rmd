@@ -51,7 +51,7 @@ Batch5_MTG <- CreateSeuratObject(counts = cbind(Batch5.data),
 
 
 ```{R}
-samples <- read.csv(file.path("Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+samples <- read.csv(file.path("Files/cellranger_matrices/cellranger_aggr_matrices_old", "aggregation.csv"), stringsAsFactors=F)
 
 cellcodes <- as.data.frame(Batch5_MTG@assays$RNA@data@Dimnames[[2]])
 colnames(cellcodes) <- "barcodes"
@@ -67,7 +67,7 @@ Batch5_MTG@meta.data$sample_ID <- cellcodes$samples
 ```
 
 ```{R}
-samples$case <- c("HC","HC","ILBD","ILBD")
+samples$case <- c("HC","PD","ILBD","ILBD")
 
 cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
 
@@ -152,7 +152,7 @@ Batch5_MTG <- FindVariableFeatures(Batch5_MTG, selection.method = "vst", nfeatur
 
 # Identify the 10 most highly variable genes
 top10 <- head(VariableFeatures(Batch5_MTG), 10)
-
+Vfea <- VariableFeatures(Batch5_MTG)
 # plot variable features with and without labels
 plot1 <- VariableFeaturePlot(Batch5_MTG)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)

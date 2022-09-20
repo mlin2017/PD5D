@@ -1,0 +1,27 @@
+---
+title: "Troubleshooting matching barcodes to cell types and clusters"
+output: html_document
+---
+
+
+
+
+```{R}
+
+assignmenttable <- read.delim("../Files/Cell_to_Cluster_Assignment_Table_Initial.tsv")
+
+unique(as.vector(assignmenttable$Cluster))
+
+
+
+```
+
+
+
+```{R}
+
+assignmenttable <- read.delim("../Files/Cell_to_Cluster_Assignment_Table.tsv")
+
+unique(as.vector(assignmenttable$Cluster))
+
+```

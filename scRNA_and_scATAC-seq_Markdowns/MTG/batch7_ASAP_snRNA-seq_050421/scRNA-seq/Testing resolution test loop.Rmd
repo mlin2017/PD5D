@@ -1,0 +1,440 @@
+---
+title: "Testing resolution test loop"
+output: html_document
+---
+
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+```
+
+
+
+Loading in the single cell data
+
+```{r}
+Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+```
+
+
+
+
+
+
+checking dimensions to check all samples have the same set of genes
+
+```{r}
+
+dim(Batch7.data)
+
+```
+
+
+```{r}
+Batch7_MTG <- CreateSeuratObject(counts = cbind(Batch7.data),
+                            project = "Batch7_MTG",
+                            min.cells = 3)
+```
+
+
+```{R}
+samples <- read.csv(file.path("Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+
+cellcodes <- as.data.frame(Batch7_MTG@assays$RNA@data@Dimnames[[2]])
+colnames(cellcodes) <- "barcodes"
+rownames(cellcodes) <- cellcodes$barcodes
+
+cellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", cellcodes$barcodes))
+cellcodes$samples <- as.vector(samples$library_id[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$sample_ID <- cellcodes$samples
+
+
+
+```
+
+
+```{R}
+
+cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
+
+Batch7_MTG@meta.data$case <- cellcodes$case
+
+```
+
+
+
+
+Now let's see the cell the counts for each group:
+```{r}
+table(Batch7_MTG$sample_ID)
+```
+
+```{R}
+table(Batch7_MTG$case)
+```
+
+
+ Quality Checking : 
+
+ Seurat allows you to easily explore QC metrics and filter cells based on any user-defined criteria.
+ A few QC metrics commonly used by the community include : 
+ The number of unique genes detected in each cell.
+ Low-quality cells or empty droplets will often have very few genes
+ Cell doublets or multiplets may exhibit an aberrantly high gene count
+ Similarly, the total number of molecules detected within a cell (correlates strongly with unique genes)
+ The percentage of reads that map to the mitochondrial genome
+ Low-quality / dying cells often exhibit extensive mitochondrial contamination
+ We calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
+ We use the set of all genes starting with MT- as a set of mitochondrial genes
+
+```{r}
+Batch7_MTG[["percent.mt"]] <- PercentageFeatureSet(Batch7_MTG, pattern = "^MT-")
+
+VlnPlot(Batch7_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+
+
+average nfeature_RNA
+
+#Deprecated - use per sample filtering method
+
+```{R}
+library(stats)
+nfeature_RNA <- Batch7_MTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch7_MTG@meta.data$nFeature_RNA)
+
+```
+
+#Testing out per sample filtering
+
+```{R}
+
+library(stats)
+
+#metadata <- as.data.frame(Batch7_MTG@meta.data)
+#metadata$cell_barcode <- rownames(metadata)
+#metadata$nFeature_RNA <- as.numeric(metadata$nFeature_RNA)
+#test <- group_by(.data = metadata, sample_ID) %>% mutate(upperlimit = (median(nFeature_RNA) + (mad(nFeature_RNA, center = #median(nFeature_RNA))*3)))
+
+#Filtered_Metadata <- group_by(.data = test, sample_ID) %>% filter(nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing2 = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 2)
+
+#test3 <- group_by(.data = test, sample_ID) %>% mutate(testing2 = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+
+```
+
+Filtering low quality cells
+
+```{R}
+#Batch7_MTG@meta.data$cell_barcode <- rownames(Batch7_MTG@meta.data)
+
+#Batch7_MTG <- subset(Batch7_MTG, subset = cell_barcode %in% Filtered_Metadata$cell_barcode)
+
+```
+
+#Filtering low quality cells: 
+```{r}
+Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
+```
+
+Now let's recheck the cell the counts for each group:
+```{r}
+table(Batch7_MTG$sample_ID)
+```
+
+```{R}
+table(Batch7_MTG$case)
+```
+
+
+Log Normalizing data: 
+```{r}
+Batch7_MTG <- NormalizeData(Batch7_MTG, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+
+Finding and plotting 2000 most variable features
+
+```{R}
+Batch7_MTG <- FindVariableFeatures(Batch7_MTG, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(Batch7_MTG), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(Batch7_MTG)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+```
+
+```{R}
+plot1
+```
+
+```{R}
+plot2
+```
+
+Run the standard workflow for visualization and clustering :
+
+save list of all genes
+```{r}
+all.genes <- rownames(Batch7_MTG)
+```
+
+center and scale data
+```{r}
+Batch7_MTG <- ScaleData(Batch7_MTG, features = all.genes, verbose = FALSE)
+```
+
+Determining "Dimensionality" of the dataset
+
+
+
+
+
+finding the top 30 principal components for cells
+```{r}
+Batch7_MTG <- RunGLMPCA(Batch7_MTG, features=Batch7_MTG@assays$RNA@var.features, L = 30)
+```
+
+
+
+```{R}
+
+head(Batch7_MTG@reductions$glmpca@cell.embeddings)
+
+```
+
+
+
+```{R}
+
+head(Batch7_MTG@reductions$glmpca@cell.embeddings)
+
+```
+
+Run Harmony
+```{r}
+
+Batch7_MTG <- RunHarmony(Batch7_MTG, group.by.vars = "case", reduction = "glmpca", plot_convergence = TRUE)
+
+```
+
+
+cells in harmony axis
+```{r}
+harmony_embeddings <- Embeddings(Batch7_MTG, 'harmony')
+harmony_embeddings[1:5, 1:5]
+```
+
+cells in harmony axis
+```{r}
+DimPlot(object = Batch7_MTG, reduction = "harmony", pt.size = .1, group.by = "case")
+```
+cells in harmony 1 axis
+```{r}
+VlnPlot(object = Batch7_MTG, features = "harmony_1", group.by = "case",  pt.size = .1)
+```
+
+ An object of class Seurat 
+ 25381 features across 6549 samples within 1 assay 
+ Active assay: RNA (25381 features)
+ 2 dimensional reductions calculated: pca, harmony
+
+Determing the dimensionality of the dataset
+
+
+```{R}
+
+ElbowPlot(Batch7_MTG, reduction = "harmony", ndims = 30)
+
+```
+
+```{R}
+
+ElbowPlot(Batch7_MTG, reduction = "glmpca")
+
+```
+
+
+```{r}
+saveRDS(Batch7_MTG,"Files/GLMPCA_Batch7_MTG_preclustering.rds")
+```
+
+
+
+10 looks like a suitable cutoff based on the elbow plot, but the JackStraw plot looks very strange
+
+Finding Clusters of cells:
+
+Batch7_MTG <- FindNeighbors(Batch7_MTG, reduction = "harmony", dims = 1:20)
+Batch7_MTG <- FindClusters(Batch7_MTG, resolution = 0.5, algorithm = 4)
+
+
+run Umap based on top 10 harmony axis: 
+
+Batch7_MTG <- RunUMAP(Batch7_MTG, reduction = "harmony", dims = 1:20)
+
+
+#####################################################################################################
+
+Testing fgsea
+
+```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(fgsea)
+```
+ 
+ 
+ 
+ 
+```{R}
+Batch7_MTG=readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+```
+
+
+
+```{R}
+
+DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, label.size = 2)
+
+
+
+
+```
+
+
+
+
+
+
+
+
+```{r}
+
+#NOTE: NOT REAL ASSIGNMENTS, JUST PROXIES FOR TEST PURPOSES
+
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons", `2` = "GLU Neurons",
+                      `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GLU Neurons",
+                      `6` = "Cajal-Retzius Cells", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "GABA Neurons",
+                      `10` = "GLU Neurons", `11` = "Astrocytes",`12` = "GABA Neurons",
+                      `13` = "Microglia",`14` = "GLU Neurons",
+                      `15` = "GLU Neurons", `16`="Endothelial", `17`="GABA Neurons", `18`="GLU Neurons", `19`="OPCs",  `20`="GLU Neurons", `21` = "GLU Neurons", `22` = "GABA Neurons", `23` = "GABA Neurons", `24` = "GABA Neurons", `24` = "GABA Neurons")
+```
+
+
+
+
+
+```{R}
+
+Ident_Object <- subset(Batch7_MTG, idents = "Oligodendrocytes")
+
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+} 
+
+Ident_Object <- Ident_Object[apply(Ident_Object@assays$RNA@counts,1,mkfilter) >= 20,]
+Ident_Object@meta.data$DetRate <- as.vector(scale(colSums(Ident_Object@assays$RNA@counts > 0)))
+Idents(Ident_Object) <- "case"
+FilteredGeneCount <- dim(Ident_Object)[1]
+
+
+```
+
+
+
+
+```{R}
+
+ClusterfGSEA <- function(ClusterIdent, IdentObj, ident1, ident2){
+  IdentObj@meta.data$DetRate <- as.vector(scale(colSums(IdentObj@assays$RNA@counts > 0)))
+  IdentObj.Markers <- FindMarkers(IdentObj, ident.1 = ident1, ident.2 = ident2, verbose = FALSE, test.use = "MAST", latent.vars = c("DetRate"), logfc.threshold = 0, min.pct = 0)
+  IdentObj.Markers$gene <- rownames(IdentObj.Markers)
+  IdentObj.Avg <- as.data.frame(AverageExpression(IdentObj, verbose = FALSE)$RNA)
+  IdentObj.Avg$gene <- rownames(IdentObj.Avg)
+  ProgMarkersIdentObj.Avg <- IdentObj.Avg[IdentObj.Avg$gene %in% unique(IdentObj.Markers$gene),]
+  ProgMarkersIdentObj.Avg <- ProgMarkersIdentObj.Avg[match(IdentObj.Markers$gene,ProgMarkersIdentObj.Avg$gene),]
+  generanks <- IdentObj.Markers$avg_log2FC
+  names(generanks) <- rownames(IdentObj.Markers)
+  generanks <- generanks[order(generanks, decreasing = TRUE)]
+  fgseaRes = fgsea(C2_Gene_Sets, stats=generanks, minSize=5, maxSize=Inf, nPermSimple=10000)
+  fgseaRes$BF_pval <- 0.05/TotalPathways
+  fgseaRes$leadingEdge = vapply(fgseaRes$leadingEdge, paste, collapse = ", ", character(1L))
+  fgseaResFilterBH <- fgseaRes[fgseaRes$padj <= 0.05,]
+  if (nrow(fgseaResFilterBH) > 0) {
+  write.table(fgseaResFilterBH, file = paste("Files/GSEA/",ClusterIdent,"_",ident1,"_vs_",ident2,"_GSEA_SigBHCorrection_Genesets.tsv",sep = ""), quote = FALSE, col.names = TRUE, row.names = FALSE, sep = "\t")
+  }
+  fgseaResFilter <- fgseaRes[fgseaRes$pval <= fgseaRes$BF_pval,]
+  if (nrow(fgseaResFilter) > 0) {
+  write.table(fgseaResFilter, file = paste("Files/GSEA/",ClusterIdent,"_",ident1,"_vs_",ident2,"_GSEA_SigBFCorrection_Genesets.tsv",sep = ""), quote = FALSE, col.names = TRUE, row.names = FALSE, sep = "\t")
+  }
+  IdentObj.Markers$ident1_mean <- ProgMarkersIdentObj.Avg[[ident1]]
+  IdentObj.Markers$ident2_mean <- ProgMarkersIdentObj.Avg[[ident2]]
+  colnames(IdentObj.Markers)[colnames(IdentObj.Markers) == "ident1_mean"] <- paste(ident1,"_mean",sep="")
+  colnames(IdentObj.Markers)[colnames(IdentObj.Markers) == "ident2_mean"] <- paste(ident2,"_mean",sep="")
+  IdentObj.Markers$Status <- "Upregulated"
+  IdentObj.Markers$Status[IdentObj.Markers$avg_log2FC < 0] <- "Downregulated"
+  IdentObj.Markers$Status <- factor(IdentObj.Markers$Status, c("Upregulated","Downregulated"))
+  IdentObj.Markers$FilteredGeneCount <- FilteredGeneCount
+  IdentObj.Markers$BF_p_val <- 0.05/TotalGenes
+  IdentObj.Markers$BH_p_val <- p.adjust(IdentObj.Markers$p_val, method = "BH", n = FilteredGeneCount)
+  write.csv(IdentObj.Markers, file = paste("Files/DE_Genes/AllGenes_",ClusterIdent,"_Markers_",ident1,"_vs_",ident2,".csv",sep = ""), quote = FALSE)
+}
+
+
+```
+
+
+
+```{R}
+
+ClusterfGSEA("Oligodendrocytes",Ident_Object,"PD","HC")
+
+```
+
+
+
+
+
+
+
+
+

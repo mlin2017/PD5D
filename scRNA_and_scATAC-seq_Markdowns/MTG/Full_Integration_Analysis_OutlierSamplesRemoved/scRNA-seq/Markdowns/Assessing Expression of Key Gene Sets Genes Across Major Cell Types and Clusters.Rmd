@@ -1,0 +1,436 @@
+---
+title: "Assessing Expression of Key Mendelian Parkinsons Genes Across Cell Types"
+output: html_document
+---
+
+
+
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(fgsea)
+library(SeuratWrappers)
+library(purrr)
+library(reshape2)
+library(sciplot)
+library(ggplot2)
+```
+
+
+
+
+```{R}
+
+#MarkerParkinsonsGenes <- c("SNCA", "PRKN", "UCHL1", "PINK1", "PARK7", "LRRK2", "ATP13A2", "GIGYF2", "HTRA2", "PLA2G6", "FBXO7", "VPS35", "EIF4G1", "DNAJC6", "SYNJ1", "DNAJC13", "CHCHD2", "VPS13C", "GBA")
+
+MCT_Parkisons_Mendelian_Genes_BarChartTable <- read.table("../Files/MajorCellTypes_Parkisons_Mendelian_Genes_BarChartTable.tsv", header = TRUE)
+
+```
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(MarkerParkinsonsGenes))
+
+ggplot(MCT_Parkisons_Mendelian_Genes_BarChartTable, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1, width = 0.3, position = position_dodge(width=0.1)) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.15, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MCT_Parkisons_Mendelian_Genes_barchart <- ggplot(MCT_Parkisons_Mendelian_Genes_BarChartTable, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1, width = 0.5, position = position_dodge(width=0.1)) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.15, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0),
+              aspect.ratio = 0.4) + NoLegend()
+
+
+
+
+Batch567_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+```{R}
+ParkinsonsGeneBarChartGrid <- ggplot(MCT_Parkisons_Mendelian_Genes_BarChartTable, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of Parkinsons Genes") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+
+ggsave(ParkinsonsGeneBarChartGrid,filename = "../Figures/MajorCellTypes_ParkinsonsGenes_BarchartGrid.pdf", device = "pdf", width = 12, height = 12, units = "in")
+
+```
+
+
+
+```{R}
+
+MCT_Monika_Genes_BarChartTable <- read.table("../Files/MajorCellTypes_Monika_Genes_BarChartTable.tsv", header = TRUE)
+
+```
+
+
+```{R}
+MonikaGenesBarChartGrid <- ggplot(MCT_Monika_Genes_BarChartTable, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of Parkinsons Genes") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+
+ggsave(MonikaGenesBarChartGrid,filename = "../Figures/MajorCellTypes_MonikaGenes_BarchartGrid.pdf", device = "pdf", width = 12, height = 12, units = "in")
+
+```
+
+
+
+```{R}
+
+MCT_Bea_Genes_BarChartTable <- read.table("../Files/MajorCellTypes_Bea_Genes_BarChartTable.tsv", header = TRUE)
+
+```
+
+
+```{R}
+BeaGenesBarChartGrid <- ggplot(MCT_Bea_Genes_BarChartTable, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of Parkinsons Genes") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+
+ggsave(BeaGenesBarChartGrid,filename = "../Figures/MajorCellTypes_BeaGenes_BarchartGrid.pdf", device = "pdf", width = 12, height = 12, units = "in")
+
+```
+
+
+##########################################################################
+
+Making the same barcharts as above, but with assigned clusters instead of major cell types
+
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(fgsea)
+library(SeuratWrappers)
+library(purrr)
+library(reshape2)
+library(sciplot)
+library(ggplot2)
+```
+
+
+
+
+```{R}
+
+#MarkerParkinsonsGenes <- c("SNCA", "PRKN", "UCHL1", "PINK1", "PARK7", "LRRK2", "ATP13A2", "GIGYF2", "HTRA2", "PLA2G6", "FBXO7", "VPS35", "EIF4G1", "DNAJC6", "SYNJ1", "DNAJC13", "CHCHD2", "VPS13C", "GBA")
+
+Clusters_Parkisons_Mendelian_Genes_BarChartTable <- read.table("../Files/Clusters_Parkisons_Mendelian_Genes_BarChartTable.tsv", header = TRUE)
+
+```
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(MarkerParkinsonsGenes))
+
+ggplot(MCT_Parkisons_Mendelian_Genes_BarChartTable, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1, width = 0.3, position = position_dodge(width=0.1)) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.15, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+MCT_Parkisons_Mendelian_Genes_barchart <- ggplot(MCT_Parkisons_Mendelian_Genes_BarChartTable, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1, width = 0.5, position = position_dodge(width=0.1)) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.15, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0),
+              aspect.ratio = 0.4) + NoLegend()
+
+
+
+
+Batch567_barchart <- ggplot(data_barplot_melt_sum, aes(x = ident, y = mean, fill = ident)) + 
+        geom_bar(aes(x = ident, y = mean), stat = "identity", alpha = 1) + 
+        geom_errorbar(aes(x = ident, ymin = mean-SE, ymax = mean+SE, colour = ident), width = 0.4, alpha = 0.9, size = 0.5) + 
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") + 
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5),
+              axis.text.y = element_blank(), axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 12, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+```{R}
+ClustersParkinsonsGeneBarChartGrid <- ggplot(Clusters_Parkisons_Mendelian_Genes_BarChartTable, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of Parkinsons Genes") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+
+ggsave(ClustersParkinsonsGeneBarChartGrid,filename = "../Figures/Clusters_ParkinsonsGenes_BarchartGrid.pdf", device = "pdf", width = 12, height = 12, units = "in")
+
+```
+
+
+
+```{R}
+
+Clusters_Monika_Genes_BarChartTable <- read.table("../Files/Clusters_Monika_Genes_BarChartTable.tsv", header = TRUE)
+
+```
+
+
+```{R}
+Clusters_MonikaGenesBarChartGrid <- ggplot(Clusters_Monika_Genes_BarChartTable, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of Parkinsons Genes") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+
+ggsave(Clusters_MonikaGenesBarChartGrid,filename = "../Figures/Clusters_MonikaGenes_BarchartGrid.pdf", device = "pdf", width = 12, height = 12, units = "in")
+
+```
+
+
+
+```{R}
+
+Clusters_Bea_Genes_BarChartTable <- read.table("../Files/Clusters_Bea_Genes_BarChartTable.tsv", header = TRUE)
+
+```
+
+
+```{R}
+Clusters_BeaGenesBarChartGrid <- ggplot(Clusters_Bea_Genes_BarChartTable, aes(x=ident, y=mean, fill=ident)) +
+        ggtitle("Expression of Parkinsons Genes") +
+        geom_bar(stat="identity", width=0.5,position=position_dodge()) +
+        ylab("Mean Expression") +
+        theme(axis.title.x = element_blank(),
+              axis.text.x = element_text(angle = 65, hjust=1),
+              plot.title = element_text(hjust = 0.5)) +
+        geom_errorbar(aes(ymin=mean-SE, ymax=mean+SE), width=.2,
+                 position=position_dodge(.5)) +
+        ggplot2::facet_grid(rows = vars(variable), scales = "free_y", switch = "y") +
+        theme(axis.title = element_blank(), axis.text.x = element_text(size = 8, angle = 45, face = "bold"),
+              axis.text.y = element_text(size = 8),
+axis.ticks = element_blank(), panel.background = element_blank(),
+              strip.background = element_blank(), strip.placement = "outside", 
+              strip.text.y = element_text(size = 8, angle = 180, face = "bold"),
+              strip.text.y.left = element_text(angle = 0)) + NoLegend()
+
+
+
+
+ggsave(Clusters_BeaGenesBarChartGrid,filename = "../Figures/Clusters_BeaGenes_BarchartGrid.pdf", device = "pdf", width = 12, height = 12, units = "in")
+
+```
+
+
+```{R}
+swer=NULL
+for(i in seq(from=0.5,to=1.2,by=0.1)){
+  swer <- c(swer,i)
+}
+
+```
+
+####################################################################################################################
+
+Template for how to make counts per ten thousand table
+
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(sciplot)
+library(reshape2)
+library(MAST)
+library(fgsea)
+library(SeuratWrappers)
+library(purrr)
+```
+
+```{R}
+Batch567_MTG=readRDS("Files/Batch567_Unassigned.rds")
+Batch567_MTG@meta.data$batch <- gsub("Batch56767","Batch5",Batch567_MTG@meta.data$batch)
+```
+
+
+```{R}
+
+case_clusters <- paste(Batch567_MTG$case,Batch567_MTG$seurat_clusters,sep = "_")
+
+```
+
+
+```{R}
+Batch567_MTG <- RenameIdents(Batch567_MTG, `1` = "Oligodendrocytes", `2` = "GLU_Neurons_1", `3` = "GLU_Neurons_2",
+                      `4` = "GLU_Neurons_3",`5` = "Astrocytes_1",
+                      `6` = "GABA_Neurons_1", `7` = "Cajal_Retzius_Cells", `8` = "GLU_Neurons_4",`9` = "GLU_Neurons_5",
+                      `10` = "GLU_Neurons_6", `11` = "Microglia",`12` = "Astrocytes_2",
+                      `13` = "OPCs",`14` = "GABA_Neurons_2",
+                      `15` = "GLU_Neurons_7", `16`="GLU_Neurons_8", `17`="Endothelial_1", `18`="Endothelial_2",`19`="GABA_Neurons_3",`20`="GLU_Neurons_9",`21`="GLU_Neurons_10",`22`="GLU_Neurons_11",`23`="GABA_Neurons_4")
+```
+
+
+```{R}
+
+data_barplot <- FetchData(Batch567_MTG, vars = c("ident",MarkerParkinsonsGenes), slot = "data")
+data_barplot2 <- data_barplot
+data_barplot2[,2:ncol(data_barplot2)] <- apply(as.matrix(data_barplot2[,2:ncol(data_barplot2)]),2,expm1)
+
+data_barplot_melt <- melt(data_barplot2)
+
+data_barplot_melt$ident <- as.vector(data_barplot_melt$ident)
+data_barplot_melt$variable <- as.vector(data_barplot_melt$variable)
+data_barplot_melt$value <- as.numeric(as.vector(data_barplot_melt$value))
+
+data_barplot_melt_sum <- group_by(data_barplot_melt,ident,variable) %>% summarise(mean = mean(value), SE = se(value))
+
+data_barplot_melt_sum$ident <- factor(data_barplot_melt_sum$ident, levels = unique(data_barplot_melt_sum$ident))
+
+data_barplot_melt_sum$variable <- factor(data_barplot_melt_sum$variable, levels = unique(MarkerParkinsonsGenes))
+```
+
+
+
+
+
+
+
+
+

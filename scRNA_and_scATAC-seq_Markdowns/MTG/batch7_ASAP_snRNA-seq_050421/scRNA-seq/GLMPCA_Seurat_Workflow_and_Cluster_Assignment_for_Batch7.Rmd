@@ -26,7 +26,7 @@ library(SeuratWrappers)
 Loading in the single cell data
 
 ```{r}
-Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices_old/filtered_feature_bc_matrix")
+Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
 ```
 
 
@@ -37,8 +37,8 @@ Batch7.data <- Read10X(data.dir = "Files/cellranger_matrices/cellranger_aggr_mat
 checking dimensions to check all samples have the same set of genes
 
 ```{r}
-dim(Batch7.data)
 
+dim(Batch7.data)
 
 ```
 
@@ -68,7 +68,6 @@ Batch7_MTG@meta.data$sample_ID <- cellcodes$samples
 
 
 ```{R}
-samples$case <- c("HC","HC","PD","PD")
 
 cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
 
@@ -118,11 +117,11 @@ average nfeature_RNA
 #Deprecated - use per sample filtering method
 
 ```{R}
-#library(stats)
-#nfeature_RNA <- Batch7_MTG@meta.data$nFeature_RNA
-#mean(nfeature_RNA)
-#MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
-#threeMAD <- (MAD*3)+median(Batch7_MTG@meta.data$nFeature_RNA)
+library(stats)
+nfeature_RNA <- Batch7_MTG@meta.data$nFeature_RNA
+mean(nfeature_RNA)
+MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
+threeMAD <- (MAD*3)+median(Batch7_MTG@meta.data$nFeature_RNA)
 
 ```
 
@@ -132,12 +131,12 @@ average nfeature_RNA
 
 library(stats)
 
-metadata <- as.data.frame(Batch7_MTG@meta.data)
-metadata$cell_barcode <- rownames(metadata)
-metadata$nFeature_RNA <- as.numeric(metadata$nFeature_RNA)
-test <- group_by(.data = metadata, sample_ID) %>% mutate(upperlimit = (median(nFeature_RNA) + (mad(nFeature_RNA, center = median(nFeature_RNA))*3)))
+#metadata <- as.data.frame(Batch7_MTG@meta.data)
+#metadata$cell_barcode <- rownames(metadata)
+#metadata$nFeature_RNA <- as.numeric(metadata$nFeature_RNA)
+#test <- group_by(.data = metadata, sample_ID) %>% mutate(upperlimit = (median(nFeature_RNA) + (mad(nFeature_RNA, center = #median(nFeature_RNA))*3)))
 
-Filtered_Metadata <- group_by(.data = test, sample_ID) %>% filter(nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
+#Filtered_Metadata <- group_by(.data = test, sample_ID) %>% filter(nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
 
 #test3 <- group_by(.data = test, sample_ID) %>% mutate(testing = nFeature_RNA > 200 & nFeature_RNA < upperlimit & percent.mt < 5)
 
@@ -150,15 +149,15 @@ Filtered_Metadata <- group_by(.data = test, sample_ID) %>% filter(nFeature_RNA >
 Filtering low quality cells
 
 ```{R}
-Batch7_MTG@meta.data$cell_barcode <- rownames(Batch7_MTG@meta.data)
+#Batch7_MTG@meta.data$cell_barcode <- rownames(Batch7_MTG@meta.data)
 
-Batch7_MTG <- subset(Batch7_MTG, subset = cell_barcode %in% Filtered_Metadata$cell_barcode)
+#Batch7_MTG <- subset(Batch7_MTG, subset = cell_barcode %in% Filtered_Metadata$cell_barcode)
 
 ```
 
-#Filtering low quality cells: - Deprecated, use per sample filtering
+#Filtering low quality cells: 
 ```{r}
-#Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
+Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
 ```
 
 Now let's recheck the cell the counts for each group:
@@ -237,8 +236,23 @@ Coordinate of cells in PC 1 characterized by case:
 VlnPlot(object = Batch7_MTG, features = "PC_1", group.by = "case",  pt.size = .1)
 ```
 
+```{R}
+
+head(Batch7_MTG@reductions$glmpca@cell.embeddings)
+
+```
+
+
+
+```{R}
+
+head(Batch7_MTG@reductions$glmpca@cell.embeddings)
+
+```
+
 Run Harmony
 ```{r}
+
 Batch7_MTG <- RunHarmony(Batch7_MTG, group.by.vars = "case", reduction = "glmpca", plot_convergence = TRUE)
 
 ```
@@ -289,14 +303,14 @@ ElbowPlot(Batch7_MTG, reduction = "glmpca")
 
 Finding Clusters of cells:
 ```{r}
-Batch7_MTG <- FindNeighbors(Batch7_MTG, reduction = "harmony", dims = 1:15)
+Batch7_MTG <- FindNeighbors(Batch7_MTG, reduction = "harmony", dims = 1:20)
 Batch7_MTG <- FindClusters(Batch7_MTG, resolution = 0.5, algorithm = 4)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch7_MTG <- RunUMAP(Batch7_MTG, reduction = "harmony", dims = 1:15)
+Batch7_MTG <- RunUMAP(Batch7_MTG, reduction = "harmony", dims = 1:20)
 ```
 
 run tsne based on top 10 harmony axis: 
@@ -327,9 +341,10 @@ UMAPclusters <- DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 0, lab
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
               title = element_text(size = 12),
-              legend.key.size = unit(0.4,"cm"))
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
 
-ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_UMAPclusters_scRNA_seq_Batch7_MTG.pdf", device = "pdf", width = 6, height = 4, units = "in")
+ggsave(UMAPclusters, filename = "Figures/Unassigned_GLMAPCA_Leiden_UMAPclusters_scRNA_seq_Batch7_MTG_2.pdf", device = "pdf", width = 6, height = 6, units = "in")
 ```
 
 
@@ -434,12 +449,42 @@ library(enrichplot)
  
  
 ```{R}
+
 Batch7_MTG=readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+Batch7_MTG_counts_matrix <- Batch7_MTG@assays$RNA@counts
+
+saveRDS(Batch7_MTG_counts_matrix, "Files/GLMPCA_Batch7_MTG_Unassigned_counts_matrix.rds")
+
+```
+
+
+
+
+```{R}
+
+mkfilter <- function(cmatrixline) {
+        sum(cmatrixline > 0)/length(cmatrixline)*100
+}
+
+#Ident_Object <- subset(Batch7_MTG, idents = 1)
+
+Ident_Object <- Ident_Object[apply(Ident_Object@assays$RNA@counts,1,mkfilter) >= 20,]
+
+DetRate <- as.vector(scale(colSums(Batch7_MTG@assays$RNA@counts > 0)))
+
 ```
  
 Testing T-cell/immune cell markers
 
+```{r}
+VlnPlot(Batch7_MTG, features = c("SH3GL2"), pt.size = 0)
+```
 
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("CD4"),pt.size = 0)
+```
 
 
 ```{r}
@@ -494,6 +539,28 @@ ggsave(TKillerCellMarkerVlnPlot,filename = "TKillerCellMarkerVlnPlot.pdf", width
 
 ```
 
+
+##################################################################
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("NEUROD1"),pt.size = 1)
+```
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("DCX"),pt.size = 1)
+```
+
+
+```{r}
+VlnPlot(Batch7_MTG, features = c("SOX2"),pt.size = 1)
+```
+```{r}
+VlnPlot(Batch7_MTG, features = c("NES"),pt.size = 1)
+```
+```{r}
+VlnPlot(Batch7_MTG, features = c("TUBB3"),pt.size = 1)
+```
 
 ##################################################################
 
@@ -704,9 +771,27 @@ VlnPlot(Batch7_MTG, features = c("PAFAH1B1"),pt.size = 1)
  Alter to make it counts per million
 
 ```{R}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
 library(reshape2)
 library(sciplot)
-library(ggplot2)
+
+
+Batch7_MTG <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
 
 MarkerGenes <- c("ENO2","RBFOX3","SLC17A6","SLC17A7","SLC32A1","GAD1","GAD2","AQP4","GFAP","PLP1","MBP","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5")
 
@@ -974,14 +1059,14 @@ novel = 12,21 - all likely neurons - all likely neurons
 Assigning cell type identity to clusters: 
 
 ```{r}
-Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons", `2` = "GLU Neurons",
-                      `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GLU Neurons",
-                      `6` = "Cajal-Retzius Cells", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "GABA Neurons",
-                      `10` = "GLU Neurons", `11` = "Astrocytes",`12` = "GABA Neurons",
-                      `13` = "Microglia",`14` = "GLU Neurons",
-                      `15` = "GLU Neurons", `16`="Endothelial", `17`="GABA Neurons", `18`="GLU Neurons", `19`="OPCs",  `20`="GLU Neurons", `21` = "GLU Neurons", `22` = "GABA Neurons")
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons", `2` = "GLU Neurons", `3` = "GLU Neurons", `4` = "Oligodendrocytes", `5` = "GABA Neurons", `6` = "GABA Neurons", `7` = "GLU Neurons", `8` = "GLU Neurons",`9` = "GLU Neurons",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons",`13` = "GLU Neurons",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons", `17`="GLU Neurons", `18`="GLU Neurons", `19`="GABA Neurons", `20`="GLU Neurons", `21` = "GLU Neurons", `22` = "GLU Neurons", `23`="GLU Neurons", `24` = "GABA Neurons", `25` = "GLU Neurons")
 ```
 
+
+
+```{r}
+Batch7_MTG <- RenameIdents(Batch7_MTG, `1` = "GLU Neurons 1", `2` = "GLU Neurons 2", `3` = "GLU Neurons 3", `4` = "Oligodendrocytes", `5` = "GABA Neurons 1", `6` = "GABA Neurons 2", `7` = "GLU Neurons 4", `8` = "GLU Neurons 5",`9` = "GLU Neurons 6",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons 7",`13` = "GLU Neurons 8",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons 3", `17`="GLU Neurons 9", `18`="GLU Neurons 10", `19`="GABA Neurons 4", `20`="GLU Neurons 11", `21` = "GLU Neurons 12", `22` = "GLU Neurons 13", `23`="GLU Neurons 14", `24` = "GABA Neurons 5", `25` = "GLU Neurons 15")
+```
 
 
 ```{R}
@@ -1028,7 +1113,7 @@ DimPlot(Batch7_MTG, label = TRUE, repel = TRUE, pt.size = 1,reduction = 'umap')
 
 
 ```{R}
-VlnPlot(Batch7_MTG, features = c("GRM5","TH","P2RY12","GRM4","BCAN"),pt.size = 0,stack = TRUE, flip = TRUE)
+VlnPlot(Batch7_MTG, features = c("GRM5","TH","P2RY12","GRM4","BCAN"), pt.size = 0,stack = TRUE, flip = TRUE)
 ```
 
 

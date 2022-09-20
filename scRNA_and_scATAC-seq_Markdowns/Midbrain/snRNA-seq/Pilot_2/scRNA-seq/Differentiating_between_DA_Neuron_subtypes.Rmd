@@ -21,6 +21,7 @@ library(harmony)
 library(DOSE)
 library(GOSemSim)
 library(enrichplot)
+library(reshape2)
 
 ```
 
@@ -115,10 +116,27 @@ If one of these clusters corresponds to DA neurons/DA-like neurons then we might
 
 ```{R}
 table(Idents(AllMB), AllMB$case)
-celltable <- table(Idents(AllMB), AllMB$case)
+celltable <- data.frame(table(Idents(AllMB), AllMB$case))
 cell_type_number_df <- as.data.frame(celltable)
-cell_type_number_df
+#cell_type_number_df$Var1 <- as.vector(cell_type_number_df$Var1)
+#cell_type_number_df$Var2 <- as.vector(cell_type_number_df$Var2)
+#cell_type_number_df$Freq <- as.vector(cell_type_number_df$Freq)
 ```
+
+
+```{R}
+dcast(data = celltable,formula = Var1~Var2,fun.aggregate = sum,value.var = "Freq")
+
+```
+
+```{R}
+
+cluster_assignment_table <- as.data.frame(cbind(rownames(AllMB@meta.data),as.vector(AllMB@active.ident)))
+
+write.table(cluster_assignment_table, file = "Figures/Cell_to_Cluster_Assignment_Table.tsv", quote = FALSE, row.names = FALSE, sep = "\t")
+
+```
+
 
 
 

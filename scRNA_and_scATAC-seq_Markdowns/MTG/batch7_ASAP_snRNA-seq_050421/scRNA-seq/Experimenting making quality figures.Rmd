@@ -1,0 +1,263 @@
+---
+title: "Experimenting making quality figures"
+output: html_document
+---
+
+Batch7_MTG <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+```{R}
+
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+
+SeuratObject <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+
+SeuratObject <- RenameIdents(SeuratObject, `1` = "GLU_Neurons", `2` = "GLU_Neurons",
+                      `3` = "GLU_Neurons", `4` = "Oligodendrocytes", `5` = "GABA_Neurons",
+                      `6` = "GABA_Neurons", `7` = "GLU_Neurons", `8` = "GLU_Neurons",`9` = "GLU_Neurons",
+                      `10` = "Astrocytes", `11` = "Microglia",`12` = "GLU_Neurons",
+                      `13` = "GLU_Neurons",`14` = "Endothelial",
+                      `15` = "OPCs", `16`="GABA_Neurons", `17`="GLU_Neurons", `18`="GLU_Neurons", `19`="GABA_Neurons",  `20`="GLU_Neurons", `21` = "GLU_Neurons", `22` = "GLU_Neurons", `23` = "GLU_Neurons", `24` = "GABA_Neurons", `25` = "GLU_Neurons")
+
+```
+
+
+Stacked Violin Plots
+
+TMEM119
+List of marker genes to use: 
+
+
+```{R}
+levels(SeuratObject) <- c("GLU_Neurons","GABA_Neurons","Oligodendrocytes","Astrocytes","OPCs","Microglia","Endothelial")
+
+levels(SeuratObject)
+
+```
+
+```{R}
+
+MarkerGenes <- c("RBFOX3","SLC17A7","GAD1","GAD2","PLP1","MBP","AQP4","GFAP","VCAN","BCAN","CX3CR1","P2RY12","FLT1","CLDN5")
+
+ReducedMarkerGenes <- c("RBFOX3","SLC17A7","GAD1","PLP1","AQP4","VCAN","P2RY12","FLT1")
+
+```
+
+
+
+```{R}
+
+modify_vlnplot<- function(obj, 
+                          feature, 
+                          pt.size = 0, 
+                          plot.margin = unit(c(-0.75, 0, -0.75, 0), "cm"),
+                          ...) {
+  p<- VlnPlot(obj, features = feature, pt.size = pt.size, ... )  + 
+    xlab("") + ylab(feature) + ggtitle("") + 
+    theme(legend.position = "none", 
+          axis.text.x = element_blank(), 
+          axis.ticks.x = element_blank(), 
+          axis.title.y = element_text(size = rel(1), angle = 0), 
+          axis.text.y = element_text(size = rel(1)), 
+          plot.margin = plot.margin ) 
+  return(p)
+}
+
+## extract the max value of the y axis
+extract_max<- function(p){
+  ymax<- max(ggplot_build(p)$layout$panel_scales_y[[1]]$range$range)
+  return(ceiling(ymax))
+}
+
+
+## main function
+StackedVlnPlot<- function(obj, features,
+                          pt.size = 0, 
+                          plot.margin = unit(c(-0.75, 0, -0.75, 0), "cm"),
+                          ...) {
+  
+  plot_list<- purrr::map(features, function(x) modify_vlnplot(obj = obj,feature = x, ...))
+  
+  # Add back x-axis title to bottom plot. patchwork is going to support this?
+  plot_list[[length(plot_list)]]<- plot_list[[length(plot_list)]] +
+    theme(axis.text.x = element_text(size = 12, angle = 90, face = "bold",hjust=0.95,vjust=0.2), axis.ticks.x = element_line())
+  
+  # change the y-axis tick to only max value 
+  ymaxs<- purrr::map_dbl(plot_list, extract_max)
+  plot_list<- purrr::map2(plot_list, ymaxs, function(x,y) x + 
+                            scale_y_continuous(breaks = c(y)) + 
+                            expand_limits(y = y))
+
+  p<- patchwork::wrap_plots(plotlist = plot_list, ncol = 1)
+  return(p)
+}
+
+```
+
+axis.text.x = element_text(size = 12, angle = 45, face = "bold", vjust = 0.5)
+
+```{R}
+
+MarkerViolinStack <- StackedVlnPlot(SeuratObject, features = MarkerGenes)
+
+ggsave(MarkerViolinStack, filename = paste("Figures/MarkerViolinPlotStack_Test.pdf",sep = ""), device = "pdf", width = 6, height = 16, units = "in")
+
+```
+
+
+```{R}
+
+ReducedMarkerViolinStack <- StackedVlnPlot(SeuratObject, features = ReducedMarkerGenes)
+
+ggsave(ReducedMarkerViolinStack, filename = paste("Figures/MarkerSubsetViolinPlotStack_Test.pdf",sep = ""), device = "pdf", width = 6, height = 10, units = "in")
+
+```
+
+#########################################################################################
+
+Nebulosa plots
+
+```{R}
+
+library(Nebulosa)
+
+Nebulosa_MarkerGenes <- plot_density(SeuratObject, features = MarkerGenes)
+
+ggsave(Nebulosa_MarkerGenes, filename = paste("Figures/Nebulosa_MarkerGenes_Test.pdf",sep = ""), device = "pdf", width = 12, height = 10, units = "in")
+
+Nebulosa_ReducedMarkerGenes <- plot_density(SeuratObject, features = ReducedMarkerGenes)
+
+ggsave(Nebulosa_ReducedMarkerGenes, filename = paste("Figures/Nebulosa_ReducedMarkerGenes_Test.pdf",sep = ""), device = "pdf", width = 10, height = 8, units = "in")
+
+
+```
+
+
+######################################################################################
+
+
+Quality UMAP plot
+
+
+```{R}
+
+DimPlot(SeuratObject, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+```{R}
+
+DimPlot(SeuratObject, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.position = "none",
+        title = element_text(size = 12))
+
+```
+
+
+```{R}
+
+DimPlot(SeuratObject, reduction = "umap", label = FALSE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+
+####################################################################################
+
+
+```{R}
+
+library(scales)
+
+hex_codes <- hue_pal()(7)
+
+
+hex_codes
+
+
+
+```
+
+
+cols = c('V0' = 'red', 'V6' = 'grey', 'V8' = 'grey')
+
+```{R}
+
+DimPlot(SeuratObject, reduction = "umap", label = FALSE, pt.size = 0.01, label.size=2.5, repel = TRUE, cols = c('GLU_Neurons' = '#F8766D', 'Oligodendrocytes' = '#C49A00', 'GABA_Neurons' = '#53B400', 'Astrocytes' = '#00C094', 'Microglia' = '#00B6EB', 'Endothelial' = '#A58AFF', 'OPCs' = '#FB61D7')) + 
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"))
+
+```
+
+```{R}
+
+DimPlot(SeuratObject, reduction = "umap", label = FALSE, pt.size = 0.01, label.size=2.5, repel = TRUE, cols = c('GLU_Neurons' = '#F8766D', 'Oligodendrocytes' = '#C49A00', 'GABA_Neurons' = '#53B400', 'Astrocytes' = '#00C094', 'Microglia' = '#00B6EB', 'Endothelial' = 'grey', 'OPCs' = 'grey')) + 
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+```{R}
+
+DimPlot(SeuratObject, reduction = "umap", label = FALSE, pt.size = 0.01, label.size=2.5, repel = TRUE, cols = c('GLU_Neurons' = '#F8766D', 'Oligodendrocytes' = '#C49A00', 'GABA_Neurons' = '#53B400', 'Astrocytes' = '#00C094', 'Microglia' = '#00B6EB', 'Endothelial' = '#A58AFF', 'OPCs' = '#FB61D7')) + 
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"))
+
+```
+
+
+
+
+```{R}
+
+SeuratObject@meta.data$MajorCellTypes <- Idents(SeuratObject)
+
+IdealObject <- subset(SeuratObject, subset = MajorCellTypes != "Oligodendrocytes")
+
+DimPlot(IdealObject, reduction = "umap", label = TRUE, pt.size = 0.01, label.size=2.5, repel = TRUE) + 
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 8),
+        title = element_text(size = 12),
+        legend.key.size = unit(0.4,"cm"))
+
+
+```
+

@@ -66,7 +66,6 @@ Batch7_MTG@meta.data$sample_ID <- cellcodes$samples
 
 
 ```{R}
-samples$case <- c("HC","HC","PD","PD")
 
 cellcodes$case <- as.vector(samples$case[cellcodes$libcodes])
 
@@ -111,7 +110,7 @@ VlnPlot(Batch7_MTG, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), nc
  Active assay: RNA (25381 features)
 
 
-average nfeature_RNA
+ average nfeature_RNA
 
 ```{R}
 library(stats)
@@ -125,7 +124,7 @@ threeMAD <- (MAD*3)+median(Batch7_MTG@meta.data$nFeature_RNA)
 
 Filtering low quality cells:
 ```{r}
-Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA > threeMAD | percent.mt < 5)
+Batch7_MTG <- subset(Batch7_MTG, subset = nFeature_RNA > 200 & nFeature_RNA < threeMAD & percent.mt < 5)
 ```
 
 Now let's recheck the cell the counts for each group:
@@ -249,14 +248,14 @@ ElbowPlot(Batch7_MTG)
 
 Finding Clusters of cells:
 ```{r}
-Batch7_MTG <- FindNeighbors(Batch7_MTG, reduction = "harmony", dims = 1:10)
+Batch7_MTG <- FindNeighbors(Batch7_MTG, reduction = "harmony", dims = 1:20)
 Batch7_MTG <- FindClusters(Batch7_MTG, resolution = 0.5)
 ```
 
 run Umap based on top 10 harmony axis: 
 
 ```{r}
-Batch7_MTG <- RunUMAP(Batch7_MTG, reduction = "harmony", dims = 1:10)
+Batch7_MTG <- RunUMAP(Batch7_MTG, reduction = "harmony", dims = 1:20)
 ```
 
 run tsne based on top 10 harmony axis: 
@@ -279,14 +278,15 @@ DimPlot(Batch7_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 
 ```
 
 ```{r}
-Batch7_MTG_Case_UMAP <- DimPlot(Batch7_MTG, reduction = "umap", split.by = "case", label = TRUE, ncol = 1) + 
+Batch7_MTG_Case_UMAP <- DimPlot(Batch7_MTG, reduction = "umap", label = TRUE, ncol = 1) + 
         theme(axis.text = element_text(size=8),
               axis.title = element_text(size = 12),
               legend.text = element_text(size = 8),
               title = element_text(size = 12),
-              legend.key.size = unit(0.4,"cm"))
+              legend.key.size = unit(0.4,"cm"),
+              legend.position = "none")
 
-ggsave(Batch7_MTG_Case_UMAP, filename = "Figures/Batch7_MTG_Case_UMAP.pdf", device = "pdf", width = 6, height = 8, units = "in")
+ggsave(Batch7_MTG_Case_UMAP, filename = "Figures/Batch7_MTG_PCA_Louvain_UMAP.pdf", device = "pdf", width = 6, height = 6, units = "in")
 ```
 
 

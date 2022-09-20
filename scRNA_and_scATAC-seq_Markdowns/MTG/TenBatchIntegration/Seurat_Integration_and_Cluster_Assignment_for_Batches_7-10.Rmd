@@ -27,20 +27,20 @@ library(stringr)
 
 
 ```{r}
-Pilot_1.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
-Pilot_2.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
 Batch8.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
 Batch7.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Batch9.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch9_ASAP_snRNA-seq_062221/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
+Batch10.data <- Read10X(data.dir = "~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch10_ASAP_snRNA-seq_062321/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices/filtered_feature_bc_matrix")
 ```
 
-
+batch9_ASAP_snRNA-seq_062221
+batch10_ASAP_snRNA-seq_062321
 
 ```{R}
-
-Pilot_1samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_1/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
-Pilot_2samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Pilot_2/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 Batch7samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch7_ASAP_snRNA-seq_050421/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 Batch8samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/Batch8_ASAP_snRNA-seq_050521/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Batch9samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch9_ASAP_snRNA-seq_062221/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
+Batch10samples <- read.csv(file.path("~/Documents/Projects/PD5D_Repository/scRNA_and_scATAC-seq_Markdowns/batch10_ASAP_snRNA-seq_062321/scRNA-seq/Files/cellranger_matrices/cellranger_aggr_matrices", "aggregation.csv"), stringsAsFactors=F)
 
 ```
 
@@ -54,35 +54,32 @@ createmetadata <- function(batch) {
   colnames(tempcellcodes) <- "barcodes"
   tempcellcodes$libcodes <- as.factor(gsub(pattern=".+-", replacement="", tempcellcodes$barcodes))
   prefix <- str_extract(batch,"Pilot_|Batch")
-  samptable <- paste(prefix,str_extract(batch,"[[:digit:]]"),"samples",sep="")
-  tempcellcodes$samples <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]"),"samples",sep=""))$library_id[tempcellcodes$libcodes])
-  tempcellcodes$case <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]"),"samples",sep=""))$case[tempcellcodes$libcodes])
-  tempcellcodes$batch <- str_extract(batch,"Batch[[:digit:]]|Pilot_[[:digit:]]")
+  samptable <- paste(prefix,str_extract(batch,"[[:digit:]]+"),"samples",sep="")
+  tempcellcodes$samples <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]+"),"samples",sep=""))$library_id[tempcellcodes$libcodes])
+  tempcellcodes$case <- as.vector(get(paste(prefix,str_extract(batch,"[[:digit:]]+"),"samples",sep=""))$case[tempcellcodes$libcodes])
+  tempcellcodes$batch <- str_extract(batch,"Batch[[:digit:]]+")
   return(tempcellcodes)
 }
 
 metadata <- bind_rows(lapply(Batches,createmetadata), .id = "column_label")
 
-metadata$region <- "Midbrain"
-
-metadata$region[metadata$batch %in% c("Batch7","Batch8")] <- "MTG"
 
 ```
 
 
 ```{r}
 
-BatchMB_MTG <- CreateSeuratObject(counts = do.call(cbind,lapply(Batches,get)),
+BatchMTG <- CreateSeuratObject(counts = do.call(cbind,lapply(Batches,get)),
                             project = "BatchMB_MTG",
-                            min.cells =)
+                            min.cells = 3)
 ```
 
 
 ```{R}
 
-BatchMB_MTG@meta.data$sample_id <- metadata$samples
-BatchMB_MTG@meta.data$case <- metadata$case
-BatchMB_MTG@meta.data$batch <- metadata$batch
+BatchMTG@meta.data$sample_id <- metadata$samples
+BatchMTG@meta.data$case <- metadata$case
+BatchMTG@meta.data$batch <- metadata$batch
 
 ```
 
@@ -91,11 +88,11 @@ BatchMB_MTG@meta.data$batch <- metadata$batch
 
 Now let's see the cell the counts for each group:
 ```{r}
-table(BatchMB_MTG$sample_id)
+table(BatchMTG$sample_id)
 ```
 
 ```{R}
-table(BatchMB_MTG$case)
+table(BatchMTG$case)
 ```
 
 
@@ -128,10 +125,10 @@ average nfeature_RNA
 ```{R}
 
 library(stats)
-nfeature_RNA <- BatchMB_MTG@meta.data$nFeature_RNA
+nfeature_RNA <- BatchMTG@meta.data$nFeature_RNA
 mean(nfeature_RNA)
 MAD <- mad(nfeature_RNA, center = median(nfeature_RNA))
-threeMAD <- (MAD*3)+median(BatchMB_MTG@meta.data$nFeature_RNA)
+threeMAD <- (MAD*3)+median(BatchMTG@meta.data$nFeature_RNA)
 
 ```
 

@@ -1,0 +1,71 @@
+---
+title: "Converting ensembl 97 C2 pathway genes to ensembl 98"
+output: html_document
+---
+
+```{R}
+library(biomaRt)
+
+listEnsemblArchives()
+
+hg38ensembl98Mart <- useMart(biomart="ENSEMBL_MART_ENSEMBL", host="https://sep2019.archive.ensembl.org")
+
+listDatasets(hg38ensembl98Mart)
+
+hg38ensembl98Mart = useDataset("hsapiens_gene_ensembl",mart=hg38ensembl98Mart)
+
+listAttributes(hg38ensembl98Mart)
+
+hg38ensembl98MartGene <- getBM(attributes = c('ensembl_gene_id','hgnc_symbol'),
+              mart = hg38ensembl98Mart)
+
+hg38ensembl97Mart <- useMart(biomart="ENSEMBL_MART_ENSEMBL", host="https://jul2019.archive.ensembl.org")
+
+listDatasets(hg38ensembl97Mart)
+
+hg38ensembl97Mart = useDataset("hsapiens_gene_ensembl",mart=hg38ensembl97Mart)
+
+listAttributes(hg38ensembl97Mart)
+
+hg38ensembl97MartGene <- getBM(attributes = c('ensembl_gene_id','hgnc_symbol'),
+              mart = hg38ensembl97Mart)
+
+```
+
+
+```{R}
+
+hg38ensembl98Mart37ID <- hg38ensembl98MartGene[hg38ensembl98MartGene$ensembl_gene_id %in% hg38ensembl97MartGene$ensembl_gene_id,]
+
+hg38ensembl98Mart37IDSNOT <- hg38ensembl98MartGene[!hg38ensembl98MartGene$ensembl_gene_id %in% hg38ensembl97MartGene$ensembl_gene_id,]
+
+NOTSYMBOLS <- hg38ensembl98Mart37IDSNOT$hgnc_symbol
+
+NOTSYMBOLSCLEAN <- NOTSYMBOLS[NOTSYMBOLS != ""]
+
+sum(NOTSYMBOLSCLEAN %in% hg38ensembl97MartGene$hgnc_symbol)
+
+NOTSYMBOLSIN
+
+
+```
+
+
+
+```{R}
+
+hg38ensembl98Mart38ID <- hg38ensembl97MartGene[hg38ensembl97MartGene$ensembl_gene_id %in% hg38ensembl98MartGene$ensembl_gene_id,]
+
+hg38ensembl98Mart38IDSNOT <- hg38ensembl97MartGene[!hg38ensembl97MartGene$ensembl_gene_id %in% hg38ensembl98MartGene$ensembl_gene_id,]
+
+
+
+
+
+
+
+
+```
+
+
+

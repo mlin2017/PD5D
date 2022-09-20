@@ -1,0 +1,187 @@
+---
+title: "Testing Alternate Method of Subsetting Cell Types for Subclustering"
+output: html_document
+---
+
+```{R, message=FALSE}
+library(Seurat)
+library(cowplot)
+library(ggplot2)
+library(ggsci)
+library(dplyr)
+library(psych)
+library(pheatmap)
+library(harmony)
+#library(clusterProfiler)
+#library(org.Hs.eg.db)
+library(DOSE)
+library(GOSemSim)
+library(enrichplot)
+library(glmpca)
+library(SeuratWrappers)
+library(stringr)
+library(MAST)
+```
+
+
+```{R}
+
+SeuratObject <- readRDS("Files/GLMPCA_Batch7_MTG_Unassigned.rds")
+
+
+SeuratObject <- RenameIdents(SeuratObject, `1` = "GLU Neurons 1", `2` = "GLU Neurons 2", `3` = "GLU Neurons 3", `4` = "Oligodendrocytes", `5` = "GABA Neurons 1", `6` = "GABA Neurons 2", `7` = "GLU Neurons 4", `8` = "GLU Neurons 5",`9` = "GLU Neurons 6",`10` = "Astrocytes", `11` = "Microglia",`12` = "GLU Neurons 7",`13` = "GLU Neurons 8",`14` = "Endothelial Cells",`15` = "OPCs", `16`="GABA Neurons 3", `17`="GLU Neurons 9", `18`="GLU Neurons 10", `19`="GABA Neurons 4", `20`="GLU Neurons 11", `21` = "GLU Neurons 12", `22` = "GLU Neurons 13", `23`="GLU Neurons 14", `24` = "GABA Neurons 5", `25` = "GLU Neurons 15")
+
+SeuratObject@meta.data$MajorCellTypes <- Idents(SeuratObject)
+
+```
+
+
+
+```{R}
+
+SeuratObjectMicroglia <- subset(SeuratObject, subset = MajorCellTypes == "Microglia")
+
+set <- SeuratObjectMicroglia@assays$RNA@var.features
+
+SeuratObjectMicroglia <- FindVariableFeatures(SeuratObjectMicroglia, selection.method = "vst", nfeatures = 2000)
+
+set2 <- SeuratObjectMicroglia@assays$RNA@var.features
+```
+
+
+```{R}
+
+all.genes <- rownames(SeuratObjectMicroglia)
+
+SeuratObjectMicroglia <- ScaleData(SeuratObjectMicroglia, features = all.genes, verbose = FALSE)
+
+SeuratObjectMicroglia <- RunGLMPCA(SeuratObjectMicroglia, features=SeuratObjectMicroglia@assays$RNA@var.features, L = 30)
+
+SeuratObjectMicroglia <- RunHarmony(SeuratObjectMicroglia, group.by.vars = c("sample_ID"), plot_convergence = TRUE, reduction = "glmpca", theta = c(1))
+
+
+
+```
+
+
+```{R}
+
+ElbowPlot(SeuratObjectMicroglia, reduction = "harmony",ndims = 30)
+
+```
+
+
+
+```{R}
+SeuratObjectMicroglia <- FindNeighbors(SeuratObjectMicroglia, reduction = "harmony", dims = 1:27)
+SeuratObjectMicroglia <- FindClusters(SeuratObjectMicroglia, algorithm = 4)
+```
+
+
+```{r}
+SeuratObjectMicroglia <- RunUMAP(SeuratObjectMicroglia, reduction = "harmony", dims = 1:27)
+```
+
+
+```{r}
+DimPlot(SeuratObjectMicroglia, reduction = "umap", label = TRUE,pt.size = 0.1)
+```
+
+```{R}
+
+DimPlot(SeuratObjectMicroglia, reduction = "umap", label = TRUE,pt.size = 0.1, split.by = "case")
+
+
+
+
+
+```
+
+
+```{R}
+
+ClusterFrame <- as.data.frame(table(Idents(SeuratObjectMicroglia), SeuratObjectMicroglia$case))
+
+
+
+```
+
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, features = "NCAM1")
+
+```
+
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, features = "NCAM2")
+
+```
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, features = "DLG1")
+
+```
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, features = "DLG2")
+
+```
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, features = "PLP1")
+
+```
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, features = "MBP")
+
+```
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, features = "ITGA5")
+
+```
+
+```{R}
+
+VlnPlot(SeuratObjectMicroglia, features = "CD14")
+
+```
+
+
+```{R}
+
+library(dplyr)
+
+test <- group_by(ClusterFrame,Var2) %>% mutate(percentcluster=(Freq/sum(Freq))*100)
+
+
+```
+
+
+
+```{R}
+
+FAM <- FindAllMarkers(SeuratObjectMicroglia, test.use = "MAST")
+
+
+FAMcluster4 <- FAM[FAM$cluster == 4,]
+
+FAMcluster1 <- FAM[FAM$cluster == 1,]
+
+
+```
+
+
+
+
+
+
