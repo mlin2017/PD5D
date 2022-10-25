@@ -1,0 +1,212 @@
+Attaching SeuratObject
+Attaching sp
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘psych’
+
+The following objects are masked from ‘package:ggplot2’:
+
+    %+%, alpha
+
+Loading required package: Rcpp
+
+DOSE v3.18.0  For help: https://guangchuangyu.github.io/software/DOSE
+
+If you use DOSE in published research, please cite:
+Guangchuang Yu, Li-Gen Wang, Guang-Rong Yan, Qing-Yu He. DOSE: an R/Bioconductor package for Disease Ontology Semantic and Enrichment analysis. Bioinformatics 2015, 31(4):608-609
+
+GOSemSim v2.18.0  For help: https://guangchuangyu.github.io/GOSemSim
+
+If you use GOSemSim in published research, please cite:
+[36m-[39m Guangchuang Yu. Gene Ontology Semantic Similarity Analysis Using GOSemSim. In: Kidder B. (eds) Stem Cell Transcriptional Networks. Methods in Molecular Biology, 2020, 2117:207-215. Humana, New York, NY. doi:10.1007/978-1-0716-0301-7_11
+[36m-[39m Guangchuang Yu, Fei Li, Yide Qin, Xiaochen Bo, Yibo Wu, Shengqi Wang. GOSemSim: an R package for measuring semantic similarity among GO terms and gene products Bioinformatics 2010, 26(7):976-978. doi:10.1093/bioinformatics/btq064
+
+
+
+Attaching package: ‘GOSemSim’
+
+The following objects are masked from ‘package:DOSE’:
+
+    clusterSim, geneSim, mclusterSim
+
+Computing nearest neighbor graph
+Computing SNN
+734 singletons identified. 36 final clusters.
+Warning: The default method for RunUMAP has changed from calling Python UMAP via reticulate to the R-native UWOT using the cosine metric
+To use Python UMAP via reticulate, set umap.method to 'umap-learn' and metric to 'correlation'
+This message will be shown once per session
+12:57:11 UMAP embedding parameters a = 0.9922 b = 1.112
+12:57:11 Read 208646 rows and found 40 numeric columns
+12:57:11 Using Annoy for neighbor search, n_neighbors = 30
+12:57:11 Building Annoy index with metric = cosine, n_trees = 50
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+12:57:50 Writing NN index file to temp file /tmp/RtmpZwq6vl/file7ef1b697b20
+12:57:50 Searching Annoy index using 1 thread, search_k = 3000
+12:59:46 Annoy recall = 100%
+13:00:17 Commencing smooth kNN distance calibration using 1 thread
+13:00:38 Initializing from normalized Laplacian + noise
+13:01:24 Commencing optimization for 200 epochs, with 10462758 positive edges
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+13:06:50 Optimization finished
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Warning message:
+ggrepel: 2 unlabeled data points (too many overlaps). Consider increasing max.overlaps 
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Warning messages:
+1: ggrepel: 5 unlabeled data points (too many overlaps). Consider increasing max.overlaps 
+2: ggrepel: 2 unlabeled data points (too many overlaps). Consider increasing max.overlaps 
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Warning message:
+ggrepel: 6 unlabeled data points (too many overlaps). Consider increasing max.overlaps 
+Using ident as id variables
+`summarise()` has grouped output by 'ident'. You can override using the
+`.groups` argument.
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`
+Rasterizing points since number of points exceeds 100,000.
+To disable this behavior set `raster=FALSE`

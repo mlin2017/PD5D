@@ -1,0 +1,106 @@
+Attaching SeuratObject
+Attaching sp
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+
+Attaching package: ‘psych’
+
+The following objects are masked from ‘package:ggplot2’:
+
+    %+%, alpha
+
+Loading required package: Rcpp
+
+DOSE v3.18.0  For help: https://guangchuangyu.github.io/software/DOSE
+
+If you use DOSE in published research, please cite:
+Guangchuang Yu, Li-Gen Wang, Guang-Rong Yan, Qing-Yu He. DOSE: an R/Bioconductor package for Disease Ontology Semantic and Enrichment analysis. Bioinformatics 2015, 31(4):608-609
+
+GOSemSim v2.18.0  For help: https://guangchuangyu.github.io/GOSemSim
+
+If you use GOSemSim in published research, please cite:
+[36m-[39m Guangchuang Yu. Gene Ontology Semantic Similarity Analysis Using GOSemSim. In: Kidder B. (eds) Stem Cell Transcriptional Networks. Methods in Molecular Biology, 2020, 2117:207-215. Humana, New York, NY. doi:10.1007/978-1-0716-0301-7_11
+[36m-[39m Guangchuang Yu, Fei Li, Yide Qin, Xiaochen Bo, Yibo Wu, Shengqi Wang. GOSemSim: an R package for measuring semantic similarity among GO terms and gene products Bioinformatics 2010, 26(7):976-978. doi:10.1093/bioinformatics/btq064
+
+
+
+Attaching package: ‘GOSemSim’
+
+The following objects are masked from ‘package:DOSE’:
+
+    clusterSim, geneSim, mclusterSim
+
+Performing log-normalization
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Calculating gene variances
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Calculating feature variances of standardized and clipped values
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Sparse matrices are not supported for minibatch='none'. Coercing to dense matrix. If this exhausts memory, consider setting minibatch to 'stochastic' or 'memoized'.
+Harmony 1/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Harmony 2/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Harmony 3/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Harmony 4/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Harmony 5/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Harmony 6/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Harmony 7/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Harmony 8/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Harmony 9/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Harmony 10/10
+0%   10   20   30   40   50   60   70   80   90   100%
+[----|----|----|----|----|----|----|----|----|----|
+**************************************************|
+Warning: Invalid name supplied, making object name syntactically valid. New object name is Seurat..ProjectDim.RNA.harmony; see ?make.names for more details on syntax validity
+Warning messages:
+1: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
+2: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
+3: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
+4: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
+5: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
+6: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
+7: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
+8: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
+9: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
+10: Quick-TRANSfer stage steps exceeded maximum (= 10432300) 
